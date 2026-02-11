@@ -86,7 +86,7 @@ st.markdown("""
         
         /* 6. 탭(Tab) 디자인 */
         .stTabs [data-baseweb="tab-list"] {
-            gap: 0px;
+            gap: 24px;
             background-color: white;
             padding: 0 10px;
             border-bottom: 1px solid #ddd;
@@ -662,4 +662,5 @@ elif menu == "🛠️ 옵션 관리":
                 sheet_opt.update([edited_df.columns.values.tolist()] + edited_df.values.tolist())
                 st.success("저장됨!")
     else: st.info("'옵션관리' 시트가 없습니다.")
+
 
