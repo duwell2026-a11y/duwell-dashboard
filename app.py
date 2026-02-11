@@ -19,13 +19,103 @@ import google.generativeai as genai
 import io
 
 # --------------------------------------------------------------------------
-# 🚨 [스마트 설정 구역] - 웹/로컬 자동 감지 (수정 금지)
+# 1. 페이지 및 디자인 설정 (네이버 스마트스토어 테마)
 # --------------------------------------------------------------------------
 
-# 페이지 설정 (가장 먼저 실행되어야 함)
-st.set_page_config(page_title="DUWELL 통합 관제센터", layout="wide", page_icon="🍷")
+st.set_page_config(page_title="DUWELL 판매자센터", layout="wide", page_icon="🛍️")
 
-# 1. 내 컴퓨터(로컬)에 키 파일이 있는지 확인
+# 🎨 [디자인 커스텀] 스마트스토어 판매자센터 스타일
+st.markdown("""
+    <style>
+        /* 1. 폰트 및 기본 배경 */
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        html, body, [class*="css"] {
+            font-family: 'Pretendard', sans-serif;
+        }
+        .stApp {
+            background-color: #F5F6F8; /* 연한 회색 배경 */
+        }
+        
+        /* 2. 사이드바 (네이버 스타일 다크 그레이) */
+        [data-testid="stSidebar"] {
+            background-color: #30343B;
+        }
+        [data-testid="stSidebar"] * {
+            color: #FFFFFF !important;
+        }
+        
+        /* 3. 헤더 숨김 */
+        header[data-testid="stHeader"] {
+            background-color: transparent;
+        }
+
+        /* 4. 숫자판(Metric) 디자인: 깔끔한 흰색 카드 + 초록색 숫자 */
+        [data-testid="stMetric"] {
+            background-color: #FFFFFF;
+            padding: 20px;
+            border-radius: 0px; /* 네이버는 각진 스타일 */
+            border: 1px solid #DEE2E6;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        [data-testid="stMetricLabel"] {
+            font-size: 14px !important;
+            color: #767676 !important;
+        }
+        [data-testid="stMetricValue"] {
+            font-size: 28px !important;
+            color: #03C75A !important; /* 네이버 그린 */
+            font-weight: 700;
+        }
+
+        /* 5. 버튼 디자인 (네이버 그린) */
+        div.stButton > button {
+            background-color: #03C75A;
+            color: white;
+            border-radius: 2px;
+            border: 1px solid #02b351;
+            padding: 10px 20px;
+            font-weight: 600;
+            font-size: 14px;
+            width: 100%;
+        }
+        div.stButton > button:hover {
+            background-color: #00b34e;
+            color: white;
+            border-color: #00b34e;
+        }
+        
+        /* 6. 탭(Tab) 디자인 */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 0px;
+            background-color: white;
+            padding: 0 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .stTabs [data-baseweb="tab"] {
+            height: 50px;
+            border-radius: 0;
+            border: none;
+            color: #666;
+            font-weight: normal;
+        }
+        .stTabs [aria-selected="true"] {
+            color: #03C75A !important;
+            border-bottom: 3px solid #03C75A !important;
+            font-weight: bold;
+        }
+        
+        /* 7. 데이터프레임 (표) 스타일 */
+        [data-testid="stDataFrame"] {
+            background-color: white;
+            border: 1px solid #DEE2E6;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# --------------------------------------------------------------------------
+# 2. 키 파일 및 권한 설정
+# --------------------------------------------------------------------------
+
 local_key_path = r"D:\비서\google_key.json"
 is_local = os.path.exists(local_key_path)
 
