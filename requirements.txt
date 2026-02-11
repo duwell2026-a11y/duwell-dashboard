@@ -1,0 +1,8 @@
+streamlit
+pandas
+gspread
+oauth2client
+requests
+Pillow
+google-generativeai
+streamlit-calendar
