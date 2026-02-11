@@ -16,6 +16,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication 
 from streamlit_calendar import calendar
 import google.generativeai as genai 
+import io
 
 # --------------------------------------------------------------------------
 # 🚨 [스마트 설정 구역] - 웹/로컬 자동 감지 (수정 금지)
@@ -37,8 +38,6 @@ GOOGLE_CREDENTIALS = None
 try:
     if is_local:
         # 🏠 [내 컴퓨터 모드] - D드라이브 파일 사용
-        print("💻 내 컴퓨터(로컬) 환경에서 실행 중입니다.")
-        
         # 사장님 원래 설정값 (로컬용)
         SHEET_ID = "1xqcbuzRzzp4i_Qsy4CKRjIIvGOTthT88bXxxY5RjEjQ"
         GOOGLE_API_KEY = "AIzaSyBBReb6mUNBeIGa2n-GJEt-lUphanHq3jg"
@@ -51,8 +50,6 @@ try:
 
     else:
         # ☁️ [웹 배포 모드] - Streamlit Secrets 사용
-        # Streamlit Cloud에 올리면 자동으로 이 부분이 실행됩니다.
-        
         SHEET_ID = st.secrets["SHEET_ID"]
         GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
         SENDER_EMAIL = st.secrets["SENDER_EMAIL"]
@@ -62,7 +59,6 @@ try:
         if "GOOGLE_JSON_KEY" in st.secrets:
             GOOGLE_CREDENTIALS = json.loads(st.secrets["GOOGLE_JSON_KEY"])
         else:
-            # 예비용 (혹시 json 문자열 방식이 아닐 경우)
             GOOGLE_CREDENTIALS = st.secrets["google_credentials"]
 
     # AI 설정 초기화
@@ -114,10 +110,9 @@ def ask_ai(prompt, images=None):
         return f"🚨 AI 오류 ({get_best_model()}): {str(e)}"
 
 def get_client():
-    """구글 시트 인증 함수 (수정됨)"""
+    """구글 시트 인증 함수"""
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
     try:
-        # 파일 경로가 아니라, 위에서 로드한 딕셔너리(GOOGLE_CREDENTIALS)를 직접 사용
         if GOOGLE_CREDENTIALS:
             creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDENTIALS, scope)
             return gspread.authorize(creds)
@@ -245,7 +240,8 @@ with st.sidebar:
     st.markdown("<h1 style='color:#800020;'>🍷 DUWELL</h1>", unsafe_allow_html=True)
     if st.button("🔄 데이터 새로고침", type="primary"):
         st.rerun()
-    menu = st.radio("메뉴 이동", ["🏠 통합 모니터링", "🏭 공장 발주", "📢 마케팅 센터", "🎨 디자인 시안실", "📅 일정 관리", "📋 주문 장부", "🛠️ 옵션 관리"])
+    # 메뉴 구성
+    menu = st.radio("메뉴 이동", ["🏠 통합 모니터링", "📦 주문 일괄 등록", "🏭 공장 발주", "📢 마케팅 센터", "🎨 디자인 시안실", "📅 일정 관리", "📋 주문 장부", "🛠️ 옵션 관리"])
 
 st.markdown(f"<h2 style='color:#333;'>{menu}</h2>", unsafe_allow_html=True)
 st.divider()
@@ -304,7 +300,48 @@ if menu == "🏠 통합 모니터링":
             st.dataframe(df_all[cols].head(5), hide_index=True, use_container_width=True)
         else: st.info("주문 없음")
 
-# === [2] 🏭 공장 발주 ===
+# === [2] 📦 주문 일괄 등록 (스마트스토어 엑셀) ===
+elif menu == "📦 주문 일괄 등록":
+    st.info("💡 네이버 스마트스토어에서 다운받은 엑셀 파일을 업로드하면 장부에 자동으로 기록됩니다.")
+    
+    uploaded_file = st.file_uploader("네이버 주문 엑셀 파일 업로드 (.xlsx)", type=['xlsx'])
+    
+    if uploaded_file:
+        try:
+            # 1. 엑셀 읽기 (보통 네이버 엑셀은 2행이 헤더)
+            df_new = pd.read_excel(uploaded_file, header=1)
+            
+            # 2. 필요한 컬럼 매핑
+            target_cols = {
+                '상품주문번호': '주문번호', '주문일시': '날짜', '수취인명': '구매자명',
+                '수취인연락처1': '연락처', '배송지': '주소', '상품명': '상품명',
+                '수량': '수량', '총 주문금액': '결제금액', '배송메세지': '요청사항'
+            }
+            valid_cols = {k: v for k, v in target_cols.items() if k in df_new.columns}
+            df_upload = df_new[list(valid_cols.keys())].rename(columns=valid_cols)
+            
+            st.write("🔽 업로드될 데이터 미리보기")
+            st.dataframe(df_upload.head(3))
+            
+            if st.button("💾 구글 시트에 저장하기"):
+                if sheet_main:
+                    rows_to_add = []
+                    for _, row in df_upload.iterrows():
+                        rows_to_add.append([
+                            str(row.get('날짜', '')), str(row.get('구매자명', '')), str(row.get('연락처', '')),
+                            str(row.get('주소', '')), str(row.get('상품명', '')), str(row.get('수량', '1')),
+                            str(row.get('결제금액', '0')), "", "", str(row.get('요청사항', '')), "", "신규(스마트스토어)"
+                        ])
+                    sheet_main.append_rows(rows_to_add)
+                    st.success(f"✅ 총 {len(rows_to_add)}건의 주문이 저장되었습니다!")
+                    time.sleep(2)
+                    st.rerun()
+                else:
+                    st.error("구글 시트 연결 실패")
+        except Exception as e:
+            st.error(f"엑셀 읽기 실패: {e}")
+
+# === [3] 🏭 공장 발주 ===
 elif menu == "🏭 공장 발주":
     if 'mail_body' not in st.session_state: st.session_state['mail_body'] = ""
     c1, c2 = st.columns([1, 1])
@@ -332,52 +369,114 @@ elif menu == "🏭 공장 발주":
                 if ok: st.success(msg)
                 else: st.error(msg)
 
-# === [3] 📢 마케팅 센터 ===
+# === [4] 📢 마케팅 센터 (리뷰 엑셀 기능 추가) ===
 elif menu == "📢 마케팅 센터":
     st.info("💡 AI 마케팅/기획 올인원")
-    t1, t2, t3, t4, t5 = st.tabs(["✍️ 카피라이팅", "💡 네이밍", "📅 프로모션", "🆘 CS/후기", "💎 VIP 분석"])
+    # 🚨 여기에 '리뷰 엑셀' 탭을 새로 추가했습니다.
+    t1, t2, t3, t4, t5, t6, t7 = st.tabs(["📂 리뷰 엑셀 일괄 답글", "💬 리뷰 건별 답글", "✍️ 카피라이팅", "💡 네이밍", "📅 프로모션", "🆘 CS/후기", "💎 VIP 분석"])
     
+    # 🆕 [신규] 리뷰 엑셀 일괄 처리
     with t1:
-        st.subheader("✍️ SNS 홍보 문구 작성")
-        col1, col2 = st.columns(2)
-        with col1:
-            product = st.text_input("상품명")
-            target = st.text_input("타겟 고객 (예: 20대 여성)")
-        with col2:
-            channel = st.selectbox("업로드 채널", ["인스타그램", "블로그", "스마트스토어 상세페이지"])
-            tone = st.selectbox("말투", ["감성적인", "전문적인", "유머러스한"])
-        if st.button("✨ 문구 생성"):
-            st.write(ask_ai(f"상품: {product}, 타겟: {target}, 채널: {channel}, 말투: {tone}. 마케팅 문구 작성해줘."))
+        st.subheader("📂 네이버 리뷰 엑셀 일괄 처리")
+        st.write("네이버 스마트스토어에서 다운받은 리뷰 엑셀 파일을 업로드하세요.")
+        st.write("AI가 평점과 내용을 분석해 '사장님 말투'로 답글을 달아드립니다.")
+        
+        uploaded_review = st.file_uploader("리뷰 엑셀 파일 (.xlsx)", type=['xlsx'], key="review_xls")
+        
+        if uploaded_review:
+            try:
+                df_rev = pd.read_excel(uploaded_review, header=1) # 네이버 양식
+                
+                # 네이버 리뷰 엑셀에서 '리뷰내용'과 '평점' 컬럼 찾기 (이름이 다를 수 있어 유연하게)
+                content_col = next((c for c in df_rev.columns if '리뷰' in c or '내용' in c), None)
+                score_col = next((c for c in df_rev.columns if '평점' in c or '점수' in c), None)
+                
+                if content_col and score_col:
+                    st.write("📊 데이터 미리보기 (상위 3개)")
+                    st.dataframe(df_rev[[score_col, content_col]].head(3))
+                    
+                    if st.button("🤖 AI 답글 일괄 생성 시작 (시간이 좀 걸립니다)"):
+                        with st.spinner("AI가 한 땀 한 땀 답글을 작성 중입니다... (리뷰 10개당 약 10초)"):
+                            ai_replies = []
+                            progress_bar = st.progress(0)
+                            total_rows = len(df_rev)
+                            
+                            for idx, row in df_rev.iterrows():
+                                score = row[score_col]
+                                content = str(row[content_col])
+                                
+                                # AI에게 줄 프롬프트 (점수에 따라 태세 전환)
+                                if int(score) >= 4:
+                                    prompt = f"리뷰: {content}. 평점: {score}점. 상황: 수건 쇼핑몰 사장님. 아주 감사하고 기쁜 마음으로 짧고 정중하게 답글 작성."
+                                else:
+                                    prompt = f"리뷰: {content}. 평점: {score}점. 상황: 수건 쇼핑몰 사장님. 불편을 드려 죄송하다는 정중한 사과와 개선 약속을 담은 답글 작성."
+                                
+                                # AI 호출
+                                reply = ask_ai(prompt)
+                                ai_replies.append(reply)
+                                progress_bar.progress((idx + 1) / total_rows)
+                            
+                            df_rev['AI_자동답글'] = ai_replies
+                            st.success("🎉 모든 답글 생성이 완료되었습니다!")
+                            
+                            # 엑셀 다운로드
+                            buffer = io.BytesIO()
+                            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                                df_rev.to_excel(writer, index=False, sheet_name='AI답글포함')
+                            
+                            st.download_button(
+                                label="📥 답글 포함된 엑셀 다운로드",
+                                data=buffer.getvalue(),
+                                file_name="리뷰답글완료.xlsx",
+                                mime="application/vnd.ms-excel"
+                            )
+                else:
+                    st.error("엑셀에서 '리뷰내용'이나 '평점' 컬럼을 찾을 수 없습니다.")
+            except Exception as e:
+                st.error(f"엑셀 처리 중 오류: {e}")
 
     with t2:
-        st.subheader("💡 브랜드/상품 네이밍")
-        desc = st.text_area("제품 특징/컨셉")
-        if st.button("이름 추천받기"):
-            st.write(ask_ai(f"제품 특징: {desc}. 기억에 남는 브랜드 네임 5개 추천해주고 이유도 설명해줘."))
+        st.subheader("💬 AI 리뷰 건별 답글")
+        st.info("리뷰를 하나씩 복사해서 넣으면 답글을 추천해줍니다.")
+        rv_text = st.text_area("리뷰 내용", height=100)
+        rv_mood = st.selectbox("답글 분위기", ["🥰 감동/친절", "😎 전문적/깔끔", "😭 정중한 사과"])
+        if st.button("🤖 답글 추천"):
+            if rv_text:
+                st.write(ask_ai(f"리뷰: {rv_text}. 분위기: {rv_mood}. 답글 3개 추천해줘."))
 
     with t3:
-        st.subheader("📅 프로모션 기획")
-        goal = st.text_input("행사 목표 (예: 재고 소진)")
-        if st.button("기획안 받기"):
-            st.write(ask_ai(f"목표: {goal}. 실행 가능한 프로모션 아이디어와 기획안 3가지 제안해줘."))
-            
+        st.subheader("✍️ SNS 홍보 문구")
+        p_name = st.text_input("상품명", key="p_name")
+        p_target = st.text_input("타겟", key="p_target")
+        if st.button("✨ 문구 생성", key="btn_copy"):
+            st.write(ask_ai(f"상품: {p_name}, 타겟: {p_target}. 인스타 홍보 문구 작성."))
+
     with t4:
-        st.subheader("🆘 고객 후기/문의 분석")
-        review_txt = st.text_area("고객의 글 붙여넣기")
-        if st.button("답변 생성"):
-            st.write(ask_ai(f"이 글을 분석하고 정중한 답변 작성해줘: {review_txt}"))
-            
+        st.subheader("💡 브랜드 네이밍")
+        n_desc = st.text_area("특징", key="n_desc")
+        if st.button("이름 추천", key="btn_name"):
+            st.write(ask_ai(f"특징: {n_desc}. 브랜드 네임 5개 추천."))
+
     with t5:
+        st.subheader("📅 프로모션 기획")
+        pr_goal = st.text_input("목표", key="pr_goal")
+        if st.button("기획안", key="btn_promo"):
+            st.write(ask_ai(f"목표: {pr_goal}. 프로모션 아이디어 제안."))
+            
+    with t6:
+        st.subheader("🆘 고객 CS 분석")
+        cs_txt = st.text_area("문의 내용", key="cs_txt")
+        if st.button("답변 생성", key="btn_cs"):
+            st.write(ask_ai(f"문의: {cs_txt}. 정중한 답변 작성."))
+            
+    with t7:
         st.subheader("💎 VIP 고객 분석")
-        if not df_all.empty:
+        if not df_all.empty and '구매자명' in df_all.columns:
             df_vip = df_all.copy()
             df_vip['금액_숫자'] = pd.to_numeric(df_vip['결제금액'].astype(str).str.replace(r'[^\d]', '', regex=True), errors='coerce').fillna(0)
-            if '구매자명' in df_vip.columns:
-                vip_group = df_vip.groupby('구매자명')['금액_숫자'].sum().sort_values(ascending=False).head(10)
-                st.dataframe(vip_group, use_container_width=True)
-            else: st.warning("구매자명 컬럼 없음")
+            st.dataframe(df_vip.groupby('구매자명')['금액_숫자'].sum().sort_values(ascending=False).head(10), use_container_width=True)
 
-# === [4] 🎨 디자인 시안실 ===
+# === [5] 🎨 디자인 시안실 ===
 elif menu == "🎨 디자인 시안실":
     st.subheader("🎨 시안 작업 관리")
     if df_duwell.empty: st.warning("데이터가 없습니다.")
@@ -411,7 +510,7 @@ elif menu == "🎨 디자인 시안실":
             df_done = df_duwell[df_duwell['상태'] == '완료']
             st.dataframe(df_done, use_container_width=True)
 
-# === [5] 📅 일정 관리 ===
+# === [6] 📅 일정 관리 ===
 elif menu == "📅 일정 관리":
     st.subheader("📅 일정 캘린더")
     df_sch, sheet_sch = load_data("일정관리")
@@ -444,7 +543,7 @@ elif menu == "📅 일정 관리":
             calendar(events=events, options={"headerToolbar": {"left": "prev,next today", "center": "title", "right": "dayGridMonth,listMonth"}})
         else: st.write("일정 없음")
 
-# === [6] 📋 주문 장부 ===
+# === [7] 📋 주문 장부 ===
 elif menu == "📋 주문 장부":
     st.subheader("📋 전체 주문 장부")
     if not df_all.empty:
@@ -453,7 +552,7 @@ elif menu == "📋 주문 장부":
         st.download_button("📥 엑셀(CSV)로 다운로드", csv, "order_list.csv", "text/csv")
     else: st.info("데이터가 없습니다.")
 
-# === [7] 🛠️ 옵션 관리 ===
+# === [8] 🛠️ 옵션 관리 ===
 elif menu == "🛠️ 옵션 관리":
     st.subheader("🛠️ 옵션 관리")
     df_opt, sheet_opt = load_data("옵션관리")
