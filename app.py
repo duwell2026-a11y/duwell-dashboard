@@ -534,12 +534,20 @@ elif menu == "📢 마케팅 센터":
             if rv_text:
                 st.write(ask_ai(f"리뷰: {rv_text}. 분위기: {rv_mood}. 답글 3개 추천해줘."))
 
+ # 3. 홍보 문구 (기능 부활!)
     with t3:
-        st.subheader("✍️ SNS 홍보 문구")
-        p_name = st.text_input("상품명", key="p_name")
-        p_target = st.text_input("타겟", key="p_target")
-        if st.button("✨ 문구 생성", key="btn_copy"):
-            st.write(ask_ai(f"상품: {p_name}, 타겟: {p_target}. 인스타 홍보 문구 작성."))
+        st.subheader("SNS 마케팅 카피라이팅")
+        col1, col2 = st.columns(2)
+        with col1:
+            p_name = st.text_input("상품/이벤트명")
+            p_target = st.text_input("타겟 고객 (예: 30대 주부)")
+        with col2:
+            p_channel = st.selectbox("업로드 채널", ["인스타그램", "블로그", "상세페이지", "문자 메시지"])
+            p_tone = st.selectbox("말투 (톤앤매너)", ["감성적인", "유머러스한", "신뢰감 있는", "임팩트 있는"])
+            
+        if st.button("✨ 문구 생성"): 
+            prompt = f"상품:{p_name}, 타겟:{p_target}, 채널:{p_channel}, 말투:{p_tone}. 이에 맞는 매력적인 홍보 문구 3가지를 작성해줘."
+            st.info(ask_ai(prompt))
 
     with t4:
         st.subheader("💡 브랜드 네이밍")
@@ -654,3 +662,4 @@ elif menu == "🛠️ 옵션 관리":
                 sheet_opt.update([edited_df.columns.values.tolist()] + edited_df.values.tolist())
                 st.success("저장됨!")
     else: st.info("'옵션관리' 시트가 없습니다.")
+
