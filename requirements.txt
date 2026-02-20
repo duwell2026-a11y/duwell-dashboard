@@ -2,7 +2,10 @@ streamlit
 pandas
 gspread
 oauth2client
-requests
-Pillow
-google-generativeai
+altair
 streamlit-calendar
+google-generativeai
+openpyxl
+xlsxwriter
+requests
+matplotlib
