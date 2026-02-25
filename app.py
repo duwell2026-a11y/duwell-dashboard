@@ -3,7 +3,7 @@ import streamlit as st
 import altair as alt
 import pandas as pd
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta
 import re
 import time
@@ -148,17 +148,18 @@ except Exception as e:
 # --------------------------------------------------------------------------
 
 def get_client():
-    # 🚨 구글 시트 API v4 최신 주소로 변경
     scope = [
         "https://www.googleapis.com/auth/spreadsheets", 
         "https://www.googleapis.com/auth/drive"
     ]
     try:
         if GOOGLE_CREDENTIALS:
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDENTIALS, scope)
+            # from_json_keyfile_dict 대신 from_service_account_info 사용
+            creds = Credentials.from_service_account_info(GOOGLE_CREDENTIALS, scopes=scope)
             return gspread.authorize(creds)
         return None
-    except Exception as e: return None
+    except Exception as e: 
+        return None
 
 def clean_date_str(date_val):
     s = str(date_val).strip()
@@ -1226,3 +1227,4 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
