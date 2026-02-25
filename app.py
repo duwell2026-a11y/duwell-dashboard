@@ -146,9 +146,12 @@ except Exception as e:
 # 🛠️ 함수 모음
 # --------------------------------------------------------------------------
 
+# ==========================================================
+# [수정] 인증 및 데이터 로드 함수 (캐시 최적화 적용)
+# ==========================================================
 from google.oauth2.service_account import Credentials
 
-# 1. 클라이언트 연결 (세션이 끊기지 않도록 안전하게 자원 캐싱)
+# 1. 클라이언트 연결 (리소스 캐싱)
 @st.cache_resource
 def get_client():
     scopes = [
@@ -161,10 +164,9 @@ def get_client():
             return gspread.authorize(creds)
         return None
     except Exception as e:
-        st.error(f"🔐 구글 인증 오류 발생: {e}")
         return None
 
-# 2. 순수 데이터만 캐싱
+# 2. 순수 데이터만 가져오기 (데이터 캐싱)
 @st.cache_data(ttl=300)
 def fetch_raw_data(sheet_name):
     client = get_client()
@@ -174,35 +176,34 @@ def fetch_raw_data(sheet_name):
         sheet = client.open_by_key(SHEET_ID).worksheet(sheet_name)
         return sheet.get_all_records()
     except Exception as e:
-        st.error(f"❌ '{sheet_name}' 데이터 불러오기 실패: {e}")
         return []
 
-# 3. 데이터 가공 함수 (Syntax Error 해결 및 안정성 강화)
+# 3. 데이터 로드 및 전처리 (통합 함수)
 def load_data(sheet_name):
     client = get_client()
-    if not client: 
-        return pd.DataFrame(), None
+    if not client: return pd.DataFrame(), None
     
-    # 캐시된 데이터 가져오기
-    data = fetch_raw_data(sheet_name)
-    df = pd.DataFrame(data)
-    
-    # 시트 객체는 실시간으로 가져오기
     try:
-        sheet = client.open_by_key(SHEET_ID).worksheet(sheet_name)
-    except Exception:
-        sheet = None
+        # (1) 데이터 가져오기 (캐시 사용)
+        data = fetch_raw_data(sheet_name)
+        df = pd.DataFrame(data)
         
-    if df.empty: 
-        return df, sheet
-    
-    # 데이터 가공 중 발생하는 에러를 잡기 위한 try-except 블록
-    try:
+        # (2) 시트 객체 가져오기 (쓰기 작업용 - 실시간 연결)
+        try:
+            sheet = client.open_by_key(SHEET_ID).worksheet(sheet_name)
+        except:
+            sheet = None
+            
+        if df.empty: return df, sheet
+        
+        # (3) 데이터 전처리 (기존 로직 유지)
         df.columns = [str(c).strip() for c in df.columns]
-        for col in ['날짜', '시작일', '종료일', '주문일시', '주문일']:
-            if col in df.columns: 
-                df[col] = df[col].apply(clean_date_str)
         
+        # 날짜 컬럼 정리
+        for col in ['날짜', '시작일', '종료일', '주문일시', '주문일']:
+            if col in df.columns: df[col] = df[col].apply(clean_date_str)
+        
+        # 컬럼명 통일
         rename_map = {
             '주문일시': '날짜', '주문일': '날짜', '일자': '날짜',
             '금액': '결제금액', '총 주문금액': '결제금액',
@@ -216,21 +217,22 @@ def load_data(sheet_name):
             '포장옵션': '포장옵션', '컬러': '컬러'
         }
         df.rename(columns=rename_map, inplace=True)
+        
+        # 중복 컬럼 제거
         df = df.loc[:, ~df.columns.duplicated()]
         
+        # 필수 컬럼 보장
         required_cols = ['날짜', '구매자명', '연락처', '주소', '상품명', '수량', '결제금액', '요청사항', '디자인파일', '상태', '포장옵션']
         for col in required_cols:
-            if col not in df.columns: 
-                df[col] = "" 
+            if col not in df.columns: df[col] = "" 
         
-        if '주문처' not in df.columns: 
-            df['주문처'] = '🏠 자사몰'
-            
+        # 기본값 설정
+        if '주문처' not in df.columns: df['주문처'] = '🏠 자사몰'
+        
         return df, sheet
-        
+
     except Exception as e:
-        st.error(f"⚠️ 데이터 가공 중 오류: {e}")
-        return pd.DataFrame(), sheet
+        return pd.DataFrame(), None
 
 def update_status_in_sheet(sheet, row_data, new_status="발주완료"):
     try:
@@ -1245,6 +1247,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
