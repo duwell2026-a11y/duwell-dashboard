@@ -146,35 +146,42 @@ except Exception as e:
 # 🛠️ 함수 모음
 # --------------------------------------------------------------------------
 
+# 1. 클라이언트 연결은 리소스 캐싱 (네트워크 연결 유지용)
+@st.cache_resource
 def get_client():
     try:
         if GOOGLE_CREDENTIALS:
-            # gspread 내장 함수 사용 (가장 안정적이고 충돌이 없는 최신 방식)
+            # gspread 내장 함수 사용 (가장 안정적)
             return gspread.service_account_from_dict(GOOGLE_CREDENTIALS)
         return None
     except Exception as e: 
         return None
 
-def clean_date_str(date_val):
-    s = str(date_val).strip()
-    if not s or s == 'None': return None
-    nums = re.findall(r'\d+', s)
-    if len(nums) >= 3:
-        y, m, d = nums[0], nums[1], nums[2]
-        if len(y) == 2: y = "20" + y
-        return f"{y}-{int(m):02d}-{int(d):02d}"
-    return s
+# 2. 순수 데이터만 캐싱 (300초 유지) - 🔥 새로운 함수 추가
+@st.cache_data(ttl=300)
+def fetch_raw_data(sheet_name):
+    client = get_client()
+    if not client: return []
+    try:
+        return client.open_by_key(SHEET_ID).worksheet(sheet_name).get_all_records()
+    except Exception: 
+        return []
 
-@st.cache_data(ttl=300) 
+# 3. 기존 load_data 함수 (🔥 여기서 @st.cache_data를 삭제한 것이 핵심!)
 def load_data(sheet_name):
     client = get_client()
     if not client: return pd.DataFrame(), None
     try:
+        # 시트 객체는 좀비화 방지를 위해 매번 실시간으로 가져옵니다
         sheet = client.open_by_key(SHEET_ID).worksheet(sheet_name)
-        data = sheet.get_all_records()
+        
+        # 데이터는 캐시된 함수에서 0.1초 만에 가져옵니다
+        data = fetch_raw_data(sheet_name)
+        
         df = pd.DataFrame(data)
         if df.empty: return df, sheet
         
+        # --- (이 아래부터는 작성해두신 기존 데이터 가공 로직 그대로 유지) ---
         df.columns = [str(c).strip() for c in df.columns]
         for col in ['날짜', '시작일', '종료일', '주문일시', '주문일']:
             if col in df.columns: df[col] = df[col].apply(clean_date_str)
@@ -192,14 +199,8 @@ def load_data(sheet_name):
             '포장옵션': '포장옵션', '컬러': '컬러'
         }
         df.rename(columns=rename_map, inplace=True)
-        
-        # 컬러가 있으면 상품명에 병합
-        # if '컬러' in df.columns and '상품명' in df.columns:
-          #  df['상품명'] = df.apply(lambda x: f"{x['상품명']} ({x['컬러']})" if pd.notnull(x.get('컬러')) and str(x.get('컬러')).strip() != '' else x['상품명'], axis=1)
-
         df = df.loc[:, ~df.columns.duplicated()]
         
-        # [중요] 필수 컬럼 보장
         required_cols = ['날짜', '구매자명', '연락처', '주소', '상품명', '수량', '결제금액', '요청사항', '디자인파일', '상태', '포장옵션']
         for col in required_cols:
             if col not in df.columns: df[col] = "" 
@@ -1221,5 +1222,6 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
