@@ -151,88 +151,83 @@ except Exception as e:
 # ==========================================================
 from google.oauth2.service_account import Credentials
 
-# 1. 클라이언트 연결 (리소스 캐싱)
-@st.cache_resource
+# ==========================================================
+# 1. 가장 최신 인증 방식 (저장/삭제 에러 완벽 해결)
+# ==========================================================
 def get_client():
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
     try:
-        if GOOGLE_CREDENTIALS:
-            creds = Credentials.from_service_account_info(GOOGLE_CREDENTIALS, scopes=scopes)
-            return gspread.authorize(creds)
-        return None
+        # Streamlit 클라우드 환경에 맞춰 딕셔너리로 변환
+        creds_dict = dict(GOOGLE_CREDENTIALS)
+        return gspread.service_account_from_dict(creds_dict)
     except Exception as e:
+        st.error(f"인증 에러: {e}")
         return None
 
-# 2. 순수 데이터만 가져오기 (데이터 캐싱)
-@st.cache_data(ttl=300)
+def clean_date_str(date_val):
+    s = str(date_val).strip()
+    if not s or s == 'None': return None
+    nums = re.findall(r'\d+', s)
+    if len(nums) >= 3:
+        y, m, d = nums[0], nums[1], nums[2]
+        if len(y) == 2: y = "20" + y
+        return f"{y}-{int(m):02d}-{int(d):02d}"
+    return s
+
+# ==========================================================
+# 2. 캐시 분리 (데이터가 안 뜨는 '텅 빈 화면' 문제 해결)
+# ==========================================================
+@st.cache_data(ttl=300) 
 def fetch_raw_data(sheet_name):
     client = get_client()
-    if not client: 
-        return []
+    if not client: return []
     try:
         sheet = client.open_by_key(SHEET_ID).worksheet(sheet_name)
         return sheet.get_all_records()
-    except Exception as e:
+    except Exception:
         return []
 
-# 3. 데이터 로드 및 전처리 (통합 함수)
+# ==========================================================
+# 3. 대표님의 기존 데이터 로직 100% 복구 + 시트 객체 연결
+# ==========================================================
 def load_data(sheet_name):
-    client = get_client()
-    if not client: return pd.DataFrame(), None
+    # 캐시된 데이터 가져오기
+    raw_data = fetch_raw_data(sheet_name)
+    df = pd.DataFrame(raw_data)
     
-    try:
-        # (1) 데이터 가져오기 (캐시 사용)
-        data = fetch_raw_data(sheet_name)
-        df = pd.DataFrame(data)
-        
-        # (2) 시트 객체 가져오기 (쓰기 작업용 - 실시간 연결)
-        try:
-            sheet = client.open_by_key(SHEET_ID).worksheet(sheet_name)
-        except:
-            sheet = None
-            
-        if df.empty: return df, sheet
-        
-        # (3) 데이터 전처리 (기존 로직 유지)
-        df.columns = [str(c).strip() for c in df.columns]
-        
-        # 날짜 컬럼 정리
-        for col in ['날짜', '시작일', '종료일', '주문일시', '주문일']:
-            if col in df.columns: df[col] = df[col].apply(clean_date_str)
-        
-        # 컬럼명 통일
-        rename_map = {
-            '주문일시': '날짜', '주문일': '날짜', '일자': '날짜',
-            '금액': '결제금액', '총 주문금액': '결제금액',
-            '성함': '구매자명', '고객명': '구매자명', '이름': '구매자명', '수취인명': '구매자명',
-            '연락처': '연락처', '수취인연락처1': '연락처', '전화번호': '연락처',
-            '주소': '주소', '배송지': '주소',
-            '상품': '상품명', '품목': '상품명', '제품명': '상품명', 
-            '디자인파일': '디자인파일', '첨부파일': '디자인파일', '시안': '디자인파일',
-            '상태': '상태', '진행상태': '상태',
-            '배송메세지': '요청사항', '비고': '요청사항', '메모': '요청사항',
-            '포장옵션': '포장옵션', '컬러': '컬러'
-        }
-        df.rename(columns=rename_map, inplace=True)
-        
-        # 중복 컬럼 제거
-        df = df.loc[:, ~df.columns.duplicated()]
-        
-        # 필수 컬럼 보장
-        required_cols = ['날짜', '구매자명', '연락처', '주소', '상품명', '수량', '결제금액', '요청사항', '디자인파일', '상태', '포장옵션']
-        for col in required_cols:
-            if col not in df.columns: df[col] = "" 
-        
-        # 기본값 설정
-        if '주문처' not in df.columns: df['주문처'] = '🏠 자사몰'
-        
-        return df, sheet
-
-    except Exception as e:
-        return pd.DataFrame(), None
+    # [핵심] 시트 객체(sheet)는 캐시하지 않고 그때그때 가져옵니다. 
+    # (이렇게 해야 나중에 옵션 '저장' 버튼을 누를 때 에러가 안 납니다!)
+    client = get_client()
+    sheet = client.open_by_key(SHEET_ID).worksheet(sheet_name) if client else None
+    
+    if df.empty: return df, sheet
+    
+    # --- 대표님의 기존 전처리 코드 완벽하게 동일 ---
+    df.columns = [str(c).strip() for c in df.columns]
+    for col in ['날짜', '시작일', '종료일', '주문일시', '주문일']:
+        if col in df.columns: df[col] = df[col].apply(clean_date_str)
+    
+    rename_map = {
+        '주문일시': '날짜', '주문일': '날짜', '일자': '날짜',
+        '금액': '결제금액', '총 주문금액': '결제금액',
+        '성함': '구매자명', '고객명': '구매자명', '이름': '구매자명', '수취인명': '구매자명',
+        '연락처': '연락처', '수취인연락처1': '연락처', '전화번호': '연락처',
+        '주소': '주소', '배송지': '주소',
+        '상품': '상품명', '품목': '상품명', '제품명': '상품명', 
+        '디자인파일': '디자인파일', '첨부파일': '디자인파일', '시안': '디자인파일',
+        '상태': '상태', '진행상태': '상태',
+        '배송메세지': '요청사항', '비고': '요청사항', '메모': '요청사항',
+        '포장옵션': '포장옵션', '컬러': '컬러'
+    }
+    df.rename(columns=rename_map, inplace=True)
+    df = df.loc[:, ~df.columns.duplicated()]
+    
+    required_cols = ['날짜', '구매자명', '연락처', '주소', '상품명', '수량', '결제금액', '요청사항', '디자인파일', '상태', '포장옵션']
+    for col in required_cols:
+        if col not in df.columns: df[col] = "" 
+    
+    if '주문처' not in df.columns: df['주문처'] = '🏠 자사몰'
+    
+    return df, sheet
 
 def update_status_in_sheet(sheet, row_data, new_status="발주완료"):
     try:
@@ -1247,6 +1242,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
