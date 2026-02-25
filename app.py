@@ -148,7 +148,11 @@ except Exception as e:
 # --------------------------------------------------------------------------
 
 def get_client():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    # 🚨 구글 시트 API v4 최신 주소로 변경
+    scope = [
+        "https://www.googleapis.com/auth/spreadsheets", 
+        "https://www.googleapis.com/auth/drive"
+    ]
     try:
         if GOOGLE_CREDENTIALS:
             creds = ServiceAccountCredentials.from_json_keyfile_dict(GOOGLE_CREDENTIALS, scope)
@@ -1009,7 +1013,7 @@ elif menu == "🛠️ 재고 입출고 관리":
                             sheet_stock.update_cell(cell.row, col_idx, final_qty)
                             st.success(f"✅ {target_prod}: {final_qty}개로 변경됨"); time.sleep(1); st.rerun()
 
-# === [5] 🛠️ 옵션 관리 (기존 유지) ===
+# === [5] 🛠️ 옵션 관리 ===
 elif menu == "🛠️ 옵션 관리":
     st.subheader("🛠️ 옵션 및 통합 상품명 관리")
     df_opt, sheet_opt = load_data("옵션관리")
@@ -1017,7 +1021,11 @@ elif menu == "🛠️ 옵션 관리":
         edited_df = st.data_editor(df_opt, num_rows="dynamic", use_container_width=True)
         if st.button("💾 저장"):
             sheet_opt.clear()
-            sheet_opt.update([edited_df.columns.values.tolist()] + edited_df.values.tolist())
+            
+            # 최신 gspread 버전에 맞춘 업데이트 문법 (A1 셀부터 데이터 채우기)
+            new_data = [edited_df.columns.values.tolist()] + edited_df.values.tolist()
+            sheet_opt.update(values=new_data, range_name="A1")
+            
             st.success("저장됨"); st.rerun()
 
 # === [6] 📅 일정 관리 (기존 유지) ===
