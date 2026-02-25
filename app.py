@@ -17,6 +17,7 @@ from streamlit_calendar import calendar
 import google.generativeai as genai 
 import streamlit.components.v1 as components 
 import io
+from google.oauth2.service_account import Credentials
 
 # --------------------------------------------------------------------------
 # 1. 페이지 및 홈페이지(웹사이트) 스타일 상단 메뉴 UI 설정
@@ -1236,6 +1237,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
