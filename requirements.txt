@@ -1,11 +1,11 @@
 streamlit
-pandas
-gspread
-oauth2client
 altair
+pandas
+gspread>=6.1.0
+google-auth>=2.30.0
+Pillow
 streamlit-calendar
 google-generativeai
+XlsxWriter
 openpyxl
-xlsxwriter
-requests
-matplotlib
+
