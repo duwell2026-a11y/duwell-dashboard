@@ -147,44 +147,58 @@ except Exception as e:
 # --------------------------------------------------------------------------
 
 # 1. 클라이언트 연결은 리소스 캐싱 (네트워크 연결 유지용)
+from google.oauth2.service_account import Credentials
+
+# 1. 클라이언트 연결 (세션이 끊기지 않도록 안전하게 자원 캐싱)
 @st.cache_resource
 def get_client():
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
     try:
         if GOOGLE_CREDENTIALS:
-            # gspread 내장 함수 사용 (가장 안정적)
-            return gspread.service_account_from_dict(GOOGLE_CREDENTIALS)
+            creds = Credentials.from_service_account_info(GOOGLE_CREDENTIALS, scopes=scopes)
+            return gspread.authorize(creds)
         return None
-    except Exception as e: 
+    except Exception as e:
+        st.error(f"🔐 구글 인증 오류 발생: {e}")
         return None
 
-# 2. 순수 데이터만 캐싱 (300초 유지) - 🔥 새로운 함수 추가
+# 2. 순수 데이터만 캐싱 (에러를 숨기지 않고 화면에 표시!)
 @st.cache_data(ttl=300)
 def fetch_raw_data(sheet_name):
     client = get_client()
-    if not client: return []
+    if not client: 
+        return []
     try:
-        return client.open_by_key(SHEET_ID).worksheet(sheet_name).get_all_records()
-    except Exception: 
+        sheet = client.open_by_key(SHEET_ID).worksheet(sheet_name)
+        return sheet.get_all_records()
+    except Exception as e:
+        st.error(f"❌ '{sheet_name}' 데이터 불러오기 실패: {e}")
         return []
 
-# 3. 기존 load_data 함수 (🔥 여기서 @st.cache_data를 삭제한 것이 핵심!)
+# 3. 기존 load_data 함수
 def load_data(sheet_name):
     client = get_client()
     if not client: return pd.DataFrame(), None
+    
+    # 캐시된 데이터 가져오기
+    data = fetch_raw_data(sheet_name)
+    df = pd.DataFrame(data)
+    
+    # 시트 조종 객체는 실시간으로 가져오기 (좀비화 방지)
     try:
-        # 시트 객체는 좀비화 방지를 위해 매번 실시간으로 가져옵니다
         sheet = client.open_by_key(SHEET_ID).worksheet(sheet_name)
+    except:
+        sheet = None
         
-        # 데이터는 캐시된 함수에서 0.1초 만에 가져옵니다
-        data = fetch_raw_data(sheet_name)
-        
-        df = pd.DataFrame(data)
-        if df.empty: return df, sheet
-        
-        # --- (이 아래부터는 작성해두신 기존 데이터 가공 로직 그대로 유지) ---
-        df.columns = [str(c).strip() for c in df.columns]
-        for col in ['날짜', '시작일', '종료일', '주문일시', '주문일']:
-            if col in df.columns: df[col] = df[col].apply(clean_date_str)
+    if df.empty: return df, sheet
+    
+    # --- 이 아래부터는 기존 데이터 가공 로직 그대로 유지 ---
+    df.columns = [str(c).strip() for c in df.columns]
+    for col in ['날짜', '시작일', '종료일', '주문일시', '주문일']:
+        if col in df.columns: df[col] = df[col].apply(clean_date_str)
         
         rename_map = {
             '주문일시': '날짜', '주문일': '날짜', '일자': '날짜',
@@ -1222,6 +1236,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
