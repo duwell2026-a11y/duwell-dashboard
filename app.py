@@ -1275,11 +1275,11 @@ elif menu == "💰 마진/정산 분석":
                             if pd.isna(unit_cost): unit_cost = 0
                             break 
             
-            # 🔥 핵심 변경: 배송비 매출과 매입을 분리하여 정밀 계산
+            # 🔥 배송비 매출과 매입을 분리하여 정밀 계산
             expected_item_revenue = unit_price * qty
-            total_revenue = expected_item_revenue + shipping_revenue # 상품가 + 고객이 낸 배송비
-            commission_fee = total_revenue * fee_rate # 수수료는 배송비 포함된 총액에서 뗌
-            total_cost = (unit_cost * qty) + shipping_cost # 상품 원가 + 실제 택배비
+            total_revenue = expected_item_revenue + shipping_revenue
+            commission_fee = total_revenue * fee_rate
+            total_cost = (unit_cost * qty) + shipping_cost
             
             net_profit = total_revenue - commission_fee - total_cost
             margin_rate = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
@@ -1334,10 +1334,9 @@ elif menu == "💰 마진/정산 분석":
             ).properties(height=300)
             st.altair_chart(bar_monthly_profit, use_container_width=True)
 
-with tab_cal:
+        with tab_cal:
             st.markdown("### 📆 캘린더 뷰 (일별 매출 & 순이익)")
             
-            # 1. 달력 기본 설정(뼈대)은 무조건 준비합니다.
             cal_options = {
                 "headerToolbar": {
                     "left": "prev,next today",
@@ -1348,8 +1347,6 @@ with tab_cal:
             }
             
             events = []
-            
-            # 2. 날짜 데이터가 있는지 확인하고, 있으면 캘린더에 붙일 딱지(이벤트)를 만듭니다.
             valid_dates = df_calc[df_calc['날짜_str'].astype(bool) & (df_calc['날짜_str'] != 'nan') & (df_calc['날짜_str'] != '')]
             
             if not valid_dates.empty:
@@ -1363,13 +1360,11 @@ with tab_cal:
                     events.append({"title": f"매출: {row['매출액']:,.0f}", "start": d_str, "color": "#555555"})
                     events.append({"title": f"이익: {row['순이익']:,.0f}", "start": d_str, "color": "#800020"})
             
-            # 3. 데이터 유무와 상관없이 달력은 무조건 화면에 띄웁니다!
             calendar(events=events, options=cal_options)
             
-            # 이벤트가 없을 때만 살짝 안내 문구를 달아줍니다.
             if not events:
                 st.info("💡 아직 발생한 매출 데이터가 없습니다. 빈 달력입니다.")
-                    
+
         with tab_detail:
             st.markdown("### 📜 주문건별 상세 내역")
             display_cols = ['날짜_str', '구매자명', '상품명', '수량', '예상결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']
