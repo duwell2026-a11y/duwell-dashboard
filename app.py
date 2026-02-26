@@ -398,6 +398,50 @@ def deduct_stock_smart(product_name, qty, df_opt, sheet_stock):
     except Exception as e:
         return False, f"❌ 재고 차감 중 에러 발생: {str(e)}"
 
+def add_stock_smart(product_name, qty, df_opt, sheet_stock):
+    """취소/반품 시 빠졌던 재고를 다시 더해주는(+) 마법의 함수"""
+    try:
+        if df_opt.empty or not sheet_stock:
+            return False, "⚠️ 옵션 설정 또는 재고 시트 로드 실패"
+
+        product_name = str(product_name).strip()
+        target_std_name = None
+        
+        match_candidates = []
+        for _, opt in df_opt.iterrows():
+            std_name = str(opt.get('상품명', '')).strip()
+            mapping_str = str(opt.get('매핑명', '')).strip()
+            keywords = [k.strip() for k in mapping_str.split(',') if k.strip()]
+            
+            for kw in keywords:
+                if kw in product_name:
+                    match_candidates.append((len(kw), std_name))
+        
+        if match_candidates:
+            match_candidates.sort(key=lambda x: x[0], reverse=True)
+            target_std_name = match_candidates[0][1]
+        else:
+            target_std_name = product_name
+
+        stock_records = sheet_stock.get_all_records()
+        for idx, s_item in enumerate(stock_records):
+            if str(s_item.get('상품명')).strip() == target_std_name:
+                try:
+                    current_qty = int(pd.to_numeric(s_item.get('현재재고', 0), errors='coerce'))
+                except:
+                    current_qty = 0
+                
+                # 🔥 여기서 재고를 다시 더해줍니다!
+                new_qty = current_qty + int(qty)
+                
+                sheet_stock.update_cell(idx + 2, 2, new_qty)
+                return True, f"✅ '{target_std_name}' {qty}개 복구 완료 (잔여: {new_qty})"
+        
+        return False, f"⚠️ '{target_std_name}' 상품을 재고 목록에서 찾을 수 없습니다."
+
+    except Exception as e:
+        return False, f"❌ 재고 복구 중 에러 발생: {str(e)}"
+
 def check_stock_and_alert(df_stock):
     df_stock['현재재고'] = pd.to_numeric(df_stock['현재재고'], errors='coerce').fillna(0)
     df_stock['안전재고'] = pd.to_numeric(df_stock['안전재고'], errors='coerce').fillna(0)
@@ -818,10 +862,64 @@ elif menu == "📦 주문/생산 통합 관리":
                             if st.button("✅ 시안 확정 (완료 처리)", key=f"btn_sian_{i}"):
                                 success, msg = update_status_in_sheet(sheet_main, r, "완료")
                                 if success: st.success(msg); time.sleep(1); st.rerun()
-        with c_tab2:
+with c_tab2:
+            st.markdown("#### 📋 전체 주문 장부 및 취소/반품 처리")
             st.dataframe(df_all, use_container_width=True)
             csv = df_all.to_csv(index=False).encode('utf-8-sig')
             st.download_button("📥 장부 엑셀 다운로드", csv, "order_list.csv", "text/csv")
+            
+            st.divider()
+            st.markdown("##### 🔙 주문 취소 및 반품 (재고 자동 복구)")
+            with st.form("cancel_return_form"):
+                cr_col1, cr_col2 = st.columns(2)
+                with cr_col1:
+                    search_buyer = st.text_input("취소/반품 처리할 구매자명 입력 (정확히 입력)")
+                with cr_col2:
+                    cr_status = st.selectbox("변경할 상태", ["취소", "반품", "교환"])
+                
+                if st.form_submit_button("상태 변경 및 재고 복구", type="primary"):
+                    if not search_buyer:
+                        st.warning("구매자명을 입력해주세요.")
+                    else:
+                        # 구매자명으로 주문 찾기
+                        target_orders = df_all[df_all['구매자명'].astype(str) == search_buyer]
+                        if target_orders.empty:
+                            st.error("해당 구매자의 주문을 찾을 수 없습니다.")
+                        else:
+                            # 동일한 이름이 있다면 가장 최신 주문 1건을 처리
+                            target_row = target_orders.iloc[0] 
+                            
+                            # 1. 상태를 '취소'나 '반품'으로 엑셀(시트)에 업데이트
+                            success, msg = update_status_in_sheet(sheet_main, target_row, cr_status)
+                            
+                            if success:
+                                # 2. 재고 복구 (교환은 새 제품이 나가므로 복구 안 함)
+                                if cr_status in ["취소", "반품"]:
+                                    df_opt, _ = load_data("옵션관리")
+                                    _, sheet_stock = load_data("재고관리")
+                                    
+                                    # 에러 방지용 수량 숫자 변환
+                                    try:
+                                        qty_to_restore = int(pd.to_numeric(target_row.get('수량', 1), errors='coerce'))
+                                    except:
+                                        qty_to_restore = 1
+                                        
+                                    p_name = target_row.get('상품명', '')
+                                    
+                                    # 아까 만든 복구 함수 실행!
+                                    ok, stock_msg = add_stock_smart(p_name, qty_to_restore, df_opt, sheet_stock)
+                                    
+                                    # 3. 앞서 만든 블랙박스(작업로그)에도 기록 쫙 남기기
+                                    add_log("주문" + cr_status, f"{search_buyer} 고객 - {p_name} {qty_to_restore}개 재고 복구됨")
+                                    
+                                    st.success(f"{msg} / {stock_msg}")
+                                else:
+                                    st.success(f"{msg} (교환은 재고가 복구되지 않습니다)")
+                                    add_log("주문교환", f"{search_buyer} 고객 주문 상태 교환 변경")
+                                    
+                                time.sleep(2); st.rerun()
+                            else:
+                                st.error(msg)
 
     # 3. 공장 발주 탭
     with op_tab3:
@@ -1309,6 +1407,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
