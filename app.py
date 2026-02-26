@@ -30,7 +30,7 @@ if not st.session_state['logged_in']:
     
     with st.form("login_form"):
         # 두 분 중 누구인지 선택
-        user_choice = st.selectbox("접속자 선택", ["뚜뚜루 (대표)", "아내 (공동대표)"])
+        user_choice = st.selectbox("접속자 선택", ["고은정 (대표)", "두재훈 (팀장)"])
         # 공용 비밀번호 입력 (예: 오픈 연도나 기념일)
         pwd = st.text_input("비밀번호 (PIN)", type="password")
         
@@ -1444,5 +1444,6 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
