@@ -1060,13 +1060,14 @@ elif menu == "🛠️ 재고 입출고 관리":
     with tab1:
         if not df_stock.empty and not df_all.empty:
             st.dataframe(df_stock, use_container_width=True) # 요약 코드 분량상 원본 df 출력
+            
     with tab2:
         st.markdown("### 📥 엑셀로 재고 일괄 등록")
         uploaded_file = st.file_uploader("작성한 엑셀 파일 업로드", type=['xlsx', 'xls', 'csv'], key="stock_up")
         if uploaded_file and st.button("🚀 재고 일괄 반영하기", type="primary"):
             st.info("재고 일괄 반영 로직 수행 (이전 코드 동일)")
+            
     with tab3:
-with tab3:
         st.markdown("### 📝 개별 상품 입/출고 (블랙박스 작동중 🔴)")
         if not df_stock.empty:
             with st.form("manual_stock"):
@@ -1095,7 +1096,6 @@ with tab3:
                             add_log("재고수동조정", log_msg)
                             
                             st.success(f"✅ {target_prod}: {final_qty}개로 변경 및 로그 기록 완료!"); time.sleep(1); st.rerun()
-
 # === [5] 🛠️ 옵션 관리 ===
 elif menu == "🛠️ 옵션 관리":
     st.subheader("🛠️ 옵션 및 통합 상품명 관리")
@@ -1309,6 +1309,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
