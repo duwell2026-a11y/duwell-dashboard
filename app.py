@@ -1334,38 +1334,41 @@ elif menu == "💰 마진/정산 분석":
             ).properties(height=300)
             st.altair_chart(bar_monthly_profit, use_container_width=True)
 
-        with tab_cal:
+with tab_cal:
             st.markdown("### 📆 캘린더 뷰 (일별 매출 & 순이익)")
             
+            # 1. 달력 기본 설정(뼈대)은 무조건 준비합니다.
+            cal_options = {
+                "headerToolbar": {
+                    "left": "prev,next today",
+                    "center": "title",
+                    "right": "dayGridMonth"
+                },
+                "initialView": "dayGridMonth", 
+            }
+            
+            events = []
+            
+            # 2. 날짜 데이터가 있는지 확인하고, 있으면 캘린더에 붙일 딱지(이벤트)를 만듭니다.
             valid_dates = df_calc[df_calc['날짜_str'].astype(bool) & (df_calc['날짜_str'] != 'nan') & (df_calc['날짜_str'] != '')]
             
-            if valid_dates.empty:
-                st.info("표시할 정상적인 날짜 데이터가 없습니다.")
-            else:
+            if not valid_dates.empty:
                 daily_sales = valid_dates.groupby('날짜_str').agg(
                     매출액=('예상결제금액', 'sum'), 
                     순이익=('예상순이익', 'sum')
                 ).reset_index()
 
-                events = []
                 for _, row in daily_sales.iterrows():
                     d_str = str(row['날짜_str']).strip()
                     events.append({"title": f"매출: {row['매출액']:,.0f}", "start": d_str, "color": "#555555"})
                     events.append({"title": f"이익: {row['순이익']:,.0f}", "start": d_str, "color": "#800020"})
-                
-                cal_options = {
-                    "headerToolbar": {
-                        "left": "prev,next today",
-                        "center": "title",
-                        "right": "dayGridMonth"
-                    },
-                    "initialView": "dayGridMonth", 
-                }
-                
-                if events: 
-                    calendar(events=events, options=cal_options)
-                else: 
-                    st.info("달력에 표시할 이벤트가 없습니다.")
+            
+            # 3. 데이터 유무와 상관없이 달력은 무조건 화면에 띄웁니다!
+            calendar(events=events, options=cal_options)
+            
+            # 이벤트가 없을 때만 살짝 안내 문구를 달아줍니다.
+            if not events:
+                st.info("💡 아직 발생한 매출 데이터가 없습니다. 빈 달력입니다.")
                     
         with tab_detail:
             st.markdown("### 📜 주문건별 상세 내역")
@@ -1385,6 +1388,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
