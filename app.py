@@ -19,6 +19,33 @@ import streamlit.components.v1 as components
 import io
 
 # --------------------------------------------------------------------------
+# 🔒 초간단 도어락 (보안 및 사용자 식별)
+# --------------------------------------------------------------------------
+if 'logged_in' not in st.session_state:
+    st.session_state['logged_in'] = False
+
+# 로그인 안 한 상태면 현관문(로그인 화면)만 보여주고 밑으로 못 내려가게 막음
+if not st.session_state['logged_in']:
+    st.markdown("<h2 style='text-align: center; margin-top: 100px;'>🍷 DUWELL 스마트 센터</h2>", unsafe_allow_html=True)
+    
+    with st.form("login_form"):
+        # 두 분 중 누구인지 선택
+        user_choice = st.selectbox("접속자 선택", ["뚜뚜루 (대표)", "아내 (공동대표)"])
+        # 공용 비밀번호 입력 (예: 오픈 연도나 기념일)
+        pwd = st.text_input("비밀번호 (PIN)", type="password")
+        
+        if st.form_submit_button("입장하기", use_container_width=True):
+            if pwd == "2026":  # 원하는 비밀번호로 변경하세요!
+                st.session_state['logged_in'] = True
+                st.session_state['current_user'] = user_choice
+                st.rerun()
+            else:
+                st.error("🚨 비밀번호가 틀렸습니다.")
+    
+    # 이 아래 코드는 실행 안 되게 여기서 정지!
+    st.stop()
+
+# --------------------------------------------------------------------------
 # 1. 페이지 및 홈페이지(웹사이트) 스타일 상단 메뉴 UI 설정
 # --------------------------------------------------------------------------
 import streamlit as st
@@ -1417,3 +1444,4 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
