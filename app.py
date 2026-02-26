@@ -714,10 +714,10 @@ elif menu == "📦 주문/생산 통합 관리":
         st.markdown("#### 📝 신규 주문 등록 (재고 자동 차감)")
         sub1, sub2 = st.tabs(["📂 엑셀 일괄 업로드", "✍️ 건별 수동 등록"])
         
-        with sub1:
+with sub1:
             uploaded_file = st.file_uploader("네이버/자사몰 엑셀 업로드", type=['xlsx'], key="order_up")
             if uploaded_file and st.button("💾 저장 및 재고 차감", type="primary"):
-try:
+                try:
                     df_new = pd.read_excel(uploaded_file, header=1)
                     df_opt, _ = load_data("옵션관리")
                     _, sheet_stock = load_data("재고관리")
@@ -738,7 +738,10 @@ try:
                             
                         # 결제금액도 문자열 찌꺼기 방어
                         raw_price = str(row.get('총 주문금액', '0')).replace(',', '').replace('원', '').strip()
-                        price = int(pd.to_numeric(raw_price, errors='coerce')) if raw_price else 0
+                        try:
+                            price = int(pd.to_numeric(raw_price, errors='coerce')) if raw_price else 0
+                        except:
+                            price = 0
 
                         rows_add.append([
                             str(row.get('주문일시','')), str(row.get('수취인명','')), str(row.get('수취인연락처1','')),
@@ -754,7 +757,9 @@ try:
                         st.success(f"{len(rows_add)}건 처리 완료")
                         with st.expander("처리 로그 보기"): st.write(log_msg)
                         time.sleep(1); st.rerun()
-                except Exception as e: st.error(f"오류: {e}")
+                        
+                except Exception as e: 
+                    st.error(f"오류: {e}"))
 
         with sub2:
             with st.form("manual"):
@@ -1281,6 +1286,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
