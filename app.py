@@ -449,43 +449,66 @@ def update_tracking_in_sheet(sheet, row_data, tracking_num, new_status="배송�
         return False, str(e)
 
 def bulk_update_tracking_excel(sheet, df_up):
-    """공장 엑셀 업로드 시 일괄 사용"""
+    """공장 엑셀 업로드 시 일괄 사용 (안전장치 강화 버전)"""
     try:
         all_data = sheet.get_all_values()
+        if not all_data:
+            return False, "❌ 시트에 데이터가 없습니다."
+            
         header = all_data[0]
         
         # 시트 컬럼 인덱스 확보
         try:
             name_idx = header.index('구매자명')
-            item_idx = header.index('상품명')
             status_idx = next(i for i, h in enumerate(header) if h in ['상태', '진행상태'])
             track_idx = header.index('송장번호')
-        except:
-            return False, "❌ 시트 컬럼명(구매자명, 상품명, 상태, 송장번호)을 확인해주세요."
+        except ValueError:
+            return False, "❌ 시트 1행(헤더)에 '구매자명', '상태', '송장번호' 컬럼이 정확히 있는지 확인해주세요."
+
+        # 엑셀의 필수 컬럼 존재 확인
+        if '구매자명' not in df_up.columns or '송장번호' not in df_up.columns:
+            return False, "❌ 업로드한 엑셀에 '구매자명'과 '송장번호' 열이 필수입니다."
+
+        # 🔥 [안전장치 1] 빈 칸(NaN)이 있는 쓸모없는 행 미리 제거
+        df_up = df_up.dropna(subset=['구매자명', '송장번호'])
 
         success_count = 0
-        # 엑셀의 '구매자명'과 '송장번호' 컬럼 존재 확인
-        if '구매자명' not in df_up.columns or '송장번호' not in df_up.columns:
-            return False, "❌ 엑셀에 '구매자명'과 '송장번호' 열이 있어야 합니다."
+        fail_count = 0
 
         for _, row in df_up.iterrows():
             u_name = str(row['구매자명']).strip()
-            u_track = str(row['송장번호']).strip()
-            if not u_name or not u_track or u_track == 'nan': continue
+            # 🔥 [안전장치 2] 송장번호가 숫자로 들어와도 안전하게 문자로 변환 (.0 붙는 현상 방지)
+            u_track = str(row['송장번호']).replace('.0', '').strip()
+            
+            if not u_name or not u_track or u_track.lower() == 'nan': 
+                continue
 
+            matched = False
             # 시트에서 매칭되는 행 찾기 (최신 데이터부터 찾기 위해 역순)
             for i in range(len(all_data)-1, 0, -1):
                 s_row = all_data[i]
-                if s_row[name_idx].strip() == u_name:
+                # 빈 행일 경우 건너뛰기
+                if len(s_row) <= name_idx: continue 
+                
+                if str(s_row[name_idx]).strip() == u_name:
                     # 매칭 성공 시 업데이트
-                    sheet.update_cell(i + 1, track_idx + 1, u_track)
+                    sheet.update_cell(i + 1, track_idx + 1, f"'{u_track}") # 엑셀 지수표현 방지용 ' 추가
                     sheet.update_cell(i + 1, status_idx + 1, "배송중")
                     success_count += 1
+                    matched = True
                     break
+            
+            if not matched:
+                fail_count += 1
         
-        return True, f"✅ 총 {success_count}건의 배송 상태가 업데이트되었습니다."
+        result_msg = f"✅ 총 {success_count}건 배송 처리 완료!"
+        if fail_count > 0:
+            result_msg += f" (⚠️ {fail_count}건은 명단에 없어 실패했습니다. 이름을 확인해주세요.)"
+            
+        return True, result_msg
+        
     except Exception as e:
-        return False, f"오류: {str(e)}"
+        return False, f"❌ 시스템 오류 발생: {str(e)}"
 
 # --------------------------------------------------------------------------
 # 🏠 상단 홈페이지형 네비게이션 헤더
@@ -694,19 +717,35 @@ elif menu == "📦 주문/생산 통합 관리":
         with sub1:
             uploaded_file = st.file_uploader("네이버/자사몰 엑셀 업로드", type=['xlsx'], key="order_up")
             if uploaded_file and st.button("💾 저장 및 재고 차감", type="primary"):
-                try:
+try:
                     df_new = pd.read_excel(uploaded_file, header=1)
                     df_opt, _ = load_data("옵션관리")
                     _, sheet_stock = load_data("재고관리")
+                    
+                    # 🔥 [안전장치 3] 상품명이나 구매자명이 아예 없는 찌꺼기 행 완벽 제거
+                    df_new = df_new.dropna(subset=['수취인명', '상품명'])
+                    
                     rows_add = []
                     log_msg = []
+                    
                     for _, row in df_new.iterrows():
-                        p_name = str(row.get('상품명',''))
-                        qty = int(row.get('수량', 1))
+                        p_name = str(row.get('상품명','')).strip()
+                        # 🔥 [안전장치 4] 수량에 실수로 '한개' 같은 글자가 섞여있어도 무조건 숫자 1로 방어
+                        try:
+                            qty = int(pd.to_numeric(row.get('수량', 1), errors='coerce'))
+                        except:
+                            qty = 1
+                            
+                        # 결제금액도 문자열 찌꺼기 방어
+                        raw_price = str(row.get('총 주문금액', '0')).replace(',', '').replace('원', '').strip()
+                        price = int(pd.to_numeric(raw_price, errors='coerce')) if raw_price else 0
+
                         rows_add.append([
                             str(row.get('주문일시','')), str(row.get('수취인명','')), str(row.get('수취인연락처1','')),
-                            str(row.get('배송지','')), p_name, str(qty), str(row.get('총 주문금액','0')), "", "", str(row.get('배송메세지','')), "", "신규"
+                            str(row.get('배송지','')), p_name, str(qty), str(price), "", "", str(row.get('배송메세지','')), "", "신규"
                         ])
+                        
+                        # 재고 차감 실행
                         ok, msg = deduct_stock_smart(p_name, qty, df_opt, sheet_stock)
                         log_msg.append(msg)
 
@@ -1242,6 +1281,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
