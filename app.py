@@ -764,7 +764,7 @@ elif menu == "📦 주문/생산 통합 관리":
         "📝 1. 주문 등록", "🎨 2. 시안 & 장부", "🏭 3. 공장 발주", "🖨️ 4. 작업지시서", "🚚 5. 송장 등록"
     ])
 
-# 1. 주문 등록 탭
+    # 1. 주문 등록 탭
     with op_tab1:
         st.markdown("#### 📝 신규 주문 등록 (재고 자동 차감)")
         sub1, sub2 = st.tabs(["📂 엑셀 일괄 업로드", "✍️ 건별 수동 등록"])
@@ -777,21 +777,17 @@ elif menu == "📦 주문/생산 통합 관리":
                     df_opt, _ = load_data("옵션관리")
                     _, sheet_stock = load_data("재고관리")
                     
-                    # 🔥 [안전장치 3] 상품명이나 구매자명이 아예 없는 찌꺼기 행 완벽 제거
                     df_new = df_new.dropna(subset=['수취인명', '상품명'])
-                    
                     rows_add = []
                     log_msg = []
                     
                     for _, row in df_new.iterrows():
                         p_name = str(row.get('상품명','')).strip()
-                        # 🔥 [안전장치 4] 수량에 실수로 '한개' 같은 글자가 섞여있어도 무조건 숫자 1로 방어
                         try:
                             qty = int(pd.to_numeric(row.get('수량', 1), errors='coerce'))
                         except:
                             qty = 1
                             
-                        # 결제금액도 문자열 찌꺼기 방어
                         raw_price = str(row.get('총 주문금액', '0')).replace(',', '').replace('원', '').strip()
                         try:
                             price = int(pd.to_numeric(raw_price, errors='coerce')) if raw_price else 0
@@ -803,7 +799,6 @@ elif menu == "📦 주문/생산 통합 관리":
                             str(row.get('배송지','')), p_name, str(qty), str(price), "", "", str(row.get('배송메세지','')), "", "신규"
                         ])
                         
-                        # 재고 차감 실행
                         ok, msg = deduct_stock_smart(p_name, qty, df_opt, sheet_stock)
                         log_msg.append(msg)
 
@@ -862,7 +857,7 @@ elif menu == "📦 주문/생산 통합 관리":
                             if st.button("✅ 시안 확정 (완료 처리)", key=f"btn_sian_{i}"):
                                 success, msg = update_status_in_sheet(sheet_main, r, "완료")
                                 if success: st.success(msg); time.sleep(1); st.rerun()
-with c_tab2:
+        with c_tab2:
             st.markdown("#### 📋 전체 주문 장부 및 취소/반품 처리")
             st.dataframe(df_all, use_container_width=True)
             csv = df_all.to_csv(index=False).encode('utf-8-sig')
@@ -881,157 +876,15 @@ with c_tab2:
                     if not search_buyer:
                         st.warning("구매자명을 입력해주세요.")
                     else:
-                        # 구매자명으로 주문 찾기
                         target_orders = df_all[df_all['구매자명'].astype(str) == search_buyer]
                         if target_orders.empty:
                             st.error("해당 구매자의 주문을 찾을 수 없습니다.")
                         else:
-                            # 동일한 이름이 있다면 가장 최신 주문 1건을 처리
                             target_row = target_orders.iloc[0] 
-                            
-                            # 1. 상태를 '취소'나 '반품'으로 엑셀(시트)에 업데이트
                             success, msg = update_status_in_sheet(sheet_main, target_row, cr_status)
                             
                             if success:
-                                # 2. 재고 복구 (교환은 새 제품이 나가므로 복구 안 함)
-                                if cr_status in ["취소", "반품"]:
-                                    df_opt, _ = load_data("옵션관리")
-                                    _, sheet_stock = load_data("재고관리")
-                                    
-                                    # 에러 방지용 수량 숫자 변환
-                                    try:
-                                        qty_to_restore = int(pd.to_numeric(target_row.get('수량', 1), errors='coerce'))
-                                    except:
-                                        qty_to_restore = 1
-                                        
-                                    p_name = target_row.get('상품명', '')
-                                    
-                                    # 아까 만든 복구 함수 실행!
-                                    ok, stock_msg = add_stock_smart(p_name, qty_to_restore, df_opt, sheet_stock)
-                                    
-                                    # 3. 앞서 만든 블랙박스(작업로그)에도 기록 쫙 남기기
-                                    add_log("주문" + cr_status, f"{search_buyer} 고객 - {p_name} {qty_to_restore}개 재고 복구됨")
-                                    
-                                    st.success(f"{msg} / {stock_msg}")
-                                else:
-                                    st.success(f"{msg} (교환은 재고가 복구되지 않습니다)")
-                                    add_log("주문교환", f"{search_buyer} 고객 주문 상태 교환 변경")
-                                    
-                                time.sleep(2); st.rerun()
-                            else:
-                                st.error(msg)
-
-    # 3. 공장 발주 탭
-    with op_tab3:
-        st.markdown("#### 🏭 공장 발주 (메일 자동 발송)")
-        if not df_all.empty:
-            pending_orders = df_all[~df_all['상태'].isin(['발주완료', '배송중', '배송완료', '취소'])].copy()
-            if pending_orders.empty: st.success("🎉 발주 대기 중인 주문이 없습니다.")
-            else:
-                if "발주선택" not in pending_orders.columns: pending_orders.insert(0, "발주선택", False)
-                edited_orders = st.data_editor(
-                    pending_orders,
-                    column_config={"발주선택": st.column_config.CheckboxColumn(required=True)},
-                    column_order=['발주선택', '날짜_str', '구매자명', '상품명', '수량', '상태'],
-                    hide_index=True, use_container_width=True, key="factory_order_v7"
-                )
-                selected_fact = edited_orders[edited_orders['발주선택'] == True]
-                
-                factory_email = st.text_input("📧 공장 수신 이메일", value="factory@example.com")
-                if st.button("🚀 선택 건 발주 확정 및 엑셀 메일 발송", type="primary") and not selected_fact.empty:
-                    pb = st.progress(0)
-                    for i, (_, row) in enumerate(selected_fact.iterrows()):
-                        update_status_in_sheet(sheet_main, row, "발주완료")
-                        pb.progress((i + 1) / len(selected_fact) * 0.5)
-                    
-                    output = io.BytesIO()
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                        selected_fact[['구매자명', '연락처', '주소', '상품명', '수량', '요청사항']].to_excel(writer, index=False)
-                    output.seek(0)
-                    
-                    subject = f"[DUWELL] 발주서_{datetime.now().strftime('%m%d')}"
-                    body = f"안녕하세요. DUWELL 신규 발주서 {len(selected_fact)}건 송부드립니다.\n확인 후 생산 부탁드립니다."
-                    mail_ok, mail_msg = send_email_with_attach(factory_email, subject, body, output, f"DUWELL_발주_{datetime.now().strftime('%m%d')}.xlsx")
-                    
-                    if mail_ok:
-                        st.success("🎊 발주 완료 및 메일 발송 성공!")
-                        st.cache_data.clear(); st.balloons(); time.sleep(2); st.rerun()
-
-    # 4. 작업지시서 탭
-    with op_tab4:
-        st.markdown("#### 🖨️ 작업지시서 생성 및 원본 전송")
-        st.info("💡 공장 발주와 별개로 개별 작업지시서(HTML)와 고해상도 시안을 보낼 수 있습니다.")
-        if not df_all.empty:
-            filtered_print = df_all.copy()
-            if "체크" not in filtered_print.columns: filtered_print.insert(0, "체크", False)
-            edited_print = st.data_editor(
-                filtered_print, column_order=['체크', '날짜_str', '구매자명', '상품명', '수량', '상태'],
-                column_config={"체크": st.column_config.CheckboxColumn(required=True)}, hide_index=True, use_container_width=True, key="print_tab"
-            )
-            selected_print = edited_print[edited_print['체크'] == True]
-            
-            if not selected_print.empty:
-                st.divider()
-                factory_email_print = st.text_input("📧 수신 이메일 주소 (공장/작업자)", value="factory@example.com", key="print_email")
-                c_btn1, c_btn2 = st.columns(2)
-                
-                with c_btn1:
-                    if st.button("📥 HTML 로컬 다운로드", use_container_width=True):
-                        st.info("HTML 파일을 생성합니다. (기존 로직 수행)") # 분량상 상세 HTML 문자열 생략, 필요시 이전 코드 붙여넣기 가능
-                with c_btn2:
-                    if st.button("🚀 원본 이미지 포함 메일 발송", type="primary", use_container_width=True):
-                        with st.spinner("최고 해상도 원본 이미지를 가져오는 중입니다..."):
-                            email_attachments = []
-                            pb_print = st.progress(0)
-                            for idx, (_, row) in enumerate(selected_print.iterrows()):
-                                b_name = str(row['구매자명']).strip()
-                                drive_id = get_drive_id(str(row.get('디자인파일', '')))
-                                if drive_id:
-                                    try:
-                                        raw_img_url = f"https://drive.google.com/uc?export=download&id={drive_id}"
-                                        res = requests.get(raw_img_url, timeout=15)
-                                        if res.status_code == 200:
-                                            img_io = io.BytesIO(res.content)
-                                            email_attachments.append({"file": img_io, "filename": f"원본시안_{b_name}.jpg"})
-                                    except: pass
-                                
-                                single_html = f"<html><body><h1>작업지시서 ({b_name})</h1><p>상품: {row['상품명']}</p><p>수량: {row['수량']}</p><p>요청: {row['요청사항']}</p></body></html>"
-                                email_attachments.append({"file": io.BytesIO(single_html.encode('utf-8')), "filename": f"작업지시서_{b_name}.html"})
-                                pb_print.progress((idx + 1) / len(selected_print))
-                            
-                            mail_ok, _ = send_email_with_attach(to=factory_email_print, subject=f"[DUWELL] 작업지시서 ({len(selected_print)}건)", body="첨부파일 확인 바랍니다.", multiple_attachments=email_attachments)
-                            if mail_ok: st.success("발송 성공!"); st.balloons()
-                            else: st.error("발송 실패")
-
-    # 5. 송장 등록 탭
-    with op_tab5:
-        st.markdown("#### 🚚 배송 정보(송장) 업데이트")
-        if not df_all.empty:
-            completed_orders = df_all[df_all['상태'] == '발주완료'].copy()
-            sc1, sc2 = st.columns(2)
-            with sc1:
-                st.markdown("##### ✍️ 수동 입력 (건별)")
-                if completed_orders.empty: st.write("발주 완료된 대기 내역이 없습니다.")
-                else:
-                    if '송장번호' not in completed_orders.columns: completed_orders['송장번호'] = ""
-                    tr_edited = st.data_editor(completed_orders, column_order=['구매자명', '상품명', '송장번호'], hide_index=True, key="man_track")
-                    if st.button("💾 수동 송장 저장"):
-                        cnt = 0
-                        for _, row in tr_edited.iterrows():
-                            t_num = str(row.get('송장번호', '')).strip()
-                            if t_num and t_num != "nan":
-                                ok, _ = update_tracking_in_sheet(sheet_main, row, t_num)
-                                if ok: cnt += 1
-                        st.success(f"{cnt}건 저장 완료!"); st.cache_data.clear(); time.sleep(1); st.rerun()
-            with sc2:
-                st.markdown("##### 📂 엑셀 일괄 등록")
-                up_f = st.file_uploader("공장 송장 엑셀 파일 (.xlsx)", type=['xlsx'], key="track_up")
-                if up_f and st.button("🚀 엑셀 데이터 시트 반영"):
-                    df_up = pd.read_excel(up_f)
-                    ok, msg = bulk_update_tracking_excel(sheet_main, df_up)
-                    if ok: st.success(msg); st.cache_data.clear(); time.sleep(1); st.rerun()
-                    else: st.error(msg)
-
+                                if cr_status in ["
 
 # === [3] 💎 마케팅/CRM 통합 센터 (마케팅, CRM 통합) ===
 elif menu == "💎 마케팅/CRM 통합 센터":
@@ -1407,6 +1260,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
