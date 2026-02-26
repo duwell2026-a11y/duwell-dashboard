@@ -35,7 +35,7 @@ if not st.session_state['logged_in']:
         pwd = st.text_input("비밀번호 (PIN)", type="password")
         
         if st.form_submit_button("입장하기", use_container_width=True):
-            if pwd == "2026":  # 원하는 비밀번호로 변경하세요!
+            if pwd == "1121":  # 원하는 비밀번호로 변경하세요!
                 st.session_state['logged_in'] = True
                 st.session_state['current_user'] = user_choice
                 st.rerun()
@@ -1444,4 +1444,5 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
