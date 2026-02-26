@@ -759,7 +759,7 @@ with sub1:
                         time.sleep(1); st.rerun()
                         
                 except Exception as e: 
-                    st.error(f"오류: {e}"))
+                    st.error(f"오류: {e}")
 
         with sub2:
             with st.form("manual"):
@@ -1286,6 +1286,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
