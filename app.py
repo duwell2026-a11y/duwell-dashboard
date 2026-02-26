@@ -857,7 +857,7 @@ elif menu == "📦 주문/생산 통합 관리":
                             if st.button("✅ 시안 확정 (완료 처리)", key=f"btn_sian_{i}"):
                                 success, msg = update_status_in_sheet(sheet_main, r, "완료")
                                 if success: st.success(msg); time.sleep(1); st.rerun()
-        with c_tab2:
+       with c_tab2:
             st.markdown("#### 📋 전체 주문 장부 및 취소/반품 처리")
             st.dataframe(df_all, use_container_width=True)
             csv = df_all.to_csv(index=False).encode('utf-8-sig')
@@ -884,8 +884,28 @@ elif menu == "📦 주문/생산 통합 관리":
                             success, msg = update_status_in_sheet(sheet_main, target_row, cr_status)
                             
                             if success:
-                                if cr_status in ["
-
+                                if cr_status in ["취소", "반품"]:
+                                    df_opt, _ = load_data("옵션관리")
+                                    _, sheet_stock = load_data("재고관리")
+                                    
+                                    try:
+                                        qty_to_restore = int(pd.to_numeric(target_row.get('수량', 1), errors='coerce'))
+                                    except:
+                                        qty_to_restore = 1
+                                        
+                                    p_name = target_row.get('상품명', '')
+                                    
+                                    ok, stock_msg = add_stock_smart(p_name, qty_to_restore, df_opt, sheet_stock)
+                                    add_log("주문" + cr_status, f"{search_buyer} 고객 - {p_name} {qty_to_restore}개 재고 복구됨")
+                                    
+                                    st.success(f"{msg} / {stock_msg}")
+                                else:
+                                    st.success(f"{msg} (교환은 재고가 복구되지 않습니다)")
+                                    add_log("주문교환", f"{search_buyer} 고객 주문 상태 교환 변경")
+                                    
+                                time.sleep(2); st.rerun()
+                            else:
+                                st.error(msg)
 # === [3] 💎 마케팅/CRM 통합 센터 (마케팅, CRM 통합) ===
 elif menu == "💎 마케팅/CRM 통합 센터":
     st.markdown("""
@@ -1260,6 +1280,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
