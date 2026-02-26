@@ -152,16 +152,23 @@ except Exception as e:
 from google.oauth2.service_account import Credentials
 
 # ==========================================================
-# 1. 가장 최신 인증 방식 (저장/삭제 에러 완벽 해결)
+# 1. 구글 연결 최적화 (API 호출 제한 에러 완벽 방어 🛡️)
 # ==========================================================
+@st.cache_resource(ttl=3600) # 🔴 핵심: 구글 시트와의 '연결 통로'를 1시간 동안 기억해둡니다.
 def get_client():
     try:
-        # Streamlit 클라우드 환경에 맞춰 딕셔너리로 변환
         creds_dict = dict(GOOGLE_CREDENTIALS)
         return gspread.service_account_from_dict(creds_dict)
     except Exception as e:
         st.error(f"인증 에러: {e}")
         return None
+
+@st.cache_resource(ttl=3600) # 🔴 핵심: 시트 객체도 기억해둬서 매번 구글에 문을 두드리지 않습니다.
+def get_sheet_object(sheet_name):
+    client = get_client()
+    if client:
+        return client.open_by_key(SHEET_ID).worksheet(sheet_name)
+    return None
 
 def clean_date_str(date_val):
     s = str(date_val).strip()
@@ -172,6 +179,29 @@ def clean_date_str(date_val):
         if len(y) == 2: y = "20" + y
         return f"{y}-{int(m):02d}-{int(d):02d}"
     return s
+
+@st.cache_data(ttl=300) 
+def fetch_raw_data(sheet_name):
+    sheet = get_sheet_object(sheet_name)
+    if not sheet: return []
+    try:
+        return sheet.get_all_records()
+    except Exception:
+        return []
+
+def load_data(sheet_name):
+    raw_data = fetch_raw_data(sheet_name)
+    df = pd.DataFrame(raw_data)
+    
+    # 매번 연결하지 않고 기억해둔 시트 객체를 바로 가져옵니다. (에러 멈춤!)
+    sheet = get_sheet_object(sheet_name)
+    
+    if df.empty: return df, sheet
+    
+    # --- 대표님의 기존 전처리 코드 완벽하게 동일 ---
+    df.columns = [str(c).strip() for c in df.columns]
+    for col in ['날짜', '시작일', '종료일', '주문일시', '주문일']:
+        if col in df.columns: df[col] = df[col].apply(clean_date_str)
 
 # ==========================================================
 # 2. 캐시 분리 (데이터가 안 뜨는 '텅 빈 화면' 문제 해결)
@@ -1334,7 +1364,7 @@ elif menu == "💰 마진/정산 분석":
             ).properties(height=300)
             st.altair_chart(bar_monthly_profit, use_container_width=True)
 
-        with tab_cal:
+with tab_cal:
             st.markdown("### 📆 캘린더 뷰 (일별 매출 & 순이익)")
             
             cal_options = {
@@ -1343,7 +1373,8 @@ elif menu == "💰 마진/정산 분석":
                     "center": "title",
                     "right": "dayGridMonth"
                 },
-                "initialView": "dayGridMonth", 
+                "initialView": "dayGridMonth",
+                "height": 650,  # 🔥 이 줄이 추가되었습니다! 달력의 높이를 강제로 고정해서 투명인간 버그 해결!
             }
             
             events = []
@@ -1383,6 +1414,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
