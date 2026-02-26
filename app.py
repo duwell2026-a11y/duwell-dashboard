@@ -299,6 +299,17 @@ def ask_ai(prompt):
         return response.text
     except: return "AI Error"
 
+def add_log(action_type, details):
+    """실수를 추적하기 위한 블랙박스(작업로그) 기록 함수"""
+    try:
+        client = get_client()
+        if client:
+            log_sheet = client.open_by_key(SHEET_ID).worksheet("작업로그")
+            now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            log_sheet.append_row([now_str, action_type, details])
+    except Exception as e:
+        pass # 로그 기록이 실패해도 본래 작업(주문/재고수정 등)은 멈추면 안 되므로 pass 처리
+
 def send_email_with_attach(to, subject, body, attachment_file=None, filename="attachment.xlsx", multiple_attachments=None):
     """
     단일 파일 또는 여러 개의 파일(multiple_attachments)을 이메일로 전송하는 함수
@@ -1055,23 +1066,35 @@ elif menu == "🛠️ 재고 입출고 관리":
         if uploaded_file and st.button("🚀 재고 일괄 반영하기", type="primary"):
             st.info("재고 일괄 반영 로직 수행 (이전 코드 동일)")
     with tab3:
-        st.markdown("### 📝 개별 상품 입/출고")
+with tab3:
+        st.markdown("### 📝 개별 상품 입/출고 (블랙박스 작동중 🔴)")
         if not df_stock.empty:
             with st.form("manual_stock"):
                 col1, col2, col3 = st.columns([2, 1, 1])
                 with col1: target_prod = st.selectbox("상품 선택", df_stock['상품명'].unique())
                 with col2: action = st.radio("구분", ["입고 (+)", "출고/손실 (-)"], horizontal=True)
                 with col3: qty = st.number_input("수량", min_value=1, value=1)
+                
                 if st.form_submit_button("반영"):
-                    cell = sheet_stock.find(target_prod)
+                    # 동시성 문제 방지: 반영 버튼 누른 순간 최신 데이터를 한 번 더 불러옵니다.
+                    client = get_client()
+                    fresh_stock_sheet = client.open_by_key(SHEET_ID).worksheet("재고관리")
+                    cell = fresh_stock_sheet.find(target_prod)
+                    
                     if cell:
-                        headers = sheet_stock.row_values(1)
+                        headers = fresh_stock_sheet.row_values(1)
                         col_idx = next((i + 1 for i, h in enumerate(headers) if '재고' in h or '수량' in h), -1)
                         if col_idx != -1:
-                            curr_val = int(pd.to_numeric(sheet_stock.cell(cell.row, col_idx).value, errors='coerce') or 0)
+                            curr_val = int(pd.to_numeric(fresh_stock_sheet.cell(cell.row, col_idx).value, errors='coerce') or 0)
                             final_qty = curr_val + qty if "입고" in action else curr_val - qty
-                            sheet_stock.update_cell(cell.row, col_idx, final_qty)
-                            st.success(f"✅ {target_prod}: {final_qty}개로 변경됨"); time.sleep(1); st.rerun()
+                            
+                            fresh_stock_sheet.update_cell(cell.row, col_idx, final_qty)
+                            
+                            # 🔴 블랙박스에 기록 남기기!
+                            log_msg = f"{target_prod} {qty}개 {action.split()[0]} 처리 (변경 전: {curr_val} -> 변경 후: {final_qty})"
+                            add_log("재고수동조정", log_msg)
+                            
+                            st.success(f"✅ {target_prod}: {final_qty}개로 변경 및 로그 기록 완료!"); time.sleep(1); st.rerun()
 
 # === [5] 🛠️ 옵션 관리 ===
 elif menu == "🛠️ 옵션 관리":
@@ -1286,6 +1309,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
