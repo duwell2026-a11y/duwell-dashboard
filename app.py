@@ -1216,10 +1216,10 @@ elif menu == "📅 일정 관리":
             events = [{"title": str(r.get('일정명')), "start": str(r.get('시작일'))} for _, r in df_sch.iterrows()]
             calendar(events=events)
 
-# === [7] 💰 마진/정산 분석 (기존 유지) ===
+# === [7] 💰 마진/정산 분석 ===
 elif menu == "💰 마진/정산 분석":
     st.subheader("💰 실시간 마진 및 정산 분석기")   
-    with st.expander("⚙️ 정산 기준 설정 (수수료 및 배송비)", expanded=True):
+    with st.expander("⚙️ 정산 기준 설정 (수수료 및 배송비 분리)", expanded=True):
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
             fee_smart = st.number_input("스마트스토어 수수료 (%)", value=5.5)
@@ -1228,7 +1228,8 @@ elif menu == "💰 마진/정산 분석":
             fee_coupang = st.number_input("쿠팡 수수료 (%)", value=10.8)
             fee_etc = st.number_input("기타 마켓 수수료 (%)", value=5.0)
         with col_f3:
-            shipping_cost = st.number_input("건당 평균 택배비 (원)", value=2500, step=100)
+            shipping_revenue = st.number_input("고객 결제 배송비 (매출, 원)", value=3000, step=100)
+            shipping_cost = st.number_input("택배사 실제 청구비 (매입, 원)", value=2500, step=100)
 
     if not df_all.empty:
         df_cost, _ = load_data("옵션관리") 
@@ -1245,7 +1246,6 @@ elif menu == "💰 마진/정산 분석":
             market = str(row.get('주문처', '자사몰'))
             qty = row['수량']
             
-            # 🔥 [강력해진 검색] 띄어쓰기 무시
             item_name = str(row['상품명']).strip()
             item_clean = item_name.replace(" ", "").lower()
             
@@ -1275,15 +1275,16 @@ elif menu == "💰 마진/정산 분석":
                             if pd.isna(unit_cost): unit_cost = 0
                             break 
             
-            expected_revenue = unit_price * qty
-            commission_fee = expected_revenue * fee_rate
-            total_cost = unit_cost * qty
-            delivery_fee = shipping_cost
+            # 🔥 핵심 변경: 배송비 매출과 매입을 분리하여 정밀 계산
+            expected_item_revenue = unit_price * qty
+            total_revenue = expected_item_revenue + shipping_revenue # 상품가 + 고객이 낸 배송비
+            commission_fee = total_revenue * fee_rate # 수수료는 배송비 포함된 총액에서 뗌
+            total_cost = (unit_cost * qty) + shipping_cost # 상품 원가 + 실제 택배비
             
-            net_profit = expected_revenue - commission_fee - total_cost - delivery_fee
-            margin_rate = (net_profit / expected_revenue * 100) if expected_revenue > 0 else 0
+            net_profit = total_revenue - commission_fee - total_cost
+            margin_rate = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
             
-            return pd.Series([expected_revenue, commission_fee, total_cost, net_profit, margin_rate])
+            return pd.Series([total_revenue, commission_fee, total_cost, net_profit, margin_rate])
 
         df_calc[['예상결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']] = df_calc.apply(calculate_profit, axis=1)
 
@@ -1333,17 +1334,14 @@ elif menu == "💰 마진/정산 분석":
             ).properties(height=300)
             st.altair_chart(bar_monthly_profit, use_container_width=True)
 
-# [탭 3] 일별 매출 캘린더
         with tab_cal:
             st.markdown("### 📆 캘린더 뷰 (일별 매출 & 순이익)")
             
-            # 1. 날짜가 빈칸이거나 'nan'인 찌꺼기 데이터 확실히 제거
             valid_dates = df_calc[df_calc['날짜_str'].astype(bool) & (df_calc['날짜_str'] != 'nan') & (df_calc['날짜_str'] != '')]
             
             if valid_dates.empty:
                 st.info("표시할 정상적인 날짜 데이터가 없습니다.")
             else:
-                # 일별로 매출과 이익 합산
                 daily_sales = valid_dates.groupby('날짜_str').agg(
                     매출액=('예상결제금액', 'sum'), 
                     순이익=('예상순이익', 'sum')
@@ -1352,35 +1350,23 @@ elif menu == "💰 마진/정산 분석":
                 events = []
                 for _, row in daily_sales.iterrows():
                     d_str = str(row['날짜_str']).strip()
-                    
-                    # 매출액 이벤트 (회색 뱃지)
-                    events.append({
-                        "title": f"매출: {row['매출액']:,.0f}",
-                        "start": d_str,
-                        "color": "#555555"
-                    })
-                    # 순이익 이벤트 (와인색 뱃지)
-                    events.append({
-                        "title": f"이익: {row['순이익']:,.0f}",
-                        "start": d_str,
-                        "color": "#800020"
-                    })
+                    events.append({"title": f"매출: {row['매출액']:,.0f}", "start": d_str, "color": "#555555"})
+                    events.append({"title": f"이익: {row['순이익']:,.0f}", "start": d_str, "color": "#800020"})
                 
-                # 2. [가장 중요] 캘린더가 보이게 하는 필수 뼈대 옵션 추가!
                 cal_options = {
                     "headerToolbar": {
                         "left": "prev,next today",
                         "center": "title",
                         "right": "dayGridMonth"
                     },
-                    "initialView": "dayGridMonth", # 한 달 단위로 보여주기
+                    "initialView": "dayGridMonth", 
                 }
                 
                 if events: 
-                    # 달력 그리기 실행
                     calendar(events=events, options=cal_options)
                 else: 
                     st.info("달력에 표시할 이벤트가 없습니다.")
+                    
         with tab_detail:
             st.markdown("### 📜 주문건별 상세 내역")
             display_cols = ['날짜_str', '구매자명', '상품명', '수량', '예상결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']
