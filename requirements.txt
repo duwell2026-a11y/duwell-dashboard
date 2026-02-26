@@ -8,4 +8,5 @@ streamlit-calendar
 google-generativeai
 XlsxWriter
 openpyxl
+matplotlib
 
