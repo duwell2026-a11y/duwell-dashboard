@@ -1374,7 +1374,7 @@ elif menu == "💰 마진/정산 분석":
                     "right": "dayGridMonth"
                 },
                 "initialView": "dayGridMonth", 
-                "height": 650,
+                "height": 650, # 탭 안에서도 안 숨도록 높이 강제 고정!
             }
             
             events = []
@@ -1391,10 +1391,13 @@ elif menu == "💰 마진/정산 분석":
                     events.append({"title": f"매출: {row['매출액']:,.0f}", "start": d_str, "color": "#555555"})
                     events.append({"title": f"이익: {row['순이익']:,.0f}", "start": d_str, "color": "#800020"})
             
-            calendar(events=events, options=cal_options)
-            
+            # 🔥 [핵심 1] 이벤트가 텅 비었을 때 오류를 막기 위해 오늘 날짜에 '투명한 가짜 데이터'를 하나 심어줍니다.
             if not events:
+                events.append({"title": "기록 없음", "start": datetime.now().strftime('%Y-%m-%d'), "color": "transparent", "textColor": "#999999"})
                 st.info("💡 아직 발생한 매출 데이터가 없습니다. 빈 달력입니다.")
+
+            # 🔥 [핵심 2] 달력에 고유한 주민번호(key)를 줘서 탭 안에서도 무조건 화면에 그리도록 강제합니다.
+            calendar(events=events, options=cal_options, key="sales_dashboard_calendar_v1")
 
         with tab_detail:
             st.markdown("### 📜 주문건별 상세 내역")
@@ -1414,23 +1417,3 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
