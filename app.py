@@ -1364,7 +1364,7 @@ elif menu == "💰 마진/정산 분석":
             ).properties(height=300)
             st.altair_chart(bar_monthly_profit, use_container_width=True)
 
-with tab_cal:
+        with tab_cal:
             st.markdown("### 📆 캘린더 뷰 (일별 매출 & 순이익)")
             
             cal_options = {
@@ -1373,8 +1373,8 @@ with tab_cal:
                     "center": "title",
                     "right": "dayGridMonth"
                 },
-                "initialView": "dayGridMonth",
-                "height": 650,  # 🔥 이 줄이 추가되었습니다! 달력의 높이를 강제로 고정해서 투명인간 버그 해결!
+                "initialView": "dayGridMonth", 
+                "height": 650,
             }
             
             events = []
