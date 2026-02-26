@@ -709,12 +709,12 @@ elif menu == "📦 주문/생산 통합 관리":
         "📝 1. 주문 등록", "🎨 2. 시안 & 장부", "🏭 3. 공장 발주", "🖨️ 4. 작업지시서", "🚚 5. 송장 등록"
     ])
 
-    # 1. 주문 등록 탭
+# 1. 주문 등록 탭
     with op_tab1:
         st.markdown("#### 📝 신규 주문 등록 (재고 자동 차감)")
         sub1, sub2 = st.tabs(["📂 엑셀 일괄 업로드", "✍️ 건별 수동 등록"])
         
-with sub1:
+        with sub1:
             uploaded_file = st.file_uploader("네이버/자사몰 엑셀 업로드", type=['xlsx'], key="order_up")
             if uploaded_file and st.button("💾 저장 및 재고 차감", type="primary"):
                 try:
@@ -758,7 +758,7 @@ with sub1:
                         with st.expander("처리 로그 보기"): st.write(log_msg)
                         time.sleep(1); st.rerun()
                         
-                except Exception as e: 
+                except Exception as e:
                     st.error(f"오류: {e}")
 
         with sub2:
@@ -1286,6 +1286,7 @@ elif menu == "💰 마진/정산 분석":
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
+
 
 
 
