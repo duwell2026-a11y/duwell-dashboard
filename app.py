@@ -1681,14 +1681,15 @@ elif menu == "🤖 AI 비즈니스 센터":
                     2. 🔑 [검색 태그/키워드]: Provide exactly 10 highly searched, relevant tags/keywords separated by commas.
                     3. 📝 [메타 디스크립션/PC·모바일 요약 설명]: A compelling 2-3 sentence description.
                     4. 💻 [상세페이지 기획 뼈대]: 3-step storyline for the detail page (Hook -> USP explanation -> Closing/Trust with 10 years of experience).
-                    5. 🌐 [상세페이지 HTML 코드 (복사-붙여넣기용)]:
-                       - Write clean, modern HTML code for the product detail page based on the storyline above.
-                       - Use inline CSS for styling (elegant typography, #2B3A55 or #800020 for text accent colors, clear headings, centered text, plenty of padding/margin for readability).
-                       - [필수] HTML 구조의 맨 위쪽(최상단)에는 반드시 다음 코드를 넣어 메인 인트로 사진 자리를 큼직하게 고정하세요: `<div style='background:#E9ECEF; padding:120px 20px; margin-bottom:40px; text-align:center; border:2px dashed #ADB5BD; border-radius:12px; color:#495057; font-weight:900; font-size:1.3rem;'>📸 [메인 인트로 사진 삽입: 시선을 사로잡는 {prod_name} 연출 컷]</div>`
-                       - Include persuasive copywriting highlighting DUWELL's 10 years of know-how and the key selling points.
-                       - For other images in the body, insert smaller placeholders like this: `<div style='background:#F4F6F9; padding:60px 20px; margin:20px 0; text-align:center; border:2px dashed #B0BEC5; border-radius:12px; color:#6C757D; font-weight:bold;'>📸 [여기에 사진 삽입: 디테일 컷]</div>`
+                    5. 🌐 [모바일 최적화 상세페이지 HTML (복붙용)]:
+                       - Write clean, modern HTML code. MUST use inline CSS.
+                       - [모바일 최적화 필수]: Apply `max-width: 100%;`, `word-break: keep-all;`, and `line-height: 1.6;` to the main container to ensure perfect readability on mobile screens.
+                       - Style: Elegant typography, #2B3A55 or #800020 for accent colors, clear headings, centered text.
+                       - [인트로 고정]: At the very top, insert: `<div style='background:#E9ECEF; padding:120px 20px; margin-bottom:40px; text-align:center; border:2px dashed #ADB5BD; border-radius:12px; color:#495057; font-weight:900; font-size:1.3rem; max-width:100%; word-break:keep-all;'>📸 [메인 인트로 사진 삽입: 시선을 사로잡는 {prod_name} 연출 컷]</div>`
+                       - Include persuasive copywriting highlighting DUWELL's 10 years of know-how.
+                       - For other images, insert: `<div style='background:#F4F6F9; padding:60px 20px; margin:20px 0; text-align:center; border:2px dashed #B0BEC5; border-radius:12px; color:#6C757D; font-weight:bold; max-width:100%;'>📸 [여기에 사진 삽입: 디테일 컷]</div>`
                        - Ensure the HTML code is enclosed in a markdown code block (```html ... ```).
-                    """ 
+                    """
                     st.session_state['seo_result_text'] = ask_ai(agent_prompt)
                     st.session_state['seo_prod_name'] = prod_name
             else:
