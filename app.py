@@ -146,17 +146,24 @@ GOOGLE_CREDENTIALS = None
 
 try:
     if is_local:
+        # 💻 1. 내 컴퓨터(로컬)에서 테스트할 때의 세팅
         SHEET_ID = "1xqcbuzRzzp4i_Qsy4CKRjIIvGOTthT88bXxxY5RjEjQ"
-        GOOGLE_API_KEY = "AIzaSyCBivIjZ2Um3nfKFnOtSSrqbWyyotUAAJw"
         SENDER_EMAIL = "duwell2026@gmail.com"
-        SENDER_PASSWORD = "mvxo jzki djzg iwor"
+        # API 키와 이메일 비밀번호는 비밀금고(secrets.toml)에서 가져옵니다!
+        GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
+        SENDER_PASSWORD = st.secrets["SENDER_PASSWORD"]
+        
         with open(local_key_path, "r", encoding="utf-8") as f:
             GOOGLE_CREDENTIALS = json.load(f)
+            
     else:
+        # 🌐 2. 깃허브 연동 후 웹(Streamlit Cloud)에서 실행될 때의 세팅
         SHEET_ID = st.secrets["SHEET_ID"]
-        GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
         SENDER_EMAIL = st.secrets["SENDER_EMAIL"]
+        GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
         SENDER_PASSWORD = st.secrets["SENDER_PASSWORD"]
+        
+        # 구글 시트 인증서(JSON) 내용도 웹의 비밀금고에서 불러옵니다.
         if "GOOGLE_JSON_KEY" in st.secrets:
             GOOGLE_CREDENTIALS = json.loads(st.secrets["GOOGLE_JSON_KEY"])
         else:
@@ -168,7 +175,6 @@ try:
 except Exception as e:
     st.error(f"❌ 설정 로드 실패: {e}")
     st.stop()
-
 # --------------------------------------------------------------------------
 # 🛠️ 함수 모음
 # --------------------------------------------------------------------------
@@ -1405,7 +1411,7 @@ elif menu == "💰 마진/정산 분석":
                 '순이익': '{:,.0f}', '평균마진율(%)': '{:.1f}%'
             })
             try: styled_monthly = styled_monthly.background_gradient(subset=['평균마진율(%)'], cmap='RdYlGn')
-            except: passpass
+            except: pass
             
             st.dataframe(styled_monthly, use_container_width=True, hide_index=True)
             
