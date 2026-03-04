@@ -1646,10 +1646,10 @@ elif menu == "🤖 AI 비즈니스 센터":
                         st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
                 else:
                     st.warning("제품 특징을 입력해주세요!")
- # --- [7] 다중 마켓 SEO 최적화 상품 등록 에이전트 ---
+# --- [7] 다중 마켓 SEO 최적화 상품 등록 에이전트 (HTML 상세페이지 자동 생성 기능 추가) ---
     with ai_tab7:
-        st.markdown("#### 🛒 오픈마켓별 SEO 최적화 상품 등록기")
-        st.info("네이버, 쿠팡 등 각 마켓 로직에 맞춰 상품명과 상세설명 뼈대를 뽑아줍니다. 기획안을 다운로드하여 디자이너에게 바로 전달하세요!")
+        st.markdown("#### 🛒 오픈마켓별 SEO 등록 & HTML 상세페이지 생성기")
+        st.info("SEO 최적화 데이터뿐만 아니라, 스마트스토어 에디터에 바로 붙여넣을 수 있는 '상세페이지 HTML 코드'까지 한 번에 생성합니다.")
 
         with st.form("seo_agent_form"):
             col1, col2 = st.columns(2)
@@ -1661,16 +1661,15 @@ elif menu == "🤖 AI 비즈니스 센터":
                 core_points = st.text_input("핵심 강조 포인트", placeholder="예: 먼지없는, 빠른건조, 호텔수건, 10년 노하우", value="먼지없는, 빠른건조, 고급스러운 질감")
 
             # 폼 제출 버튼
-            submit_btn = st.form_submit_button("🚀 마켓별 최적화 데이터 생성", type="primary")
+            submit_btn = st.form_submit_button("🚀 SEO 데이터 및 HTML 생성", type="primary")
 
-        # 💡 [핵심] 버튼을 누르면 AI 결과를 '세션(메모리)'에 저장합니다.
         if submit_btn:
             if prod_name and core_points:
-                with st.spinner(f"{target_market} 로직에 맞춰 최적화 데이터를 뽑아내는 중입니다..."):
+                with st.spinner(f"{target_market} 로직에 맞춰 최적화 데이터와 HTML 코드를 작성 중입니다... (약 10~20초 소요)"):
                     agent_prompt = f"""
-                    You are an elite E-commerce Merchandiser and SEO expert in Korea, working for the premium towel brand 'DUWELL'.
+                    You are an elite E-commerce Merchandiser, SEO expert, and Web Designer in Korea, working for the premium towel brand 'DUWELL'.
                     You have 10 years of deep towel industry experience.
-                    Your task is to generate highly optimized product registration data for {target_market}.
+                    Your task is to generate highly optimized product registration data and a complete HTML detail page for {target_market}.
 
                     - Product: {prod_name}
                     - Target Customer: {target_customer}
@@ -1678,28 +1677,31 @@ elif menu == "🤖 AI 비즈니스 센터":
 
                     Please provide the output strictly in Korean, following this structure:
 
-                    1. 🏷️ [최적화 상품명 3가지]: Create 3 variations of the product title optimized for {target_market}'s search algorithm. (Keep it natural but keyword-rich).
-                    2. 🔑 [검색 태그/키워드]: Provide exactly 10 highly searched, relevant tags/keywords separated by commas (optimized for {target_market}).
-                    3. 📝 [메타 디스크립션/PC·모바일 요약 설명]: A compelling 2-3 sentence description to catch the customer's eye on the search result page.
-                    4. 💻 [상세페이지 기획 뼈대 (디자이너 전달용)]: 3-step storyline for the detail page (Hook -> USP explanation -> Closing/Trust with 10 years of experience).
+                    1. 🏷️ [최적화 상품명 3가지]: Create 3 variations of the product title optimized for {target_market}'s search algorithm.
+                    2. 🔑 [검색 태그/키워드]: Provide exactly 10 highly searched, relevant tags/keywords separated by commas.
+                    3. 📝 [메타 디스크립션/PC·모바일 요약 설명]: A compelling 2-3 sentence description.
+                    4. 💻 [상세페이지 기획 뼈대]: 3-step storyline for the detail page (Hook -> USP explanation -> Closing/Trust with 10 years of experience).
+                    5. 🌐 [상세페이지 HTML 코드 (복사-붙여넣기용)]:
+                       - Write clean, modern HTML code for the product detail page based on the storyline above.
+                       - Use inline CSS for styling (elegant typography, #2B3A55 or #800020 for text accent colors, clear headings, centered text, plenty of padding/margin for readability).
+                       - Include persuasive copywriting highlighting DUWELL's 10 years of know-how and the key selling points.
+                       - Insert highly visible image placeholders like this: `<div style='background:#F4F6F9; padding:60px 20px; margin:20px 0; text-align:center; border:2px dashed #B0BEC5; border-radius:12px; color:#6C757D; font-weight:bold;'>📸 [여기에 사진 삽입: 프리미엄 와플 수건의 디테일 질감 컷]</div>` where product images should be placed.
+                       - Ensure the HTML code is enclosed in a markdown code block (```html ... ```).
                     """
-                    # 결과를 화면 갱신에도 날아가지 않게 저장
                     st.session_state['seo_result_text'] = ask_ai(agent_prompt)
                     st.session_state['seo_prod_name'] = prod_name
             else:
                 st.warning("상품명과 핵심 포인트를 입력해주세요!")
 
-        # 💡 [핵심] 저장된 결과가 있으면 화면에 띄우고 다운로드 버튼을 생성합니다 (폼 바깥 위치)
         if 'seo_result_text' in st.session_state:
             st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{st.session_state['seo_result_text'].replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
             
-            st.write("") # 버튼 위아래 간격 띄우기
+            st.write("") 
             
-            # 텍스트 파일(.txt) 다운로드 버튼
             st.download_button(
-                label="📥 디자이너 전달용 기획안 다운로드 (.txt)",
+                label="📥 기획안 및 HTML 코드 다운로드 (.txt)",
                 data=st.session_state['seo_result_text'],
-                file_name=f"DUWELL_상세페이지기획안_{st.session_state.get('seo_prod_name', '기본')}.txt",
+                file_name=f"DUWELL_상세페이지기획_HTML_{st.session_state.get('seo_prod_name', '기본')}.txt",
                 mime="text/plain",
                 use_container_width=True
             )
