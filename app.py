@@ -1610,7 +1610,7 @@ elif menu == "🤖 AI 비즈니스 센터":
                     """
                     st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
 
-                    # --- [6] 상세페이지 이미지 프롬프트 제작 에이전트 ---
+    # --- [6] 상세페이지 이미지 프롬프트 제작 에이전트 ---
     with ai_tab6:
         st.markdown("#### 📸 고품질 상세페이지 이미지 프롬프트 (미드저니/DALL-E 용)")
         st.info("제품 특징과 원하는 분위기를 고르면, AI 이미지 생성기에 바로 복사해 넣을 수 있는 영문 프롬프트를 전문가 수준으로 뽑아줍니다.")
@@ -1646,10 +1646,10 @@ elif menu == "🤖 AI 비즈니스 센터":
                         st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
                 else:
                     st.warning("제품 특징을 입력해주세요!")
-                    # --- [7] 다중 마켓 SEO 최적화 상품 등록 에이전트 ---
+ # --- [7] 다중 마켓 SEO 최적화 상품 등록 에이전트 ---
     with ai_tab7:
         st.markdown("#### 🛒 오픈마켓별 SEO 최적화 상품 등록기")
-        st.info("네이버, 쿠팡, 자사몰 등 각 마켓의 검색 로직(SEO)에 맞춰 상품명, 태그, 상세설명 뼈대를 뽑아줍니다. 복사해서 바로 붙여넣으세요!")
+        st.info("네이버, 쿠팡 등 각 마켓 로직에 맞춰 상품명과 상세설명 뼈대를 뽑아줍니다. 기획안을 다운로드하여 디자이너에게 바로 전달하세요!")
 
         with st.form("seo_agent_form"):
             col1, col2 = st.columns(2)
@@ -1660,25 +1660,46 @@ elif menu == "🤖 AI 비즈니스 센터":
                 target_customer = st.selectbox("메인 타겟", ["3040 리빙/인테리어", "2030 집들이/신혼부부", "답례품/대량구매", "전체 연령대"])
                 core_points = st.text_input("핵심 강조 포인트", placeholder="예: 먼지없는, 빠른건조, 호텔수건, 10년 노하우", value="먼지없는, 빠른건조, 고급스러운 질감")
 
-            if st.form_submit_button("🚀 마켓별 최적화 데이터 생성", type="primary"):
-                if prod_name and core_points:
-                    with st.spinner(f"{target_market} 로직에 맞춰 최적화 데이터를 뽑아내는 중입니다..."):
-                        agent_prompt = f"""
-                        You are an elite E-commerce Merchandiser and SEO expert in Korea, working for the premium towel brand 'DUWELL'.
-                        You have 10 years of deep towel industry experience.
-                        Your task is to generate highly optimized product registration data for {target_market}.
+            # 폼 제출 버튼
+            submit_btn = st.form_submit_button("🚀 마켓별 최적화 데이터 생성", type="primary")
 
-                        - Product: {prod_name}
-                        - Target Customer: {target_customer}
-                        - Key Selling Points: {core_points}
+        # 💡 [핵심] 버튼을 누르면 AI 결과를 '세션(메모리)'에 저장합니다.
+        if submit_btn:
+            if prod_name and core_points:
+                with st.spinner(f"{target_market} 로직에 맞춰 최적화 데이터를 뽑아내는 중입니다..."):
+                    agent_prompt = f"""
+                    You are an elite E-commerce Merchandiser and SEO expert in Korea, working for the premium towel brand 'DUWELL'.
+                    You have 10 years of deep towel industry experience.
+                    Your task is to generate highly optimized product registration data for {target_market}.
 
-                        Please provide the output strictly in Korean, following this structure:
+                    - Product: {prod_name}
+                    - Target Customer: {target_customer}
+                    - Key Selling Points: {core_points}
 
-                        1. 🏷️ [최적화 상품명 3가지]: Create 3 variations of the product title optimized for {target_market}'s search algorithm. (Keep it natural but keyword-rich).
-                        2. 🔑 [검색 태그/키워드]: Provide exactly 10 highly searched, relevant tags/keywords separated by commas (optimized for {target_market}).
-                        3. 📝 [메타 디스크립션/PC·모바일 요약 설명]: A compelling 2-3 sentence description to catch the customer's eye on the search result page.
-                        4. 💻 [상세페이지 기획 뼈대]: 3-step storyline for the detail page (Hook -> USP explanation -> Closing/Trust with 10 years of experience).
-                        """
-                        st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
-                else:
-                    st.warning("상품명과 핵심 포인트를 입력해주세요!")
+                    Please provide the output strictly in Korean, following this structure:
+
+                    1. 🏷️ [최적화 상품명 3가지]: Create 3 variations of the product title optimized for {target_market}'s search algorithm. (Keep it natural but keyword-rich).
+                    2. 🔑 [검색 태그/키워드]: Provide exactly 10 highly searched, relevant tags/keywords separated by commas (optimized for {target_market}).
+                    3. 📝 [메타 디스크립션/PC·모바일 요약 설명]: A compelling 2-3 sentence description to catch the customer's eye on the search result page.
+                    4. 💻 [상세페이지 기획 뼈대 (디자이너 전달용)]: 3-step storyline for the detail page (Hook -> USP explanation -> Closing/Trust with 10 years of experience).
+                    """
+                    # 결과를 화면 갱신에도 날아가지 않게 저장
+                    st.session_state['seo_result_text'] = ask_ai(agent_prompt)
+                    st.session_state['seo_prod_name'] = prod_name
+            else:
+                st.warning("상품명과 핵심 포인트를 입력해주세요!")
+
+        # 💡 [핵심] 저장된 결과가 있으면 화면에 띄우고 다운로드 버튼을 생성합니다 (폼 바깥 위치)
+        if 'seo_result_text' in st.session_state:
+            st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{st.session_state['seo_result_text'].replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+            
+            st.write("") # 버튼 위아래 간격 띄우기
+            
+            # 텍스트 파일(.txt) 다운로드 버튼
+            st.download_button(
+                label="📥 디자이너 전달용 기획안 다운로드 (.txt)",
+                data=st.session_state['seo_result_text'],
+                file_name=f"DUWELL_상세페이지기획안_{st.session_state.get('seo_prod_name', '기본')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
