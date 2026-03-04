@@ -1680,14 +1680,14 @@ elif menu == "🤖 AI 비즈니스 센터":
                     2. 🔑 [검색 태그/키워드]: Provide exactly 10 highly searched, relevant tags/keywords separated by commas.
                     3. 📝 [메타 디스크립션/PC·모바일 요약 설명]: A compelling 2-3 sentence description.
                     4. 💻 [상세페이지 기획 뼈대]: 3-step storyline for the detail page (Hook -> USP explanation -> Closing/Trust with 10 years of experience).
-                    5. 🌐 [반응형 HTML 상세페이지 (복붙용)]:
-                       - Write clean, modern HTML code. MUST use inline CSS.
-                       - [반응형 폰트 최적화 필수]: For headings and key copy, MUST use responsive font sizes (e.g., `vw` units or `clamp()`) so the text smoothly SHRINKS to fit smaller mobile screens INSTEAD OF awkwardly wrapping to the next line. Do NOT use fixed `px` for large texts.
-                       - Use `max-width: 100%;` and avoid hardcoded `<br>` tags that break mobile layouts.
-                       - Style: Elegant typography, #2B3A55 or #800020 for accent colors, clear headings, centered text.
-                       - [인트로 고정]: At the very top, insert: `<div style='background:#E9ECEF; padding:8vw 20px; margin-bottom:40px; text-align:center; border:2px dashed #ADB5BD; border-radius:12px; color:#495057; font-weight:900; font-size:clamp(1rem, 4vw, 1.5rem); max-width:100%;'>📸 [메인 인트로 사진 삽입: 시선을 사로잡는 {prod_name} 연출 컷]</div>`
-                       - Include persuasive copywriting highlighting DUWELL's 10 years of know-how.
-                       - For other images, insert: `<div style='background:#F4F6F9; padding:8vw 20px; margin:20px 0; text-align:center; border:2px dashed #B0BEC5; border-radius:12px; color:#6C757D; font-weight:bold; max-width:100%; font-size:clamp(0.9rem, 3vw, 1.2rem);'>📸 [여기에 사진 삽입: 디테일 컷]</div>`
+                    5. 🌐 [네이버 에디터 완벽 호환 HTML 상세페이지]:
+                       - Write clean, modern HTML code. MUST use inline CSS on EVERY SINGLE TAG.
+                       - [네이버 호환 반응형]: Naver Editor removes complex CSS. DO NOT use `vw` or `clamp()`. Instead, use `%` or `em` for font sizes (e.g., `font-size: 150%;`).
+                       - [글자 찢어짐 완벽 방지]: To strictly prevent Korean words from breaking mid-word (like "추\n천합니다"), you MUST apply `word-break: keep-all;` to EVERY text tag (`<h1>`, `<h2>`, `<p>`, `<div>`).
+                       - For important short titles, explicitly wrap them in `<span style="white-space: nowrap;">` so they NEVER break lines under any circumstances.
+                       - Style: #2B3A55 or #800020 for accent colors, centered text, `line-height: 1.6;`.
+                       - [인트로 고정]: At the very top, insert: `<div style='background:#E9ECEF; padding:10% 20px; margin-bottom:40px; text-align:center; border:2px dashed #ADB5BD; border-radius:12px; color:#495057; font-weight:900; font-size:130%; word-break:keep-all;'>📸 [메인 인트로 사진 삽입: 시선을 사로잡는 {prod_name} 연출 컷]</div>`
+                       - For other images: `<div style='background:#F4F6F9; padding:10% 20px; margin:20px 0; text-align:center; border:2px dashed #B0BEC5; border-radius:12px; color:#6C757D; font-weight:bold; word-break:keep-all;'>📸 [여기에 사진 삽입: 디테일 컷]</div>`
                        - Ensure the HTML code is enclosed in a markdown code block (```html ... ```).
                     """
                     st.session_state['seo_result_text'] = ask_ai(agent_prompt)
