@@ -1682,12 +1682,15 @@ elif menu == "🤖 AI 비즈니스 센터":
                     4. 💻 [상세페이지 기획 뼈대]: 3-step storyline for the detail page (Hook -> USP explanation -> Closing/Trust with 10 years of experience).
                     5. 🌐 [네이버 에디터 완벽 호환 HTML 상세페이지]:
                        - Write clean, modern HTML code. MUST use inline CSS on EVERY SINGLE TAG.
-                       - [네이버 호환 반응형]: Naver Editor removes complex CSS. DO NOT use `vw` or `clamp()`. Instead, use `%` or `em` for font sizes (e.g., `font-size: 150%;`).
-                       - [글자 찢어짐 완벽 방지]: To strictly prevent Korean words from breaking mid-word (like "추\n천합니다"), you MUST apply `word-break: keep-all;` to EVERY text tag (`<h1>`, `<h2>`, `<p>`, `<div>`).
-                       - For important short titles, explicitly wrap them in `<span style="white-space: nowrap;">` so they NEVER break lines under any circumstances.
+                       - [폰트 크기]: Use `em` or `px` (e.g., `font-size: 1.2em;` or `font-size: 18px;`). Do NOT use `vw` or `clamp()`.
+                       - [단어 찢어짐 100% 방지 규칙]: 
+                         1) Apply `word-break: keep-all;` to EVERY text tag (`<p>`, `<div>`, `<span>`, `<strong>`, etc.).
+                         2) For titles or long sentences, you MUST intentionally insert `<br>` tags at natural semantic pauses so the text breaks beautifully on mobile screens WITHOUT hitting the edge. 
+                            (Example BAD: 듀웰 프리미엄 와플 수건, 이런 분들께 추천합니다!)
+                            (Example GOOD: 듀웰 프리미엄 와플 수건,<br>이런 분들께 추천합니다!)
                        - Style: #2B3A55 or #800020 for accent colors, centered text, `line-height: 1.6;`.
-                       - [인트로 고정]: At the very top, insert: `<div style='background:#E9ECEF; padding:10% 20px; margin-bottom:40px; text-align:center; border:2px dashed #ADB5BD; border-radius:12px; color:#495057; font-weight:900; font-size:130%; word-break:keep-all;'>📸 [메인 인트로 사진 삽입: 시선을 사로잡는 {prod_name} 연출 컷]</div>`
-                       - For other images: `<div style='background:#F4F6F9; padding:10% 20px; margin:20px 0; text-align:center; border:2px dashed #B0BEC5; border-radius:12px; color:#6C757D; font-weight:bold; word-break:keep-all;'>📸 [여기에 사진 삽입: 디테일 컷]</div>`
+                       - [인트로 고정]: `<div style='background:#E9ECEF; padding:40px 20px; margin-bottom:40px; text-align:center; border:2px dashed #ADB5BD; border-radius:12px; color:#495057; font-weight:900; font-size:1.2em; word-break:keep-all;'>📸 [메인 인트로 사진 삽입:<br>시선을 사로잡는 {prod_name} 연출 컷]</div>`
+                       - For other images: `<div style='background:#F4F6F9; padding:40px 20px; margin:20px 0; text-align:center; border:2px dashed #B0BEC5; border-radius:12px; color:#6C757D; font-weight:bold; word-break:keep-all;'>📸 [여기에 사진 삽입:<br>디테일 컷]</div>`
                        - Ensure the HTML code is enclosed in a markdown code block (```html ... ```).
                     """
                     st.session_state['seo_result_text'] = ask_ai(agent_prompt)
