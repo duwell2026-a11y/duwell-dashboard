@@ -1660,10 +1660,9 @@ elif menu == "🤖 AI 비즈니스 센터":
                 target_customer = st.selectbox("메인 타겟", ["3040 리빙/인테리어", "2030 집들이/신혼부부", "답례품/대량구매", "전체 연령대"])
                 core_points = st.text_input("핵심 강조 포인트", placeholder="예: 먼지없는, 빠른건조, 호텔수건, 10년 노하우", value="먼지없는, 빠른건조, 고급스러운 질감")
 
-            # 폼 제출 버튼
             submit_btn = st.form_submit_button("🚀 SEO 데이터 및 HTML 생성", type="primary")
 
-if submit_btn:
+        if submit_btn:
             if prod_name and core_points:
                 with st.spinner(f"{target_market} 로직에 맞춰 최적화 데이터와 HTML 코드를 작성 중입니다... (약 10~20초 소요)"):
                     agent_prompt = f"""
@@ -1691,8 +1690,6 @@ if submit_btn:
                        - For other images, insert: `<div style='background:#F4F6F9; padding:8vw 20px; margin:20px 0; text-align:center; border:2px dashed #B0BEC5; border-radius:12px; color:#6C757D; font-weight:bold; max-width:100%; font-size:clamp(0.9rem, 3vw, 1.2rem);'>📸 [여기에 사진 삽입: 디테일 컷]</div>`
                        - Ensure the HTML code is enclosed in a markdown code block (```html ... ```).
                     """
-                    
-                    # 💡 여기가 에러 났던 부분입니다. 위 agent_prompt 랑 세로줄이 똑같이 맞아야 합니다!
                     st.session_state['seo_result_text'] = ask_ai(agent_prompt)
                     st.session_state['seo_prod_name'] = prod_name
             else:
