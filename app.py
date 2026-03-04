@@ -1666,7 +1666,7 @@ elif menu == "🤖 AI 비즈니스 센터":
         if submit_btn:
             if prod_name and core_points:
                 with st.spinner(f"{target_market} 로직에 맞춰 최적화 데이터와 HTML 코드를 작성 중입니다... (약 10~20초 소요)"):
-                    agent_prompt = f"""
+                  agent_prompt = f"""
                     You are an elite E-commerce Merchandiser, SEO expert, and Web Designer in Korea, working for the premium towel brand 'DUWELL'.
                     You have 10 years of deep towel industry experience.
                     Your task is to generate highly optimized product registration data and a complete HTML detail page for {target_market}.
@@ -1681,13 +1681,14 @@ elif menu == "🤖 AI 비즈니스 센터":
                     2. 🔑 [검색 태그/키워드]: Provide exactly 10 highly searched, relevant tags/keywords separated by commas.
                     3. 📝 [메타 디스크립션/PC·모바일 요약 설명]: A compelling 2-3 sentence description.
                     4. 💻 [상세페이지 기획 뼈대]: 3-step storyline for the detail page (Hook -> USP explanation -> Closing/Trust with 10 years of experience).
-                    5. 🌐 [모바일 최적화 상세페이지 HTML (복붙용)]:
+                    5. 🌐 [반응형 HTML 상세페이지 (복붙용)]:
                        - Write clean, modern HTML code. MUST use inline CSS.
-                       - [모바일 최적화 필수]: Apply `max-width: 100%;`, `word-break: keep-all;`, and `line-height: 1.6;` to the main container to ensure perfect readability on mobile screens.
+                       - [반응형 폰트 최적화 필수]: For headings and key copy, MUST use responsive font sizes (e.g., `vw` units or `clamp()`) so the text smoothly SHRINKS to fit smaller mobile screens INSTEAD OF awkwardly wrapping to the next line. Do NOT use fixed `px` for large texts.
+                       - Use `max-width: 100%;` and avoid hardcoded `<br>` tags that break mobile layouts.
                        - Style: Elegant typography, #2B3A55 or #800020 for accent colors, clear headings, centered text.
-                       - [인트로 고정]: At the very top, insert: `<div style='background:#E9ECEF; padding:120px 20px; margin-bottom:40px; text-align:center; border:2px dashed #ADB5BD; border-radius:12px; color:#495057; font-weight:900; font-size:1.3rem; max-width:100%; word-break:keep-all;'>📸 [메인 인트로 사진 삽입: 시선을 사로잡는 {prod_name} 연출 컷]</div>`
+                       - [인트로 고정]: At the very top, insert: `<div style='background:#E9ECEF; padding:8vw 20px; margin-bottom:40px; text-align:center; border:2px dashed #ADB5BD; border-radius:12px; color:#495057; font-weight:900; font-size:clamp(1rem, 4vw, 1.5rem); max-width:100%;'>📸 [메인 인트로 사진 삽입: 시선을 사로잡는 {prod_name} 연출 컷]</div>`
                        - Include persuasive copywriting highlighting DUWELL's 10 years of know-how.
-                       - For other images, insert: `<div style='background:#F4F6F9; padding:60px 20px; margin:20px 0; text-align:center; border:2px dashed #B0BEC5; border-radius:12px; color:#6C757D; font-weight:bold; max-width:100%;'>📸 [여기에 사진 삽입: 디테일 컷]</div>`
+                       - For other images, insert: `<div style='background:#F4F6F9; padding:8vw 20px; margin:20px 0; text-align:center; border:2px dashed #B0BEC5; border-radius:12px; color:#6C757D; font-weight:bold; max-width:100%; font-size:clamp(0.9rem, 3vw, 1.2rem);'>📸 [여기에 사진 삽입: 디테일 컷]</div>`
                        - Ensure the HTML code is enclosed in a markdown code block (```html ... ```).
                     """
                     st.session_state['seo_result_text'] = ask_ai(agent_prompt)
