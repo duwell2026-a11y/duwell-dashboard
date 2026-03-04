@@ -1684,10 +1684,11 @@ elif menu == "🤖 AI 비즈니스 센터":
                     5. 🌐 [상세페이지 HTML 코드 (복사-붙여넣기용)]:
                        - Write clean, modern HTML code for the product detail page based on the storyline above.
                        - Use inline CSS for styling (elegant typography, #2B3A55 or #800020 for text accent colors, clear headings, centered text, plenty of padding/margin for readability).
+                       - [필수] HTML 구조의 맨 위쪽(최상단)에는 반드시 다음 코드를 넣어 메인 인트로 사진 자리를 큼직하게 고정하세요: `<div style='background:#E9ECEF; padding:120px 20px; margin-bottom:40px; text-align:center; border:2px dashed #ADB5BD; border-radius:12px; color:#495057; font-weight:900; font-size:1.3rem;'>📸 [메인 인트로 사진 삽입: 시선을 사로잡는 {prod_name} 연출 컷]</div>`
                        - Include persuasive copywriting highlighting DUWELL's 10 years of know-how and the key selling points.
-                       - Insert highly visible image placeholders like this: `<div style='background:#F4F6F9; padding:60px 20px; margin:20px 0; text-align:center; border:2px dashed #B0BEC5; border-radius:12px; color:#6C757D; font-weight:bold;'>📸 [여기에 사진 삽입: 프리미엄 와플 수건의 디테일 질감 컷]</div>` where product images should be placed.
+                       - For other images in the body, insert smaller placeholders like this: `<div style='background:#F4F6F9; padding:60px 20px; margin:20px 0; text-align:center; border:2px dashed #B0BEC5; border-radius:12px; color:#6C757D; font-weight:bold;'>📸 [여기에 사진 삽입: 디테일 컷]</div>`
                        - Ensure the HTML code is enclosed in a markdown code block (```html ... ```).
-                    """
+                    """ 
                     st.session_state['seo_result_text'] = ask_ai(agent_prompt)
                     st.session_state['seo_prod_name'] = prod_name
             else:
