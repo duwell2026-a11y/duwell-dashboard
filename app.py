@@ -1486,9 +1486,9 @@ elif menu == "🤖 AI 비즈니스 센터":
         </div>
     """, unsafe_allow_html=True)
 
-  # 6개의 에이전트 탭 생성 (수정된 부분)
-    ai_tab1, ai_tab2, ai_tab3, ai_tab4, ai_tab5, ai_tab6 = st.tabs([
-        "📝 1. MD 신제품 기획", "💼 2. B2B 영업 제안", "🔍 3. 경쟁사 리뷰 분석", "📊 4. 일일 경영 브리핑", "💰 5. 마진 시뮬레이터", "📸 6. 이미지 프롬프트"
+    # 7개의 에이전트 탭 생성 (수정된 부분)
+    ai_tab1, ai_tab2, ai_tab3, ai_tab4, ai_tab5, ai_tab6, ai_tab7 = st.tabs([
+        "📝 1. MD 신제품", "💼 2. B2B 영업", "🔍 3. 리뷰 분석", "📊 4. 경영 브리핑", "💰 5. 마진 시뮬", "📸 6. 이미지 프롬프트", "🛒 7. 마켓별 SEO 등록"
     ])
 
     # --- [1] MD 신제품 기획 에이전트 ---
@@ -1646,3 +1646,39 @@ elif menu == "🤖 AI 비즈니스 센터":
                         st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
                 else:
                     st.warning("제품 특징을 입력해주세요!")
+                    # --- [7] 다중 마켓 SEO 최적화 상품 등록 에이전트 ---
+    with ai_tab7:
+        st.markdown("#### 🛒 오픈마켓별 SEO 최적화 상품 등록기")
+        st.info("네이버, 쿠팡, 자사몰 등 각 마켓의 검색 로직(SEO)에 맞춰 상품명, 태그, 상세설명 뼈대를 뽑아줍니다. 복사해서 바로 붙여넣으세요!")
+
+        with st.form("seo_agent_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                target_market = st.selectbox("등록할 마켓 선택", ["🟢 네이버 스마트스토어", "🚀 쿠팡", "🏠 자사몰 / 기타 오픈마켓"])
+                prod_name = st.text_input("기본 상품명", value="프리미엄 와플 수건")
+            with col2:
+                target_customer = st.selectbox("메인 타겟", ["3040 리빙/인테리어", "2030 집들이/신혼부부", "답례품/대량구매", "전체 연령대"])
+                core_points = st.text_input("핵심 강조 포인트", placeholder="예: 먼지없는, 빠른건조, 호텔수건, 10년 노하우", value="먼지없는, 빠른건조, 고급스러운 질감")
+
+            if st.form_submit_button("🚀 마켓별 최적화 데이터 생성", type="primary"):
+                if prod_name and core_points:
+                    with st.spinner(f"{target_market} 로직에 맞춰 최적화 데이터를 뽑아내는 중입니다..."):
+                        agent_prompt = f"""
+                        You are an elite E-commerce Merchandiser and SEO expert in Korea, working for the premium towel brand 'DUWELL'.
+                        You have 10 years of deep towel industry experience.
+                        Your task is to generate highly optimized product registration data for {target_market}.
+
+                        - Product: {prod_name}
+                        - Target Customer: {target_customer}
+                        - Key Selling Points: {core_points}
+
+                        Please provide the output strictly in Korean, following this structure:
+
+                        1. 🏷️ [최적화 상품명 3가지]: Create 3 variations of the product title optimized for {target_market}'s search algorithm. (Keep it natural but keyword-rich).
+                        2. 🔑 [검색 태그/키워드]: Provide exactly 10 highly searched, relevant tags/keywords separated by commas (optimized for {target_market}).
+                        3. 📝 [메타 디스크립션/PC·모바일 요약 설명]: A compelling 2-3 sentence description to catch the customer's eye on the search result page.
+                        4. 💻 [상세페이지 기획 뼈대]: 3-step storyline for the detail page (Hook -> USP explanation -> Closing/Trust with 10 years of experience).
+                        """
+                        st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+                else:
+                    st.warning("상품명과 핵심 포인트를 입력해주세요!")
