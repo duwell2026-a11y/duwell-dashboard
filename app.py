@@ -147,7 +147,7 @@ GOOGLE_CREDENTIALS = None
 try:
     if is_local:
         SHEET_ID = "1xqcbuzRzzp4i_Qsy4CKRjIIvGOTthT88bXxxY5RjEjQ"
-        GOOGLE_API_KEY = "AIzaSyBBReb6mUNBeIGa2n-GJEt-lUphanHq3jg"
+        GOOGLE_API_KEY = "AIzaSyCBivIjZ2Um3nfKFnOtSSrqbWyyotUAAJw"
         SENDER_EMAIL = "duwell2026@gmail.com"
         SENDER_PASSWORD = "mvxo jzki djzg iwor"
         with open(local_key_path, "r", encoding="utf-8") as f:
@@ -349,12 +349,37 @@ def get_best_model():
 
 def ask_ai(prompt):
     if not GOOGLE_API_KEY: return "API Key Missing"
+    
+    # 💡 [핵심] 에러가 나더라도 튕기지 않도록 변수를 맨 처음에 미리 만들어둡니다.
+    available_models = [] 
+    
     try:
-        model_name = get_best_model()
-        model = genai.GenerativeModel(model_name)
+        # 1. 내 구글 API 키로 접속 가능한 모든 모델 리스트를 불러옵니다.
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available_models.append(m.name)
+        
+        if not available_models:
+            return "🚨 권한 에러: 구글 API 키로 사용할 수 있는 모델이 하나도 없습니다."
+            
+        # 2. 쓸 수 있는 모델 중 가장 똑똑하고 빠른(flash 또는 pro) 모델을 자동으로 골라냅니다.
+        target_model = available_models[-1] # 임시 기본값
+        for m in available_models:
+            if 'flash' in m.lower() or 'pro' in m.lower():
+                target_model = m
+                break
+                
+        # 3. 모델 이름 깔끔하게 정리 (models/ 글자 제거)
+        clean_model_name = target_model.replace("models/", "")
+        
+        # 4. 검색된 진짜 모델로 기획안 작성을 지시합니다.
+        model = genai.GenerativeModel(clean_model_name)
         response = model.generate_content(prompt)
         return response.text
-    except: return "AI Error"
+        
+    except Exception as e: 
+        # 이제 2차 에러 없이 "진짜 에러 원인"을 화면에 띄워줍니다!
+        return f"🚨 진짜 에러 원인: {str(e)}\n\n💡 [참고] 내 API로 사용 가능한 모델 목록: {available_models}"
 
 def add_log(action_type, details):
     """실수를 추적하기 위한 블랙박스(작업로그) 기록 함수"""
@@ -648,7 +673,8 @@ menu = st.radio(
         "🛠️ 재고 입출고 관리", 
         "🛠️ 옵션 관리", 
         "📅 일정 관리", 
-        "💰 마진/정산 분석"
+        "💰 마진/정산 분석",
+        "🤖 AI 비즈니스 센터"
     ],
     horizontal=True,
     label_visibility="collapsed" # '메뉴 이동' 이라는 제목 글씨 숨김
@@ -1379,7 +1405,7 @@ elif menu == "💰 마진/정산 분석":
                 '순이익': '{:,.0f}', '평균마진율(%)': '{:.1f}%'
             })
             try: styled_monthly = styled_monthly.background_gradient(subset=['평균마진율(%)'], cmap='RdYlGn')
-            except: pass
+            except: passpass
             
             st.dataframe(styled_monthly, use_container_width=True, hide_index=True)
             
@@ -1445,5 +1471,135 @@ elif menu == "💰 마진/정산 분석":
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
 
+# === [8] 🤖 AI 비즈니스 센터 (5대 에이전트 통합) ===
+elif menu == "🤖 AI 비즈니스 센터":
+    st.markdown("""
+        <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 25px; border-radius: 12px; color: white; margin-bottom: 20px;">
+            <h2 style="margin:0; font-size:1.6rem; font-weight:800; color:white;">🤖 DUWELL AI 비즈니스 센터</h2>
+            <p style="margin:5px 0 0 0; font-size:0.95rem; opacity:0.9; color:white;">10년의 수건 업계 노하우를 학습한 5명의 AI 전문가 팀이 대표님의 업무를 지원합니다.</p>
+        </div>
+    """, unsafe_allow_html=True)
 
+    # 5개의 에이전트 탭 생성
+    ai_tab1, ai_tab2, ai_tab3, ai_tab4, ai_tab5 = st.tabs([
+        "📝 1. MD 신제품 기획", "💼 2. B2B 영업 제안", "🔍 3. 경쟁사 리뷰 분석", "📊 4. 일일 경영 브리핑", "💰 5. 마진 시뮬레이터"
+    ])
 
+    # --- [1] MD 신제품 기획 에이전트 ---
+    with ai_tab1:
+        st.markdown("#### 📝 신제품 런칭 브리프 생성기")
+        with st.form("md_agent_form"):
+            new_product_desc = st.text_area("기획 중인 상품 특징 입력", placeholder="예: 프리미엄 와플 직조 수건. 일반 수건보다 건조가 빠르고 먼지가 안 나. 고급 에스테틱 느낌.", height=100)
+            if st.form_submit_button("✨ 런칭 기획안 생성", type="primary"):
+                if new_product_desc:
+                    with st.spinner("MD 에이전트가 기획안을 작성 중입니다..."):
+                        agent_prompt = f"""
+                        You are an elite Towel Merchandiser for 'DUWELL'. Backed by 10 years of towel industry know-how, write a product launch brief in Korean.
+                        [신제품 특징]: {new_product_desc}
+                        출력 형식: [상품명 아이디어 3개], [핵심 타겟 고객], [강력한 셀링 포인트 3개], [상세페이지 스토리라인]
+                        """
+                        st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+
+    # --- [2] B2B 영업 제안서 에이전트 ---
+    with ai_tab2:
+        st.markdown("#### 💼 B2B 맞춤형 영업 제안서 작성")
+        with st.form("b2b_agent_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                target_company = st.text_input("제안 대상 (예: A 고급 에스테틱, B 부티크 호텔)")
+            with col2:
+                target_product = st.text_input("제안 상품 (예: 프리미엄 와플 수건 세트)")
+            
+            sales_points = st.text_area("강조할 소구점 (예: 먼지 없음, 빠른 건조, 고급스러운 디자인)")
+            
+            if st.form_submit_button("🚀 B2B 영업 메일 초안 생성", type="primary"):
+                if target_company and target_product:
+                    with st.spinner("B2B 영업 에이전트가 제안서를 작성 중입니다..."):
+                        agent_prompt = f"""
+                        You are an elite B2B Sales Representative for the premium towel brand 'DUWELL'. 
+                        Write a highly professional, polite, and persuasive B2B sales email in Korean.
+                        - 타겟 고객사: {target_company}
+                        - 제안 상품: {target_product}
+                        - 강조할 포인트: {sales_points}
+                        - 톤앤매너: 10년 경력의 신뢰감, 고급스러움, 상대방 비즈니스에 확실한 도움이 된다는 확신.
+                        """
+                        st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+
+    # --- [3] 경쟁사 리뷰 분석 에이전트 ---
+    with ai_tab3:
+        st.markdown("#### 🔍 타사 리뷰 기반 마케팅 포인트 추출")
+        with st.form("review_agent_form"):
+            bad_reviews = st.text_area("경쟁사(일반 수건) 부정적 리뷰 복사/붙여넣기", placeholder="예: 먼지가 너무 날려요. 잘 안 마르고 꿉꿉한 냄새가 나요.", height=100)
+            if st.form_submit_button("💡 공격적 마케팅 무기 생성", type="primary"):
+                if bad_reviews:
+                    with st.spinner("리서치 에이전트가 페인포인트를 분석 중입니다..."):
+                        agent_prompt = f"""
+                        You are an expert Market Researcher and Copywriter for 'DUWELL'.
+                        Analyze the following negative reviews of competitor's normal towels: "{bad_reviews}"
+                        1. 고객의 핵심 Pain Point 요약
+                        2. 이를 완벽히 해결해주는 DUWELL '프리미엄 와플 수건'의 특장점 연결
+                        3. 당장 인스타그램 카드뉴스에 쓸 수 있는 후킹 카피 3가지 제안 (한국어)
+                        """
+                        st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+
+    # --- [4] 일일 경영 브리핑 에이전트 ---
+    with ai_tab4:
+        st.markdown("#### 📊 대표님 맞춤형 일일 브리핑 (데이터 연동)")
+        st.info("ERP에 쌓인 매출, 재고, 일정 데이터를 종합하여 아침 브리핑을 제공합니다.")
+        if st.button("☕ 오늘의 경영 브리핑 생성", type="primary"):
+            with st.spinner("비서 에이전트가 데이터를 취합하고 분석 중입니다..."):
+                # 현재 시스템 데이터 수집 (매출, 재고, 일정)
+                today_str = datetime.now().strftime("%Y-%m-%d")
+                today_sales = df_all[df_all['날짜_str'] == today_str]['결제금액'].sum() if not df_all.empty and '결제금액' in df_all.columns else 0
+                
+                # 재고 부족 상품 찾기
+                df_stock_temp, _ = load_data("재고관리")
+                low_stock_msg = "재고 부족 상품 없음"
+                if not df_stock_temp.empty:
+                    df_stock_temp['현재재고'] = pd.to_numeric(df_stock_temp['현재재고'], errors='coerce').fillna(0)
+                    df_stock_temp['안전재고'] = pd.to_numeric(df_stock_temp['안전재고'], errors='coerce').fillna(0)
+                    low_items = df_stock_temp[df_stock_temp['현재재고'] <= df_stock_temp['안전재고']]['상품명'].tolist()
+                    if low_items: low_stock_msg = ", ".join(low_items) + " (발주 필요!)"
+
+                # 오늘 일정 찾기
+                df_sch_temp, _ = load_data("일정관리")
+                today_schedule = "일정 없음"
+                if not df_sch_temp.empty:
+                    today_events = df_sch_temp[df_sch_temp['시작일'] == today_str]['일정명'].tolist()
+                    if today_events: today_schedule = ", ".join(today_events)
+
+                agent_prompt = f"""
+                You are the Executive Assistant to the CEO of 'DUWELL'. Write a crisp, objective, and encouraging morning briefing in Korean.
+                [오늘의 데이터]
+                - 예상 매출: {today_sales:,.0f}원
+                - 재고 경고: {low_stock_msg}
+                - 주요 일정: {today_schedule}
+                위 데이터를 바탕으로:
+                1. 성과 요약 및 칭찬 한마디
+                2. 오늘 반드시 처리해야 할 액션 아이템(재고, 일정 관련) 2가지 제안
+                """
+                st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+
+    # --- [5] 마진 시뮬레이터 에이전트 ---
+    with ai_tab5:
+        st.markdown("#### 💰 기획 상품 마진 시뮬레이터")
+        with st.form("margin_agent_form"):
+            col1, col2, col3 = st.columns(3)
+            with col1: base_price = st.number_input("기존 판매가 (원)", value=15000)
+            with col2: discount_rate = st.number_input("할인율 (%)", value=15)
+            with col3: product_cost = st.number_input("매입 원가 (원)", value=6000)
+            
+            extra_costs = st.text_input("추가 비용 내역 (예: 포장비 1000원, 사은품 500원)")
+            market_type = st.selectbox("판매 채널 (수수료율)", ["스마트스토어 (약 5.5%)", "쿠팡 (약 10.8%)", "자사몰 (약 3%)"])
+
+            if st.form_submit_button("🧮 적정 판매가 및 마진 계산", type="primary"):
+                with st.spinner("재무 에이전트가 마진율을 계산 중입니다..."):
+                    agent_prompt = f"""
+                    You are a strict and smart Financial Advisor for 'DUWELL'. Calculate the profit margin based on the following data:
+                    - 기존 판매가: {base_price}원 / 기획 할인율: {discount_rate}%
+                    - 매입 원가: {product_cost}원 / 추가 비용: {extra_costs}
+                    - 판매 채널: {market_type}
+                    1. 최종 예상 판매가, 예상 수수료, 마진 금액, 최종 마진율(%)을 수식과 함께 직관적으로 보여주세요.
+                    2. 마진율이 30% 미만일 경우, 이익을 방어하기 위한 가격 정책이나 세트 구성 아이디어를 제안해주세요. (한국어)
+                    """
+                    st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
