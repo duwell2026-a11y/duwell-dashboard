@@ -1480,9 +1480,9 @@ elif menu == "🤖 AI 비즈니스 센터":
         </div>
     """, unsafe_allow_html=True)
 
-    # 5개의 에이전트 탭 생성
-    ai_tab1, ai_tab2, ai_tab3, ai_tab4, ai_tab5 = st.tabs([
-        "📝 1. MD 신제품 기획", "💼 2. B2B 영업 제안", "🔍 3. 경쟁사 리뷰 분석", "📊 4. 일일 경영 브리핑", "💰 5. 마진 시뮬레이터"
+  # 6개의 에이전트 탭 생성 (수정된 부분)
+    ai_tab1, ai_tab2, ai_tab3, ai_tab4, ai_tab5, ai_tab6 = st.tabs([
+        "📝 1. MD 신제품 기획", "💼 2. B2B 영업 제안", "🔍 3. 경쟁사 리뷰 분석", "📊 4. 일일 경영 브리핑", "💰 5. 마진 시뮬레이터", "📸 6. 이미지 프롬프트"
     ])
 
     # --- [1] MD 신제품 기획 에이전트 ---
@@ -1603,3 +1603,40 @@ elif menu == "🤖 AI 비즈니스 센터":
                     2. 마진율이 30% 미만일 경우, 이익을 방어하기 위한 가격 정책이나 세트 구성 아이디어를 제안해주세요. (한국어)
                     """
                     st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+
+                    # --- [6] 상세페이지 이미지 프롬프트 제작 에이전트 ---
+    with ai_tab6:
+        st.markdown("#### 📸 고품질 상세페이지 이미지 프롬프트 (미드저니/DALL-E 용)")
+        st.info("제품 특징과 원하는 분위기를 고르면, AI 이미지 생성기에 바로 복사해 넣을 수 있는 영문 프롬프트를 전문가 수준으로 뽑아줍니다.")
+        
+        with st.form("image_prompt_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                prod_img_desc = st.text_input("제품의 핵심 특징", placeholder="예: 먼지 없는 프리미엄 와플 직조 타월")
+            with col2:
+                img_mood = st.selectbox("원하는 연출 분위기", [
+                    "햇살이 들어오는 따뜻하고 아늑한 욕실", 
+                    "5성급 호텔의 모던하고 어두운 고급 욕실", 
+                    "깨끗하고 위생적인 에스테틱 샵", 
+                    "제품의 질감을 극대화한 초근접 마크로 샷"
+                ])
+            
+            if st.form_submit_button("🎨 영문 프롬프트 생성", type="primary"):
+                if prod_img_desc:
+                    with st.spinner("전문 포토그래퍼 에이전트가 카메라 렌즈와 조명 세팅을 조율 중입니다..."):
+                        agent_prompt = f"""
+                        You are an elite Commercial Photographer and AI Prompt Engineer specializing in Home & Living products.
+                        I need highly detailed, professional image generation prompts (optimized for Midjourney v6 or DALL-E 3) based on:
+                        - Target Product: {prod_img_desc}
+                        - Mood & Background: {img_mood}
+                        
+                        Please create 3 different variations of the shot (e.g., Close-up texture, Lifestyle interior, Wide angle).
+                        For each variation, output MUST strictly follow this format:
+                        
+                        📌 [Shot Type in Korean (e.g., 초근접 질감 컷)]
+                        - 연출 의도: (Korean description of the scene)
+                        - 🇬🇧 Prompt: (English comma-separated prompt containing subject, background, lighting, camera lens like 85mm f/1.8, high-end commercial photography, 8k resolution, photorealistic)
+                        """
+                        st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+                else:
+                    st.warning("제품 특징을 입력해주세요!")
