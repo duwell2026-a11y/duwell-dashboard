@@ -508,17 +508,13 @@ def add_stock_smart(product_name, qty, df_opt, sheet_stock):
         return False, f"❌ 재고 복구 중 에러 발생: {str(e)}"
 
 def check_stock_and_alert(df_stock):
+    """자동 메일 기능을 제거하고 부족 품목 리스트만 반환하여 화면에 표시합니다."""
     df_stock['현재재고'] = pd.to_numeric(df_stock['현재재고'], errors='coerce').fillna(0)
     df_stock['안전재고'] = pd.to_numeric(df_stock['안전재고'], errors='coerce').fillna(0)
     low_items = df_stock[df_stock['현재재고'] <= df_stock['안전재고']]
-    if not low_items.empty:
-        msg = "🚨 [DUWELL 재고 부족 알림]\n\n다음 상품의 재고가 안전 수준 이하입니다:\n\n"
-        for _, row in low_items.iterrows():
-            msg += f"- {row['상품명']}: 현재 {int(row['현재재고'])}개\n"
-        msg += "\n빠른 확인 부탁드립니다."
-        send_email_with_attach(SENDER_EMAIL, "[DUWELL] 🚨 긴급: 재고 부족 알림", msg)
-        return True
-    return False
+    
+    # 기존에 있던 send_email_with_attach 호출 코드를 삭제했습니다.
+    return low_items
 
 def process_audio(uploaded_file):
     try:
@@ -721,7 +717,7 @@ else:
 
 # === 통합 모니터링 (기존 유지) ===
 if menu == "통합 모니터링":
-    render_page_header("📊 사업 현황 대시보드", "실시간 매출, 재고, 일정 데이터를 한눈에 파악하세요.")
+    render_page_header("사업 현황 대시보드", "실시간 매출, 재고, 일정 데이터를 한눈에 파악하세요.")
     # ... 기존 코드 동일 ...
     
     today = datetime.now()
@@ -756,16 +752,16 @@ if menu == "통합 모니터링":
         this_month_orders = df_all[df_all['월'] == today.strftime('%Y-%m')]
         
         c1, c2, c3, c4 = st.columns(4)
-        with c1: st.metric("📦 오늘 주문", f"{len(today_orders)}건", delta=f"{len(today_orders)}건 New")
-        with c2: st.metric("💰 오늘 매출", f"{today_orders['금액_숫자'].sum():,.0f}원")
-        with c3: st.metric("📅 이달의 매출", f"{this_month_orders['금액_숫자'].sum():,.0f}원", delta=f"{len(this_month_orders)}건 주문")
-        with c4: st.metric("🏆 누적 매출", f"{df_all['금액_숫자'].sum():,.0f}원")
+        with c1: st.metric("오늘 주문", f"{len(today_orders)}건", delta=f"{len(today_orders)}건 New")
+        with c2: st.metric("오늘 매출", f"{today_orders['금액_숫자'].sum():,.0f}원")
+        with c3: st.metric("이달의 매출", f"{this_month_orders['금액_숫자'].sum():,.0f}원", delta=f"{len(this_month_orders)}건 주문")
+        with c4: st.metric("누적 매출", f"{df_all['금액_숫자'].sum():,.0f}원")
 
         st.divider()
 
-        st.markdown("#### ✨ AI 비즈니스 인사이트")
-        with st.expander("🤖 AI에게 현재 매출/재고 상황 분석 맡기기", expanded=False):
-            if st.button("✨ 맞춤형 AI 리포트 생성", key="ai_report_btn", type="primary"):
+        st.markdown("#### AI 비즈니스 인사이트")
+        with st.expander("AI에게 현재 매출/재고 상황 분석 맡기기", expanded=False):
+            if st.button("맞춤형 AI 리포트 생성", key="ai_report_btn", type="primary"):
                 with st.spinner("데이터를 분석하고 인사이트를 작성 중입니다..."):
                     top_items_dict = df_all['상품명'].value_counts().head(3).to_dict()
                     top_items_str = ", ".join([f"{k}({v}건)" for k, v in top_items_dict.items()])
@@ -779,13 +775,13 @@ if menu == "통합 모니터링":
                         if low_stock_items: low_stock_str = ", ".join(low_stock_items)
 
                     prompt = f"오늘 매출: {today_orders['금액_숫자'].sum():,.0f}원, 이달 매출: {this_month_orders['금액_숫자'].sum():,.0f}원, 베스트셀러: {top_items_str}, 재고부족: {low_stock_str}. 이를 바탕으로 현 상황 긍정 요약, 당면 과제, 매출 액션플랜 2가지를 짧고 명확하게 작성해줘."
-                    st.success("✅ AI 리포트 생성이 완료되었습니다.")
+                    st.success("AI 리포트 생성이 완료되었습니다.")
                     st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px; border:1px solid #E9ECEF;'>{ask_ai(prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
 
         st.divider()
 
-        st.markdown("#### 📈 기간별 매출 추이")
-        tab_d, tab_w, tab_m = st.tabs(["📊 일별 매출", "📊 주간 매출", "📊 월간 매출"])
+        st.markdown("#### 기간별 매출 추이")
+        tab_d, tab_w, tab_m = st.tabs(["일별 매출", "주간 매출", "월간 매출"])
 
         with tab_d:
             df_trend = df_all.groupby('날짜_str')['금액_숫자'].sum().reset_index().sort_values('날짜_str').tail(15)
@@ -815,7 +811,7 @@ if menu == "통합 모니터링":
 
         col_stock, col_sch = st.columns([1, 1])
         with col_stock:
-            st.markdown("#### 🚨 재고 경고 (안전재고 미달)")
+            st.markdown("#### 재고 경고 (안전재고 미달)")
             df_stock_alert, _ = load_data("재고관리")
             if not df_stock_alert.empty:
                 df_stock_alert['현재재고'] = pd.to_numeric(df_stock_alert['현재재고'], errors='coerce').fillna(0)
@@ -823,11 +819,11 @@ if menu == "통합 모니터링":
                 low_stock = df_stock_alert[df_stock_alert['현재재고'] <= df_stock_alert['안전재고']]
                 if not low_stock.empty:
                     for _, s in low_stock.iterrows(): st.error(f"**{s['상품명']}**: 현재 {int(s['현재재고'])}개")
-                else: st.success("✅ 모든 상품 재고 정상")
+                else: st.success("모든 상품 재고 정상")
             else: st.write("재고 데이터 없음")
 
         with col_sch:
-            st.markdown("#### 📅 다가오는 일정")
+            st.markdown("#### 다가오는 일정")
             df_sch, _ = load_data("일정관리")
             t_today, t_week, t_month = st.tabs(["오늘", "이번 주", "이번 달"])
             if not df_sch.empty:
@@ -851,31 +847,34 @@ if menu == "통합 모니터링":
                     else: st.write("이번 달 일정이 없습니다.")
 
         st.divider()
-        st.markdown("#### 📦 최근 주문 리포트 (최신 5건)")
+        st.markdown("#### 최근 주문 리포트 (최신 5건)")
         possible_cols = ['날짜_str', '구매자명', '상품명', '수량', '결제금액', '상태']
         cols = [c for c in possible_cols if c in df_all.columns]
         st.dataframe(df_all[cols].head(5), hide_index=True, use_container_width=True)
 
     else:
-        st.warning("📊 아직 등록된 주문 데이터가 없습니다.")
+        st.warning("아직 등록된 주문 데이터가 없습니다.")
 
 
 # === 주문/생산 관리 ===
 elif menu == "주문/생산 관리":
-    render_page_header("📦 주문부터 생산까지 One-Stop", "주문 등록, 시안 확인, 공장 발주, 지시서 출력, 송장 입력을 순서대로 처리하세요.")
-    # 탭 네이밍도 깔끔하게 정리
-    op_tab1, op_tab2, op_tab3, op_tab4, op_tab5 = st.tabs([
-        "1. 주문 등록", "2. 시안 & 장부", "3. 공장 발주", "4. 작업지시서", "5. 송장 등록"
+    render_page_header("주문부터 생산까지 One-Stop", "주문 등록, 시안 확인, 공장 발주, 지시서 출력, 송장 입력을 순서대로 처리하세요.")
+    
+    # 탭 네이밍 정리 (4개로 통합)
+    op_tab1, op_tab2, op_tab3, op_tab4 = st.tabs([
+        "1. 주문 등록", "2. 시안 & 장부", "3. 발주 및 지시서 생성", "4. 송장 등록"
     ])
 
+    # ---------------------------------------------------------
     # 1. 주문 등록 탭
+    # ---------------------------------------------------------
     with op_tab1:
-        st.markdown("#### 📝 신규 주문 등록 (재고 자동 차감)")
-        sub1, sub2 = st.tabs(["📂 엑셀 일괄 업로드", "✍️ 건별 수동 등록"])
+        st.markdown("#### 신규 주문 등록 (재고 자동 차감)")
+        sub1, sub2 = st.tabs(["엑셀 일괄 업로드", "건별 수동 등록"])
         
         with sub1:
             uploaded_file = st.file_uploader("네이버/자사몰 엑셀 업로드", type=['xlsx'], key="order_up")
-            if uploaded_file and st.button("💾 저장 및 재고 차감", type="primary"):
+            if uploaded_file and st.button("저장 및 재고 차감", type="primary"):
                 try:
                     df_new = pd.read_excel(uploaded_file, header=1)
                     df_opt, _ = load_data("옵션관리")
@@ -887,16 +886,12 @@ elif menu == "주문/생산 관리":
                     
                     for _, row in df_new.iterrows():
                         p_name = str(row.get('상품명','')).strip()
-                        try:
-                            qty = int(pd.to_numeric(row.get('수량', 1), errors='coerce'))
-                        except:
-                            qty = 1
+                        try: qty = int(pd.to_numeric(row.get('수량', 1), errors='coerce'))
+                        except: qty = 1
                             
                         raw_price = str(row.get('총 주문금액', '0')).replace(',', '').replace('원', '').strip()
-                        try:
-                            price = int(pd.to_numeric(raw_price, errors='coerce')) if raw_price else 0
-                        except:
-                            price = 0
+                        try: price = int(pd.to_numeric(raw_price, errors='coerce')) if raw_price else 0
+                        except: price = 0
 
                         rows_add.append([
                             str(row.get('주문일시','')), str(row.get('수취인명','')), str(row.get('수취인연락처1','')),
@@ -939,10 +934,12 @@ elif menu == "주문/생산 관리":
                         st.success(msg)
                         time.sleep(1); st.rerun()
 
+    # ---------------------------------------------------------
     # 2. 시안 및 장부 탭
+    # ---------------------------------------------------------
     with op_tab2:
-        st.markdown("#### 🎨 디자인 시안 확인 및 전체 장부")
-        c_tab1, c_tab2 = st.tabs(["🔥 디자인 작업 대기중 (시안실)", "📋 전체 주문 장부"])
+        st.markdown("#### 디자인 시안 확인 및 전체 장부")
+        c_tab1, c_tab2 = st.tabs([" 디자인 작업 대기중 (시안실)", "전체 주문 장부"])
         
         with c_tab1:
             if df_all.empty: st.warning("데이터가 없습니다.")
@@ -958,18 +955,18 @@ elif menu == "주문/생산 관리":
                             else: st.text("이미지 없음")
                         with wc2:
                             st.write(f"요청사항: {r.get('요청사항', '-')}")
-                            if st.button("✅ 시안 확정 (완료 처리)", key=f"btn_sian_{i}"):
+                            if st.button("시안 확정 (완료 처리)", key=f"btn_sian_{i}"):
                                 success, msg = update_status_in_sheet(sheet_main, r, "완료")
                                 if success: st.success(msg); time.sleep(1); st.rerun()
         
         with c_tab2:
-            st.markdown("#### 📋 전체 주문 장부 및 취소/반품 처리")
+            st.markdown("#### 전체 주문 장부 및 취소/반품 처리")
             st.dataframe(df_all, use_container_width=True)
             csv = df_all.to_csv(index=False).encode('utf-8-sig')
-            st.download_button("📥 장부 엑셀 다운로드", csv, "order_list.csv", "text/csv")
+            st.download_button("장부 엑셀 다운로드", csv, "order_list.csv", "text/csv")
             
             st.divider()
-            st.markdown("##### 🔙 주문 취소 및 반품 (재고 자동 복구)")
+            st.markdown("##### 주문 취소 및 반품 (재고 자동 복구)")
             with st.form("cancel_return_form"):
                 cr_col1, cr_col2 = st.columns(2)
                 with cr_col1:
@@ -992,128 +989,126 @@ elif menu == "주문/생산 관리":
                                 if cr_status in ["취소", "반품"]:
                                     df_opt, _ = load_data("옵션관리")
                                     _, sheet_stock = load_data("재고관리")
-                                    
-                                    try:
-                                        qty_to_restore = int(pd.to_numeric(target_row.get('수량', 1), errors='coerce'))
-                                    except:
-                                        qty_to_restore = 1
+                                    try: qty_to_restore = int(pd.to_numeric(target_row.get('수량', 1), errors='coerce'))
+                                    except: qty_to_restore = 1
                                         
                                     p_name = target_row.get('상품명', '')
-                                    
                                     ok, stock_msg = add_stock_smart(p_name, qty_to_restore, df_opt, sheet_stock)
-                                    try:
-                                        add_log("주문" + cr_status, f"{search_buyer} 고객 - {p_name} {qty_to_restore}개 재고 복구됨")
-                                    except:
-                                        pass
+                                    try: add_log("주문" + cr_status, f"{search_buyer} 고객 - {p_name} {qty_to_restore}개 재고 복구됨")
+                                    except: pass
                                     
                                     st.success(f"{msg} / {stock_msg}")
                                 else:
                                     st.success(f"{msg} (교환은 재고가 복구되지 않습니다)")
-                                    try:
-                                        add_log("주문교환", f"{search_buyer} 고객 주문 상태 교환 변경")
-                                    except:
-                                        pass
-                                    
+                                    try: add_log("주문교환", f"{search_buyer} 고객 주문 상태 교환 변경")
+                                    except: pass
+                                
                                 time.sleep(2); st.rerun()
                             else:
                                 st.error(msg)
 
-    # 3. 공장 발주 탭
+    # ---------------------------------------------------------
+    # 3. 통합 발주 및 지시서 생성 탭 (메일 발송 삭제 버전)
+    # ---------------------------------------------------------
     with op_tab3:
-        st.markdown("#### 🏭 공장 발주 (메일 자동 발송)")
+        st.markdown("#### 통합 발주 및 지시서 생성")
+        st.info("발주 확정 시 수량 리스트(Excel)와 상세 제작 지시서(HTML)가 함께 준비됩니다.")
+        
         if not df_all.empty:
+            # 발주 대기 중인 주문만 필터링
             pending_orders = df_all[~df_all['상태'].isin(['발주완료', '배송중', '배송완료', '취소', '반품'])].copy()
-            if pending_orders.empty: st.success("🎉 발주 대기 중인 주문이 없습니다.")
+            
+            if pending_orders.empty:
+                st.success("현재 새로 공장에 넘길 발주 대기 건이 없습니다.")
             else:
-                if "발주선택" not in pending_orders.columns: pending_orders.insert(0, "발주선택", False)
+                if "선택" not in pending_orders.columns: 
+                    pending_orders.insert(0, "선택", False)
+                
+                st.markdown("##### 1️발주 대상 선택")
                 edited_orders = st.data_editor(
                     pending_orders,
-                    column_config={"발주선택": st.column_config.CheckboxColumn(required=True)},
-                    column_order=['발주선택', '날짜_str', '구매자명', '상품명', '수량', '상태'],
-                    hide_index=True, use_container_width=True, key="factory_order_v7"
+                    column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+                    column_order=['선택', '날짜_str', '구매자명', '상품명', '수량', '요청사항'],
+                    hide_index=True, use_container_width=True, key="integrated_order_final"
                 )
-                selected_fact = edited_orders[edited_orders['발주선택'] == True]
                 
-                factory_email = st.text_input("📧 공장 수신 이메일", value="factory@example.com")
-                if st.button("🚀 선택 건 발주 확정 및 엑셀 메일 발송", type="primary") and not selected_fact.empty:
-                    pb = st.progress(0)
-                    for i, (_, row) in enumerate(selected_fact.iterrows()):
-                        update_status_in_sheet(sheet_main, row, "발주완료")
-                        pb.progress((i + 1) / len(selected_fact) * 0.5)
-                    
-                    output = io.BytesIO()
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                        selected_fact[['구매자명', '연락처', '주소', '상품명', '수량', '요청사항']].to_excel(writer, index=False)
-                    output.seek(0)
-                    
-                    subject = f"[DUWELL] 발주서_{datetime.now().strftime('%m%d')}"
-                    body = f"안녕하세요. DUWELL 신규 발주서 {len(selected_fact)}건 송부드립니다.\n확인 후 생산 부탁드립니다."
-                    mail_ok, mail_msg = send_email_with_attach(factory_email, subject, body, output, f"DUWELL_발주_{datetime.now().strftime('%m%d')}.xlsx")
-                    
-                    if mail_ok:
-                        st.success("🎊 발주 완료 및 메일 발송 성공!")
-                        st.cache_data.clear(); st.balloons(); time.sleep(2); st.rerun()
-
-    # 4. 작업지시서 탭
-    with op_tab4:
-        st.markdown("#### 🖨️ 작업지시서 생성 및 원본 전송")
-        st.info("💡 공장 발주와 별개로 개별 작업지시서(HTML)와 고해상도 시안을 보낼 수 있습니다.")
-        if not df_all.empty:
-            filtered_print = df_all.copy()
-            if "체크" not in filtered_print.columns: filtered_print.insert(0, "체크", False)
-            edited_print = st.data_editor(
-                filtered_print, column_order=['체크', '날짜_str', '구매자명', '상품명', '수량', '상태'],
-                column_config={"체크": st.column_config.CheckboxColumn(required=True)}, hide_index=True, use_container_width=True, key="print_tab"
-            )
-            selected_print = edited_print[edited_print['체크'] == True]
-            
-            if not selected_print.empty:
-                st.divider()
-                factory_email_print = st.text_input("📧 수신 이메일 주소 (공장/작업자)", value="factory@example.com", key="print_email")
-                c_btn1, c_btn2 = st.columns(2)
+                selected_data = edited_orders[edited_orders['선택'] == True]
                 
-                with c_btn1:
-                    if st.button("📥 HTML 로컬 다운로드", use_container_width=True):
-                        st.info("HTML 파일을 생성합니다. (기존 로직 수행)") 
-                with c_btn2:
-                    if st.button("🚀 원본 이미지 포함 메일 발송", type="primary", use_container_width=True):
-                        with st.spinner("최고 해상도 원본 이미지를 가져오는 중입니다..."):
-                            import requests
-                            email_attachments = []
-                            pb_print = st.progress(0)
-                            for idx, (_, row) in enumerate(selected_print.iterrows()):
-                                b_name = str(row['구매자명']).strip()
-                                drive_id = get_drive_id(str(row.get('디자인파일', '')))
-                                if drive_id:
-                                    try:
-                                        raw_img_url = f"https://drive.google.com/uc?export=download&id={drive_id}"
-                                        res = requests.get(raw_img_url, timeout=15)
-                                        if res.status_code == 200:
-                                            img_io = io.BytesIO(res.content)
-                                            email_attachments.append({"file": img_io, "filename": f"원본시안_{b_name}.jpg"})
-                                    except: pass
-                                
-                                single_html = f"<html><body><h1>작업지시서 ({b_name})</h1><p>상품: {row['상품명']}</p><p>수량: {row['수량']}</p><p>요청: {row['요청사항']}</p></body></html>"
-                                email_attachments.append({"file": io.BytesIO(single_html.encode('utf-8')), "filename": f"작업지시서_{b_name}.html"})
-                                pb_print.progress((idx + 1) / len(selected_print))
+                if not selected_data.empty:
+                    st.divider()
+                    if st.button("발주 확정 및 파일 생성", type="primary", use_container_width=True):
+                        # (1) 구글 시트 상태 '발주완료'로 업데이트
+                        for _, row in selected_data.iterrows():
+                            update_status_in_sheet(sheet_main, row, "발주완료")
+                        
+                        # (2) 엑셀 발주서 생성
+                        excel_out = io.BytesIO()
+                        with pd.ExcelWriter(excel_out, engine='xlsxwriter') as writer:
+                            selected_data[['구매자명', '연락처', '주소', '상품명', '수량', '요청사항']].to_excel(writer, index=False)
+                        
+                        # (3) 작업지시서 HTML 생성
+                        all_html = "<html><body style='font-family:sans-serif;'>"
+                        for _, row in selected_data.iterrows():
+                            b_name = str(row['구매자명']).strip()
+                            drive_id = get_drive_id(str(row.get('디자인파일', '')))
+                            img_tag = f"<img src='https://drive.google.com/thumbnail?id={drive_id}&sz=w500' style='max-width:100%;'>" if drive_id else "<p>[이미지 없음]</p>"
                             
-                            mail_ok, _ = send_email_with_attach(to=factory_email_print, subject=f"[DUWELL] 작업지시서 ({len(selected_print)}건)", body="첨부파일 확인 바랍니다.", multiple_attachments=email_attachments)
-                            if mail_ok: st.success("발송 성공!"); st.balloons()
-                            else: st.error("발송 실패")
+                            all_html += f"""
+                                <div style='page-break-after:always; border:2px solid #2B3A55; padding:20px; margin-bottom:40px; border-radius:10px;'>
+                                    <h2 style='color:#2B3A55;'>제작 지시서 ({b_name}님)</h2>
+                                    <table border='1' style='width:100%; border-collapse:collapse; margin-bottom:20px;'>
+                                        <tr style='background:#f4f4f4;'><th>상품명</th><th>수량</th><th>요청사항(자수)</th></tr>
+                                        <tr><td align='center'>{row['상품명']}</td><td align='center'>{row['수량']}</td><td>{row['요청사항']}</td></tr>
+                                    </table>
+                                    <div style='text-align:center;'>
+                                        <p><b>[확정 디자인 시안]</b></p>
+                                        {img_tag}
+                                    </div>
+                                </div>
+                            """
+                        all_html += "</body></html>"
+                        
+                        st.session_state['ready_excel'] = excel_out.getvalue()
+                        st.session_state['ready_html'] = all_html.encode('utf-8-sig')
+                        st.success("발주 처리가 완료되었습니다. 아래 버튼으로 파일을 받아 검토 후 수동 발송하세요.")
+                    
+                    # 파일 다운로드 버튼
+                    if 'ready_excel' in st.session_state:
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            st.download_button(
+                                "발주 리스트 다운로드 (Excel)",
+                                data=st.session_state['ready_excel'],
+                                file_name=f"DUWELL_발주리스트_{datetime.now().strftime('%m%d')}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                use_container_width=True
+                            )
+                        with c2:
+                            st.download_button(
+                                "상세 작업지시서 다운로드 (HTML)",
+                                data=st.session_state['ready_html'],
+                                file_name=f"DUWELL_작업지시서_{datetime.now().strftime('%m%d')}.html",
+                                mime="text/html",
+                                use_container_width=True
+                            )
 
-    # 5. 송장 등록 탭
-    with op_tab5:
-        st.markdown("#### 🚚 배송 정보(송장) 업데이트")
+    # ---------------------------------------------------------
+    # 4. 송장 등록 탭 (기존 5번에서 4번으로 탭 이름 변경 완료)
+    # ---------------------------------------------------------
+    with op_tab4:
+        st.markdown("#### 배송 정보(송장) 업데이트")
         if not df_all.empty:
             completed_orders = df_all[df_all['상태'] == '발주완료'].copy()
             sc1, sc2 = st.columns(2)
+            
             with sc1:
-                st.markdown("##### ✍️ 수동 입력 (건별)")
-                if completed_orders.empty: st.write("발주 완료된 대기 내역이 없습니다.")
+                st.markdown("##### 수동 입력 (건별)")
+                if completed_orders.empty: 
+                    st.write("발주 완료된 대기 내역이 없습니다.")
                 else:
                     if '송장번호' not in completed_orders.columns: completed_orders['송장번호'] = ""
                     tr_edited = st.data_editor(completed_orders, column_order=['구매자명', '상품명', '송장번호'], hide_index=True, key="man_track")
-                    if st.button("💾 수동 송장 저장"):
+                    if st.button("수동 송장 저장"):
                         cnt = 0
                         for _, row in tr_edited.iterrows():
                             t_num = str(row.get('송장번호', '')).strip()
@@ -1121,10 +1116,11 @@ elif menu == "주문/생산 관리":
                                 ok, _ = update_tracking_in_sheet(sheet_main, row, t_num)
                                 if ok: cnt += 1
                         st.success(f"{cnt}건 저장 완료!"); st.cache_data.clear(); time.sleep(1); st.rerun()
+            
             with sc2:
-                st.markdown("##### 📂 엑셀 일괄 등록")
+                st.markdown("##### 엑셀 일괄 등록")
                 up_f = st.file_uploader("공장 송장 엑셀 파일 (.xlsx)", type=['xlsx'], key="track_up")
-                if up_f and st.button("🚀 엑셀 데이터 시트 반영"):
+                if up_f and st.button("엑셀 데이터 시트 반영"):
                     df_up = pd.read_excel(up_f)
                     ok, msg = bulk_update_tracking_excel(sheet_main, df_up)
                     if ok: st.success(msg); st.cache_data.clear(); time.sleep(1); st.rerun()
@@ -1134,12 +1130,12 @@ elif menu == "마케팅 & CRM":
     render_page_header("마케팅 & CRM 통합 센터", "고객 관리부터 광고 성과 측정, AI 카피라이팅까지 한곳에서 관리하세요.")
     
     m_tab1, m_tab2, m_tab3, m_tab4 = st.tabs([
-        "👤 1. 고객 CRM 프로필", "📈 2. 광고 효율(ROAS)", "✍️ 3. AI 카피/네이밍", "💬 4. 리뷰/CS 응대"
+        "1. 고객 CRM 프로필", "2. 광고 효율(ROAS)", "3. AI 카피/네이밍", "4. 리뷰/CS 응대"
     ])
 
     # 1. 고객 CRM 탭
     with m_tab1:
-        st.markdown("#### 👤 고객 통합 프로필 및 상담")
+        st.markdown("#### 고객 통합 프로필 및 상담")
         if not df_all.empty:
             df_crm = df_all.copy()
             if '결제금액' in df_crm.columns: df_crm['amt'] = pd.to_numeric(df_crm['결제금액'].astype(str).str.replace(r'[^\d]', '', regex=True), errors='coerce').fillna(0)
@@ -1149,9 +1145,9 @@ elif menu == "마케팅 & CRM":
             cust_profile.columns = ['고객명', '최근구매일', '구매횟수', '누적금액']
             
             def analyze_cx(row):
-                grade = "💎 VIP" if row['누적금액'] >= 500000 else "🥈 일반"
+                grade = "VIP" if row['누적금액'] >= 500000 else "일반"
                 days = (datetime.now() - row['최근구매일']).days if pd.notnull(row['최근구매일']) else 0
-                status = "🔔 교체주기" if 150 <= days <= 210 else "✅ 정상"
+                status = "교체주기" if 150 <= days <= 210 else "정상"
                 return pd.Series([grade, status, days])
             cust_profile[['등급', '상태', '경과일']] = cust_profile.apply(analyze_cx, axis=1)
             
@@ -1159,7 +1155,7 @@ elif menu == "마케팅 & CRM":
             with c_list:
                 st.dataframe(cust_profile[['고객명', '등급', '누적금액', '상태']], use_container_width=True, hide_index=True)
             with c_detail:
-                search_nm = st.selectbox("🎯 상세 조회할 고객 선택", cust_profile['고객명'].unique())
+                search_nm = st.selectbox("상세 조회할 고객 선택", cust_profile['고객명'].unique())
                 sel_data = cust_profile[cust_profile['고객명'] == search_nm].iloc[0]
                 st.write(f"**등급:** {sel_data['등급']} | **누적금액:** {sel_data['누적금액']:,.0f}원")
                 
@@ -1170,9 +1166,9 @@ elif menu == "마케팅 & CRM":
                         cell = target_sh.find(search_nm)
                         if cell:
                             current_history = target_sh.cell(cell.row, h.index('비고')+1).value
-                            st.text_area("📜 상담 히스토리", value=current_history or "내용 없음", height=100, disabled=True)
-                            memo_in = st.text_input("📝 신규 상담 내용 입력")
-                            if st.button("💾 저장"):
+                            st.text_area("상담 히스토리", value=current_history or "내용 없음", height=100, disabled=True)
+                            memo_in = st.text_input("신규 상담 내용 입력")
+                            if st.button("저장"):
                                 now = datetime.now().strftime('%Y-%m-%d %H:%M')
                                 final = f"{current_history}\n[{now}] {memo_in}" if current_history else f"[{now}] {memo_in}"
                                 target_sh.update_cell(cell.row, h.index('비고')+1, final)
@@ -1181,61 +1177,61 @@ elif menu == "마케팅 & CRM":
 
     # 2. ROAS 분석 탭
     with m_tab2:
-        st.markdown("#### 🎯 일일 광고비 입력 및 ROAS 측정")
+        st.markdown("#### 일일 광고비 입력 및 ROAS 측정")
         today_str = datetime.now().strftime("%Y-%m-%d")
         today_sales = df_all[df_all['날짜_str'] == today_str]['결제금액'].sum() if '결제금액' in df_all.columns else 0 # 간략화
         
         with st.form("roas_form"):
             r_col1, r_col2 = st.columns(2)
-            with r_col1: naver_spend = st.number_input("🟢 네이버 광고비 (원)", min_value=0, step=10000)
-            with r_col2: meta_spend = st.number_input("🟣 인스타/페북 광고비 (원)", min_value=0, step=10000)
+            with r_col1: naver_spend = st.number_input("네이버 광고비 (원)", min_value=0, step=10000)
+            with r_col2: meta_spend = st.number_input("인스타/페북 광고비 (원)", min_value=0, step=10000)
                 
-            if st.form_submit_button("📊 ROAS 계산하기", type="primary"):
+            if st.form_submit_button("ROAS 계산하기", type="primary"):
                 total_spend = naver_spend + meta_spend
                 c_roas1, c_roas2, c_roas3 = st.columns(3)
                 c_roas1.metric("총 광고비 지출", f"{total_spend:,.0f}원")
                 c_roas2.metric("오늘 발생한 총 매출(추정)", f"{today_sales:,.0f}원")
                 if total_spend > 0:
                     roas = (today_sales / total_spend) * 100
-                    roas_icon = "🔥 대박!" if roas >= 400 else ("✅ 양호" if roas >= 250 else "⚠️ 점검 필요")
+                    roas_icon = "대박!" if roas >= 400 else ("양호" if roas >= 250 else "점검 필요")
                     c_roas3.metric("오늘의 ROAS", f"{roas:,.1f}% {roas_icon}")
 
     # 3. AI 카피라이팅 탭
     with m_tab3:
-        st.markdown("#### ✨ 매체 최적화 광고 문구 / 네이밍 생성")
+        st.markdown("#### 매체 최적화 광고 문구 / 네이밍 생성")
         col_c1, col_c2 = st.columns(2)
         with col_c1:
             product_name = st.text_input("상품 특징", value="시그니처 와인 컬러 프리미엄 와플 타월")
-            channel = st.selectbox("광고 매체", ["🟢 네이버 파워링크", "🟣 인스타그램", "🔴 카카오 알림톡"])
+            channel = st.selectbox("광고 매체", ["네이버 파워링크", "인스타그램", "카카오 알림톡"])
         with col_c2:
             target_audience = st.selectbox("타겟 고객", ["3040 리빙", "2030 신혼부부/집들이", "전체"])
             tone = st.selectbox("톤앤매너", ["세련된", "재치있는", "전문적인", "긴급/한정수량"])
         
-        if st.button("✍️ 광고 소재 및 네이밍 생성", type="primary"):
+        if st.button("광고 소재 및 네이밍 생성", type="primary"):
             with st.spinner("AI가 소재를 작성 중입니다..."):
                 prompt = f"상품: {product_name}, 타겟: {target_audience}, 채널: {channel}, 톤: {tone}. 이 매체에 완벽하게 맞는 광고 카피 3가지와 매력적인 캠페인 네이밍 2가지를 제안해줘."
                 st.markdown(f"<div style='background-color:#fff; padding:20px; border-radius:12px; border:1px solid #E9ECEF;'>{ask_ai(prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
 
     # 4. 리뷰 및 CS 탭
     with m_tab4:
-        st.markdown("#### 💬 스마트 고객 응대 (리뷰 & CS)")
+        st.markdown("#### 스마트 고객 응대 (리뷰 & CS)")
         sub_tab1, sub_tab2 = st.tabs(["엑셀 리뷰 일괄 답글", "CS 답변 스크립트"])
         with sub_tab1:
             uploaded_review = st.file_uploader("리뷰 엑셀 파일 (.xlsx)", type=['xlsx'])
             if uploaded_review:
                 df_rev = pd.read_excel(uploaded_review)
                 review_col = st.selectbox("고객 리뷰 내용 열", df_rev.columns.tolist())
-                if st.button("🤖 AI 답글 생성"):
+                if st.button("AI 답글 생성"):
                     with st.spinner("답글 작성 중..."):
                         replies = [ask_ai(f"고객 리뷰: '{row[review_col]}'. 감사와 공감이 담긴 정중한 답글 2문장 작성.") for _, row in df_rev.iterrows()]
                         df_rev['AI_자동답글'] = replies
                         output = io.BytesIO()
                         with pd.ExcelWriter(output, engine='xlsxwriter') as writer: df_rev.to_excel(writer, index=False)
-                        st.download_button("📥 결과 다운로드", output.getvalue(), "리뷰답글완료.xlsx")
+                        st.download_button("결과 다운로드", output.getvalue(), "리뷰답글완료.xlsx")
         with sub_tab2:
             cs_type = st.radio("문의 유형", ["배송 지연", "제품 교환", "불만", "기타"], horizontal=True)
             cs_detail = st.text_area("고객 문의 내용")
-            if st.button("💬 방어 답변 생성") and cs_detail:
+            if st.button("방어 답변 생성") and cs_detail:
                 st.info(ask_ai(f"유형: {cs_type}, 내용: {cs_detail}\n프리미엄 브랜드에 맞는 정중한 사과와 해결책이 담긴 답변 작성."))
 
 
@@ -1244,20 +1240,20 @@ elif menu == "재고 관리":
     render_page_header("재고 관리", "통합 재고 관리 시스템")
     df_stock, sheet_stock = load_data("재고관리")
     df_opt, _ = load_data("옵션관리")
-    tab1, tab2, tab3 = st.tabs(["📊 재고 현황 (자동집계)", "📂 대량 입출고 등록 (엑셀)", "📝 개별 조정 (수동)"])
+    tab1, tab2, tab3 = st.tabs(["재고 현황 (자동집계)", "대량 입출고 등록 (엑셀)", "개별 조정 (수동)"])
     
     with tab1:
         if not df_stock.empty and not df_all.empty:
             st.dataframe(df_stock, use_container_width=True) # 요약 코드 분량상 원본 df 출력
             
     with tab2:
-        st.markdown("### 📥 엑셀로 재고 일괄 등록")
+        st.markdown("### 엑셀로 재고 일괄 등록")
         uploaded_file = st.file_uploader("작성한 엑셀 파일 업로드", type=['xlsx', 'xls', 'csv'], key="stock_up")
-        if uploaded_file and st.button("🚀 재고 일괄 반영하기", type="primary"):
+        if uploaded_file and st.button("재고 일괄 반영하기", type="primary"):
             st.info("재고 일괄 반영 로직 수행 (이전 코드 동일)")
             
     with tab3:
-        st.markdown("### 📝 개별 상품 입/출고 (블랙박스 작동중 🔴)")
+        st.markdown("### 개별 상품 입/출고 (블랙박스 작동중 )")
         if not df_stock.empty:
             with st.form("manual_stock"):
                 col1, col2, col3 = st.columns([2, 1, 1])
@@ -1280,7 +1276,7 @@ elif menu == "재고 관리":
                             
                             fresh_stock_sheet.update_cell(cell.row, col_idx, final_qty)
                             
-                            # 🔴 블랙박스에 기록 남기기!
+                            # 블랙박스에 기록 남기기!
                             log_msg = f"{target_prod} {qty}개 {action.split()[0]} 처리 (변경 전: {curr_val} -> 변경 후: {final_qty})"
                             add_log("재고수동조정", log_msg)
                             
@@ -1291,7 +1287,7 @@ elif menu == "옵션 관리":
     df_opt, sheet_opt = load_data("옵션관리")
     if not df_opt.empty:
         edited_df = st.data_editor(df_opt, num_rows="dynamic", use_container_width=True)
-        if st.button("💾 저장"):
+        if st.button("저장"):
             sheet_opt.clear()
             
             # 최신 gspread 버전에 맞춘 업데이트 문법 (A1 셀부터 데이터 채우기)
@@ -1318,7 +1314,7 @@ elif menu == "일정 관리":
 # === 마진/정산 분석 ===
 elif menu == "마진/정산 분석":
     render_page_header("마진/정산 분석", "실시간 마진 및 정산 분석기")
-    with st.expander("⚙️ 정산 기준 설정 (수수료 및 배송비 분리)", expanded=True):
+    with st.expander("정산 기준 설정 (수수료 및 배송비 분리)", expanded=True):
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
             fee_smart = st.number_input("스마트스토어 수수료 (%)", value=5.5)
@@ -1333,9 +1329,9 @@ elif menu == "마진/정산 분석":
     if not df_all.empty:
         df_cost, _ = load_data("옵션관리") 
         if df_cost.empty or '가격' not in df_cost.columns:
-            st.warning("⚠️ [옵션관리] 탭에 '가격' 열이 없습니다.")
+            st.warning("[옵션관리] 탭에 '가격' 열이 없습니다.")
         if '원가' not in df_cost.columns:
-            st.error("🚨 [중요] 옵션관리 시트에 '원가' 열이 없어서 순이익이 과다하게 계산됩니다! 반드시 추가해주세요.")
+            st.error("[중요] 옵션관리 시트에 '원가' 열이 없어서 순이익이 과다하게 계산됩니다! 반드시 추가해주세요.")
 
         df_calc = df_all.copy()
         df_calc['수량'] = pd.to_numeric(df_calc['수량'], errors='coerce').fillna(1)
@@ -1374,7 +1370,7 @@ elif menu == "마진/정산 분석":
                             if pd.isna(unit_cost): unit_cost = 0
                             break 
             
-            # 🔥 배송비 매출과 매입을 분리하여 정밀 계산
+            # 배송비 매출과 매입을 분리하여 정밀 계산
             expected_item_revenue = unit_price * qty
             total_revenue = expected_item_revenue + shipping_revenue
             commission_fee = total_revenue * fee_rate
@@ -1388,22 +1384,22 @@ elif menu == "마진/정산 분석":
         df_calc[['예상결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']] = df_calc.apply(calculate_profit, axis=1)
 
         tab_sum, tab_month, tab_cal, tab_detail = st.tabs([
-            "📊 전체 요약", "📅 월별 정산 내역", "📆 일별 매출 캘린더", "📜 주문별 상세 내역"
+            "전체 요약", "월별 정산 내역", "일별 매출 캘린더", "주문별 상세 내역"
         ])
 
         with tab_sum:
-            st.markdown("### 📊 누적 정산 리포트")
+            st.markdown("### 누적 정산 리포트")
             total_sales = df_calc['예상결제금액'].sum()
             total_profit = df_calc['예상순이익'].sum()
             avg_margin = (total_profit / total_sales * 100) if total_sales > 0 else 0
             
             c1, c2, c3 = st.columns(3)
             c1.metric("누적 예상결제금액 (매출)", f"{total_sales:,.0f} 원")
-            c2.metric("💰 누적 예상순이익", f"{total_profit:,.0f} 원")
-            c3.metric("📈 평균 마진율", f"{avg_margin:.1f} %")
+            c2.metric("누적 예상순이익", f"{total_profit:,.0f} 원")
+            c3.metric("평균 마진율", f"{avg_margin:.1f} %")
 
         with tab_month:
-            st.markdown("### 📅 월별 마진/정산 통계")
+            st.markdown("### 월별 마진/정산 통계")
             df_calc['월'] = df_calc['날짜'].dt.strftime('%Y-%m')
             
             monthly_profit = df_calc.groupby('월').agg(
@@ -1425,7 +1421,7 @@ elif menu == "마진/정산 분석":
             
             st.dataframe(styled_monthly, use_container_width=True, hide_index=True)
             
-            st.markdown("#### 📉 월별 순이익 추이")
+            st.markdown("#### 월별 순이익 추이")
             bar_monthly_profit = alt.Chart(monthly_profit).mark_bar(color='#2ca02c', opacity=0.8).encode(
                 x=alt.X('월:N', title='월별'),
                 y=alt.Y('순이익:Q', title='순이익(원)'),
@@ -1434,7 +1430,7 @@ elif menu == "마진/정산 분석":
             st.altair_chart(bar_monthly_profit, use_container_width=True)
 
         with tab_cal:
-            st.markdown("### 📆 캘린더 뷰 (일별 매출 & 순이익)")
+            st.markdown("### 캘린더 뷰 (일별 매출 & 순이익)")
             
             cal_options = {
                 "headerToolbar": {
@@ -1460,16 +1456,16 @@ elif menu == "마진/정산 분석":
                     events.append({"title": f"매출: {row['매출액']:,.0f}", "start": d_str, "color": "#555555"})
                     events.append({"title": f"이익: {row['순이익']:,.0f}", "start": d_str, "color": "#800020"})
             
-            # 🔥 [핵심 1] 이벤트가 텅 비었을 때 오류를 막기 위해 오늘 날짜에 '투명한 가짜 데이터'를 하나 심어줍니다.
+            # [핵심 1] 이벤트가 텅 비었을 때 오류를 막기 위해 오늘 날짜에 '투명한 가짜 데이터'를 하나 심어줍니다.
             if not events:
                 events.append({"title": "기록 없음", "start": datetime.now().strftime('%Y-%m-%d'), "color": "transparent", "textColor": "#999999"})
                 st.info("💡 아직 발생한 매출 데이터가 없습니다. 빈 달력입니다.")
 
-            # 🔥 [핵심 2] 달력에 고유한 주민번호(key)를 줘서 탭 안에서도 무조건 화면에 그리도록 강제합니다.
+            # [핵심 2] 달력에 고유한 주민번호(key)를 줘서 탭 안에서도 무조건 화면에 그리도록 강제합니다.
             calendar(events=events, options=cal_options, key="sales_dashboard_calendar_v1")
 
         with tab_detail:
-            st.markdown("### 📜 주문건별 상세 내역")
+            st.markdown("### 주문건별 상세 내역")
             display_cols = ['날짜_str', '구매자명', '상품명', '수량', '예상결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']
             styled_df = df_calc[display_cols].style.format({
                 '예상결제금액': '{:,.0f}', '마켓수수료': '{:,.0f}', '총매입원가': '{:,.0f}',
@@ -1482,23 +1478,23 @@ elif menu == "마진/정산 분석":
             
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine='xlsxwriter') as writer: df_calc[display_cols].to_excel(writer, index=False)
-            st.download_button("📥 전체 정산 내역 엑셀 다운로드", output.getvalue(), f"예상정산리포트_{datetime.now().strftime('%Y%m%d')}.xlsx")
+            st.download_button("전체 정산 내역 엑셀 다운로드", output.getvalue(), f"예상정산리포트_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
 
 # ===AI 비즈니스 센터 ===
 elif menu == "AI 비즈니스 센터":
-    render_page_header("🤖 DUWELL AI 비즈니스 센터", "10년 노하우를 학습한 AI 에이전트 팀이 대표님의 업무를 지원합니다.")
+    render_page_header("DUWELL AI 비즈니스 센터", "10년 노하우를 학습한 AI 에이전트 팀이 대표님의 업무를 지원합니다.")
 
     # 7개의 에이전트 탭 생성 (수정된 부분)
     ai_tab1, ai_tab2, ai_tab3, ai_tab4, ai_tab5, ai_tab6, ai_tab7 = st.tabs([
-        "📝 1. MD 신제품", "💼 2. B2B 영업", "🔍 3. 리뷰 분석", "📊 4. 경영 브리핑", "💰 5. 마진 시뮬", "📸 6. 이미지 프롬프트", "🛒 7. 마켓별 SEO 등록"
+        "1. MD 신제품", "2. B2B 영업", "3. 리뷰 분석", "4. 경영 브리핑", "5. 마진 시뮬", "6. 이미지 프롬프트", "7. 마켓별 SEO 등록"
     ])
 
     # --- [1] MD 신제품 기획 에이전트 ---
     with ai_tab1:
-        st.markdown("#### 📝 신제품 런칭 브리프 생성기")
+        st.markdown("#### 신제품 런칭 브리프 생성기")
         with st.form("md_agent_form"):
             new_product_desc = st.text_area("기획 중인 상품 특징 입력", placeholder="예: 프리미엄 와플 직조 수건. 일반 수건보다 건조가 빠르고 먼지가 안 나. 고급 에스테틱 느낌.", height=100)
             if st.form_submit_button("✨ 런칭 기획안 생성", type="primary"):
@@ -1513,7 +1509,7 @@ elif menu == "AI 비즈니스 센터":
 
     # --- [2] B2B 영업 제안서 에이전트 ---
     with ai_tab2:
-        st.markdown("#### 💼 B2B 맞춤형 영업 제안서 작성")
+        st.markdown("#### B2B 맞춤형 영업 제안서 작성")
         with st.form("b2b_agent_form"):
             col1, col2 = st.columns(2)
             with col1:
@@ -1523,7 +1519,7 @@ elif menu == "AI 비즈니스 센터":
             
             sales_points = st.text_area("강조할 소구점 (예: 먼지 없음, 빠른 건조, 고급스러운 디자인)")
             
-            if st.form_submit_button("🚀 B2B 영업 메일 초안 생성", type="primary"):
+            if st.form_submit_button("B2B 영업 메일 초안 생성", type="primary"):
                 if target_company and target_product:
                     with st.spinner("B2B 영업 에이전트가 제안서를 작성 중입니다..."):
                         agent_prompt = f"""
@@ -1538,10 +1534,10 @@ elif menu == "AI 비즈니스 센터":
 
     # --- [3] 경쟁사 리뷰 분석 에이전트 ---
     with ai_tab3:
-        st.markdown("#### 🔍 타사 리뷰 기반 마케팅 포인트 추출")
+        st.markdown("#### 타사 리뷰 기반 마케팅 포인트 추출")
         with st.form("review_agent_form"):
             bad_reviews = st.text_area("경쟁사(일반 수건) 부정적 리뷰 복사/붙여넣기", placeholder="예: 먼지가 너무 날려요. 잘 안 마르고 꿉꿉한 냄새가 나요.", height=100)
-            if st.form_submit_button("💡 공격적 마케팅 무기 생성", type="primary"):
+            if st.form_submit_button("공격적 마케팅 무기 생성", type="primary"):
                 if bad_reviews:
                     with st.spinner("리서치 에이전트가 페인포인트를 분석 중입니다..."):
                         agent_prompt = f"""
@@ -1555,9 +1551,9 @@ elif menu == "AI 비즈니스 센터":
 
     # --- [4] 일일 경영 브리핑 에이전트 ---
     with ai_tab4:
-        st.markdown("#### 📊 대표님 맞춤형 일일 브리핑 (데이터 연동)")
+        st.markdown("#### 대표님 맞춤형 일일 브리핑 (데이터 연동)")
         st.info("ERP에 쌓인 매출, 재고, 일정 데이터를 종합하여 아침 브리핑을 제공합니다.")
-        if st.button("☕ 오늘의 경영 브리핑 생성", type="primary"):
+        if st.button("오늘의 경영 브리핑 생성", type="primary"):
             with st.spinner("비서 에이전트가 데이터를 취합하고 분석 중입니다..."):
                 # 현재 시스템 데이터 수집 (매출, 재고, 일정)
                 today_str = datetime.now().strftime("%Y-%m-%d")
@@ -1593,7 +1589,7 @@ elif menu == "AI 비즈니스 센터":
 
     # --- [5] 마진 시뮬레이터 에이전트 ---
     with ai_tab5:
-        st.markdown("#### 💰 기획 상품 마진 시뮬레이터")
+        st.markdown("#### 기획 상품 마진 시뮬레이터")
         with st.form("margin_agent_form"):
             col1, col2, col3 = st.columns(3)
             with col1: base_price = st.number_input("기존 판매가 (원)", value=15000)
@@ -1603,7 +1599,7 @@ elif menu == "AI 비즈니스 센터":
             extra_costs = st.text_input("추가 비용 내역 (예: 포장비 1000원, 사은품 500원)")
             market_type = st.selectbox("판매 채널 (수수료율)", ["스마트스토어 (약 5.5%)", "쿠팡 (약 10.8%)", "자사몰 (약 3%)"])
 
-            if st.form_submit_button("🧮 적정 판매가 및 마진 계산", type="primary"):
+            if st.form_submit_button("적정 판매가 및 마진 계산", type="primary"):
                 with st.spinner("재무 에이전트가 마진율을 계산 중입니다..."):
                     agent_prompt = f"""
                     You are a strict and smart Financial Advisor for 'DUWELL'. Calculate the profit margin based on the following data:
@@ -1632,7 +1628,7 @@ elif menu == "AI 비즈니스 센터":
                     "제품의 질감을 극대화한 초근접 마크로 샷"
                 ])
             
-            if st.form_submit_button("🎨 영문 프롬프트 생성", type="primary"):
+            if st.form_submit_button("영문 프롬프트 생성", type="primary"):
                 if prod_img_desc:
                     with st.spinner("전문 포토그래퍼 에이전트가 카메라 렌즈와 조명 세팅을 조율 중입니다..."):
                         agent_prompt = f"""
@@ -1653,19 +1649,19 @@ elif menu == "AI 비즈니스 센터":
                     st.warning("제품 특징을 입력해주세요!")
 # --- [7] 다중 마켓 SEO 최적화 상품 등록 에이전트 (HTML 상세페이지 자동 생성 기능 추가) ---
     with ai_tab7:
-        st.markdown("#### 🛒 오픈마켓별 SEO 등록 & HTML 상세페이지 생성기")
+        st.markdown("#### 오픈마켓별 SEO 등록 & HTML 상세페이지 생성기")
         st.info("SEO 최적화 데이터뿐만 아니라, 스마트스토어 에디터에 바로 붙여넣을 수 있는 '상세페이지 HTML 코드'까지 한 번에 생성합니다.")
 
         with st.form("seo_agent_form"):
             col1, col2 = st.columns(2)
             with col1:
-                target_market = st.selectbox("등록할 마켓 선택", ["🟢 네이버 스마트스토어", "🚀 쿠팡", "🏠 자사몰 / 기타 오픈마켓"])
+                target_market = st.selectbox("등록할 마켓 선택", ["네이버 스마트스토어", "쿠팡", "자사몰 / 기타 오픈마켓"])
                 prod_name = st.text_input("기본 상품명", value="프리미엄 와플 수건")
             with col2:
                 target_customer = st.selectbox("메인 타겟", ["3040 리빙/인테리어", "2030 집들이/신혼부부", "답례품/대량구매", "전체 연령대"])
                 core_points = st.text_input("핵심 강조 포인트", placeholder="예: 먼지없는, 빠른건조, 호텔수건, 10년 노하우", value="먼지없는, 빠른건조, 고급스러운 질감")
 
-            submit_btn = st.form_submit_button("🚀 SEO 데이터 및 HTML 생성", type="primary")
+            submit_btn = st.form_submit_button("SEO 데이터 및 HTML 생성", type="primary")
 
         if submit_btn:
             if prod_name and core_points:
@@ -1709,7 +1705,7 @@ elif menu == "AI 비즈니스 센터":
             st.write("") 
             
             st.download_button(
-                label="📥 기획안 및 HTML 코드 다운로드 (.txt)",
+                label="기획안 및 HTML 코드 다운로드 (.txt)",
                 data=st.session_state['seo_result_text'],
                 file_name=f"DUWELL_상세페이지기획_HTML_{st.session_state.get('seo_prod_name', '기본')}.txt",
                 mime="text/plain",
@@ -1718,51 +1714,51 @@ elif menu == "AI 비즈니스 센터":
 
 # === 신제품 개발실 ===
 elif menu == "신제품 개발실":
-    render_page_header("🧪 신제품 샘플 개발실", "생산 지시서(Tech Pack) 작성부터 샘플 검수(Check-list)까지 원스톱 관리")
+    render_page_header("신제품 샘플 개발실", "생산 지시서(Tech Pack) 작성부터 샘플 검수(Check-list)까지 원스톱 관리")
 
-    tab_techpack, tab_checklist = st.tabs(["📝 1. 생산 지시서 (Tech Pack)", "🔎 2. 샘플 검수 (Check-list)"])
+    tab_techpack, tab_checklist = st.tabs(["1. 생산 지시서 (Tech Pack)", "2. 샘플 검수 (Check-list)"])
 
     # ==========================================================
     # 탭 1. 생산 지시서 (Tech Pack)
     # ==========================================================
     with tab_techpack:
         with st.form("new_product_dev_form"):
-            st.markdown("#### 📝 신제품 생산 스펙 작성")
+            st.markdown("#### 신제품 생산 스펙 작성")
             
             c1, c2 = st.columns([1, 1])
             with c1: 
-                dev_factory = st.text_input("🏭 공장명", placeholder="예: A방직")
-                dev_prod_name = st.text_input("📦 상품명 (ITEM)", placeholder="예: 프리미엄 와플 타월")
+                dev_factory = st.text_input("공장명", placeholder="예: A방직")
+                dev_prod_name = st.text_input("상품명 (ITEM)", placeholder="예: 프리미엄 와플 타월")
             with c2: 
-                dev_color_qty = st.text_area("🎨 초도 발주 수량 (컬러 / 수량)", placeholder="예시) 기호(/)로 구분하여 작성\n웜그레이 / 500장\n네이비 / 500장\n차콜 / 300장", height=110)
+                dev_color_qty = st.text_area("초도 발주 수량 (컬러 / 수량)", placeholder="예시) 기호(/)로 구분하여 작성\n웜그레이 / 500장\n네이비 / 500장\n차콜 / 300장", height=110)
 
-            st.markdown("##### ⚙️ 세부 사양 (SPEC)")
+            st.markdown("##### 세부 사양 (SPEC)")
             s1, s2, s3, s4 = st.columns(4)
-            with s1: dev_size = st.text_input("📏 사이즈", placeholder="예: 40 x 80 cm")
-            with s2: dev_weight = st.text_input("⚖️ 중량", placeholder="예: 200g")
-            with s3: dev_yarn = st.text_input("🧵 사종 (소재)", placeholder="예: 최고급 코마사 40수")
-            with s4: dev_dyeing = st.radio("🎨 염색 방식", ["선염", "후염", "해당없음"], horizontal=True)
+            with s1: dev_size = st.text_input("사이즈", placeholder="예: 40 x 80 cm")
+            with s2: dev_weight = st.text_input("중량", placeholder="예: 200g")
+            with s3: dev_yarn = st.text_input("사종 (소재)", placeholder="예: 최고급 코마사 40수")
+            with s4: dev_dyeing = st.radio("염색 방식", ["선염", "후염", "해당없음"], horizontal=True)
 
             p1, p2, p3 = st.columns(3)
-            with p1: dev_border = st.text_input("🪡 보더 디자인", placeholder="예: 양끝 3선 피카소 보더")
-            with p2: dev_pkg = st.text_input("🎁 포장 방법", placeholder="예: 개별 띠지 + OPP 폴리백")
-            with p3: dev_label_pos = st.text_input("📍 라벨/택 위치", placeholder="예: 우측 하단 1cm 띄우고 봉제")
+            with p1: dev_border = st.text_input("보더 디자인", placeholder="예: 양끝 3선 피카소 보더")
+            with p2: dev_pkg = st.text_input("포장 방법", placeholder="예: 개별 띠지 + OPP 폴리백")
+            with p3: dev_label_pos = st.text_input("라벨/택 위치", placeholder="예: 우측 하단 1cm 띄우고 봉제")
 
-            st.markdown("##### 🖼️ 디자인 상세 및 참고 이미지")
+            st.markdown("##### 디자인 상세 및 참고 이미지")
             i1, i2 = st.columns(2)
             with i1:
-                dev_design_detail = st.text_area("✨ 디자인 (선염 및 보더 등 특이사항)", placeholder="예: 선염 3컬러 교차 배열, 보더 부분 자가드 포인트", height=120)
-                dev_extra = st.text_area("⚠️ 작업 시 주의사항 (*중요*)", placeholder="- 봉사 간격 잘게 치기\n- 잔실 없도록 깔끔하게 처리\n- 세탁 라벨은 뒷면에 겹쳐서 봉제", height=120)
+                dev_design_detail = st.text_area("디자인 (선염 및 보더 등 특이사항)", placeholder="예: 선염 3컬러 교차 배열, 보더 부분 자가드 포인트", height=120)
+                dev_extra = st.text_area("작업 시 주의사항 (*중요*)", placeholder="- 봉사 간격 잘게 치기\n- 잔실 없도록 깔끔하게 처리\n- 세탁 라벨은 뒷면에 겹쳐서 봉제", height=120)
             with i2:
-                dev_ref_img = st.file_uploader("📸 참고 이미지 (디자인 시안/도식화)", type=['png', 'jpg', 'jpeg'])
-                dev_label_img = st.file_uploader("🏷️ 라벨/택 이미지", type=['png', 'jpg', 'jpeg'])
+                dev_ref_img = st.file_uploader("참고 이미지 (디자인 시안/도식화)", type=['png', 'jpg', 'jpeg'])
+                dev_label_img = st.file_uploader("라벨/택 이미지", type=['png', 'jpg', 'jpeg'])
 
             st.divider()
-            submit_dev = st.form_submit_button("✅ 작업지시서 문서 생성 및 구글 시트 저장", type="primary")
+            submit_dev = st.form_submit_button("작업지시서 문서 생성 및 구글 시트 저장", type="primary")
 
         if submit_dev:
             if not dev_prod_name or not dev_factory:
-                st.warning("🚨 공장명과 상품명은 필수 입력 항목입니다.")
+                st.warning("공장명과 상품명은 필수 입력 항목입니다.")
             else:
                 with st.spinner("지시서를 생성 중입니다... 잠시만 기다려주세요."):
                     import base64
@@ -1921,9 +1917,9 @@ elif menu == "신제품 개발실":
                     
                     pdf_bytes = None
                     try: pdf_bytes = pdfkit.from_string(html_content, False, options=pdf_options, configuration=pdf_config)
-                    except Exception as e: st.error(f"🚨 PDF 변환 오류 발생: {e}")
+                    except Exception as e: st.error(f"PDF 변환 오류 발생: {e}")
 
-                    if sheet_saved: st.success("✅ 구글 시트 [신제품개발] 장부에 성공적으로 저장되었습니다.")
+                    if sheet_saved: st.success("구글 시트 [신제품개발] 장부에 성공적으로 저장되었습니다.")
 
                     if pdf_bytes: st.session_state['dev_pdf_bytes'] = pdf_bytes
                     st.session_state['dev_html_content'] = html_content
@@ -1935,9 +1931,9 @@ elif menu == "신제품 개발실":
             d_col1, d_col2 = st.columns(2)
             with d_col1:
                 if 'dev_pdf_bytes' in st.session_state and st.session_state['dev_pdf_bytes']:
-                    st.download_button(label="📄 완본 PDF 파일 다운로드", data=st.session_state['dev_pdf_bytes'], file_name=st.session_state['dev_pdf_name'], mime="application/pdf", type="primary", use_container_width=True)
+                    st.download_button(label="완본 PDF 파일 다운로드", data=st.session_state['dev_pdf_bytes'], file_name=st.session_state['dev_pdf_name'], mime="application/pdf", type="primary", use_container_width=True)
             with d_col2:
-                st.download_button(label="✏️ 수정 가능한 문서 다운로드 (Word 호환)", data=st.session_state['dev_html_content'].encode('utf-8-sig'), file_name=st.session_state['dev_html_name'], mime="text/html", use_container_width=True)
+                st.download_button(label="수정 가능한 문서 다운로드 (Word 호환)", data=st.session_state['dev_html_content'].encode('utf-8-sig'), file_name=st.session_state['dev_html_name'], mime="text/html", use_container_width=True)
 
 
     # ==========================================================
@@ -1949,18 +1945,18 @@ elif menu == "신제품 개발실":
         # 1. 검수 기본 정보
         cc1, cc2, cc3 = st.columns(3)
         with cc1:
-            chk_prod_name = st.text_input("📦 제품명 (Product Name)", value="와플 타월")
-            chk_reviewer = st.text_input("👤 검수자", value=st.session_state.get('current_user', '담당자'))
+            chk_prod_name = st.text_input("제품명 (Product Name)", value="와플 타월")
+            chk_reviewer = st.text_input("검수자", value=st.session_state.get('current_user', '담당자'))
         with cc2:
-            chk_color_size = st.text_input("🎨 컬러 및 옵션 (Color/Size)", value="진행전 / 40*90")
-            chk_round = st.selectbox("🔄 차수", ["1차", "2차", "3차", "최종(Pre-Pro)"])
+            chk_color_size = st.text_input("컬러 및 옵션 (Color/Size)", value="진행전 / 40*90")
+            chk_round = st.selectbox("차수", ["1차", "2차", "3차", "최종(Pre-Pro)"])
         with cc3:
             from datetime import datetime
-            chk_date = st.date_input("📅 작성일", datetime.now())
-            chk_result = st.selectbox("📢 최종 판정 (Result)", ["대기중", "합격 (PASS)", "수정 후 재샘플 (RE-WORK)", "드랍 (DROP)"])
+            chk_date = st.date_input("작성일", datetime.now())
+            chk_result = st.selectbox("최종 판정 (Result)", ["대기중", "합격 (PASS)", "수정 후 재샘플 (RE-WORK)", "드랍 (DROP)"])
 
         st.divider()
-        st.markdown("##### 📋 세부 검수 항목 (Check-list)")
+        st.markdown("##### 세부 검수 항목 (Check-list)")
         
         # 2. 9대 검수 항목 데이터프레임 (기본값 세팅)
         default_chk_data = [
@@ -1988,19 +1984,19 @@ elif menu == "신제품 개발실":
         )
 
         st.divider()
-        st.markdown("##### 💬 공장 커뮤니케이션 요약")
+        st.markdown("##### 공장 커뮤니케이션 요약")
         com1, com2 = st.columns(2)
         with com1:
-            chk_inquiry = st.text_area("🗣️ 본사 문의 사항 및 개선 요청", placeholder="예: 1. 세탁 후 올나감 현상 원인 파악\n2. 테두리 단봉 -> 삼봉 변경 가능 여부", height=100)
+            chk_inquiry = st.text_area("본사 문의 사항 및 개선 요청", placeholder="예: 1. 세탁 후 올나감 현상 원인 파악\n2. 테두리 단봉 -> 삼봉 변경 가능 여부", height=100)
         with com2:
-            chk_feedback = st.text_area("🏭 공장 피드백 (답변)", placeholder="예: 삼봉 변경 시 단가 건당 50원 인상됨.", height=100)
+            chk_feedback = st.text_area("공장 피드백 (답변)", placeholder="예: 삼봉 변경 시 단가 건당 50원 인상됨.", height=100)
 
         st.markdown("##### 📸 문제점 참고 이미지 (비교용)")
         img1, img2 = st.columns(2)
         with img1: chk_img1 = st.file_uploader("참고 이미지 1 (불량 부위 / 변경 전)", type=['png', 'jpg', 'jpeg'], key="chk1")
         with img2: chk_img2 = st.file_uploader("참고 이미지 2 (정상 부위 / 변경 후)", type=['png', 'jpg', 'jpeg'], key="chk2")
 
-        submit_check = st.button("✅ 검수 리스트 PDF 생성 및 구글 시트 저장", type="primary", use_container_width=True)
+        submit_check = st.button("검수 리스트 PDF 생성 및 구글 시트 저장", type="primary", use_container_width=True)
 
         if submit_check:
             with st.spinner("검수 리스트를 처리 중입니다..."):
@@ -2130,7 +2126,7 @@ elif menu == "신제품 개발실":
 
         if 'chk_pdf_bytes' in st.session_state:
             st.download_button(
-                label="📄 완본 검수 리스트 PDF 다운로드",
+                label="완본 검수 리스트 PDF 다운로드",
                 data=st.session_state['chk_pdf_bytes'],
                 file_name=st.session_state['chk_pdf_name'],
                 mime="application/pdf",
