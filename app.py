@@ -19,117 +19,74 @@ import streamlit.components.v1 as components
 import io
 
 # --------------------------------------------------------------------------
-# 🔒 초간단 도어락 (보안 및 사용자 식별)
+# 0. 페이지 설정 및 디자인 (CSS) - 최상단 배치
+# --------------------------------------------------------------------------
+st.set_page_config(page_title="DUWELL 스마트 ERP", layout="wide", initial_sidebar_state="expanded")
+
+st.markdown("""
+    <style>
+        /* 폰트 및 배경 */
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        html, body, [class*="css"] { font-family: 'Pretendard', sans-serif; }
+        .stApp { background-color: #F8F9FA; }
+
+        /* 사이드바 메뉴 스타일링 - 동그라미/빨간선 제거 */
+        [data-testid="stSidebar"] { background-color: #FFFFFF !important; border-right: 1px solid #E9ECEF; }
+        [data-testid="stSidebarNav"] { display: none; } /* 기본 네비게이션 숨김 */
+        
+        /* 라디오 버튼 본체(동그라미) 숨기기 */
+        [data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child { display: none !important; }
+        
+        /* 선택 시 빨간 테두리/그림자 제거 */
+        [data-testid="stSidebar"] div[role="radiogroup"] > label:focus-within { box-shadow: none !important; outline: none !important; }
+
+        /* 메뉴 버튼 디자인 */
+        [data-testid="stSidebar"] div[role="radiogroup"] > label {
+            padding: 12px 20px !important;
+            margin-bottom: 8px !important;
+            border-radius: 10px !important;
+            border: 1px solid transparent !important;
+            transition: all 0.3s ease;
+            cursor: pointer !important;
+            background-color: transparent !important;
+        }
+        
+        /* 호버 및 선택 상태 */
+        [data-testid="stSidebar"] div[role="radiogroup"] > label:hover { background-color: #F1F3F5 !important; }
+        [data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"] {
+            background-color: #2B3A55 !important; /* DUWELL 네이비 */
+            box-shadow: 0 4px 12px rgba(43,58,85,0.15) !important;
+        }
+        [data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"] p {
+            color: #FFFFFF !important; font-weight: 700 !important;
+        }
+
+        /* 메트릭 카드 디자인 */
+        [data-testid="metric-container"] {
+            background-color: #FFFFFF; border-radius: 12px; padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); border: 1px solid #E9ECEF;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# --------------------------------------------------------------------------
+# 1. 보안 및 로그인 (기존 로직 유지)
 # --------------------------------------------------------------------------
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
 
-# 로그인 안 한 상태면 현관문(로그인 화면)만 보여주고 밑으로 못 내려가게 막음
 if not st.session_state['logged_in']:
-    st.markdown("<h2 style='text-align: center; margin-top: 100px;'>🍷 DUWELL 스마트 센터</h2>", unsafe_allow_html=True)
-    
+    st.markdown("<h2 style='text-align: center; margin-top: 100px;'>DUWELL 스마트 센터</h2>", unsafe_allow_html=True)
     with st.form("login_form"):
-        # 두 분 중 누구인지 선택
         user_choice = st.selectbox("접속자 선택", ["고은정 (대표)", "두재훈 (팀장)"])
-        # 공용 비밀번호 입력 (예: 오픈 연도나 기념일)
         pwd = st.text_input("비밀번호 (PIN)", type="password")
-        
         if st.form_submit_button("입장하기", use_container_width=True):
-            if pwd == "1121":  # 원하는 비밀번호로 변경하세요!
+            if pwd == "1121":
                 st.session_state['logged_in'] = True
                 st.session_state['current_user'] = user_choice
                 st.rerun()
-            else:
-                st.error("🚨 비밀번호가 틀렸습니다.")
-    
-    # 이 아래 코드는 실행 안 되게 여기서 정지!
+            else: st.error("🚨 비밀번호가 틀렸습니다.")
     st.stop()
-
-# --------------------------------------------------------------------------
-# 1. 페이지 및 홈페이지(웹사이트) 스타일 상단 메뉴 UI 설정
-# --------------------------------------------------------------------------
-import streamlit as st
-
-st.set_page_config(page_title="DUWELL 스마트 ERP", layout="wide", page_icon="🍷", initial_sidebar_state="collapsed")
-
-st.markdown("""
-    <style>
-        /* 폰트 설정 */
-        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
-        html, body, [class*="css"] { font-family: 'Pretendard', sans-serif; }
-        
-        /* 1. 전체 배경색 */
-        .stApp { background-color: #F4F6F9; }
-        
-        /* 2. 사이드바 및 접기 버튼 완전 숨김 (홈페이지 스타일을 위해) */
-        [data-testid="stSidebar"] { display: none !important; }
-        [data-testid="collapsedControl"] { display: none !important; }
-
-        /* 3. 상단 헤더 숨기기 */
-        [data-testid="stHeader"] { background: transparent; display: none; }
-
-        /* 4. 🔥 상단 메뉴 (라디오 버튼) 홈페이지 네비게이션으로 튜닝 */
-        div.row-widget.stRadio > div {
-            display: flex;
-            flex-direction: row;
-            justify-content: center; /* 중앙 정렬 */
-            gap: 15px;
-            background-color: #FFFFFF;
-            padding: 15px 20px;
-            border-radius: 16px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            margin-bottom: 10px;
-            flex-wrap: wrap; /* 화면이 좁아지면 알아서 줄바꿈 */
-        }
-        div.row-widget.stRadio > div > label {
-            background-color: transparent;
-            padding: 12px 20px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: 1px solid transparent;
-            margin: 0;
-        }
-        div.row-widget.stRadio > div > label:hover {
-            background-color: #F0F4FF;
-        }
-        
-        /* 기존 동그라미 라디오 아이콘 없애기 */
-        div.row-widget.stRadio > div > label[data-baseweb="radio"] > div:first-child {
-            display: none !important; 
-        }
-        
-        /* 선택된 메뉴 디자인 (포인트 블루) */
-        div.row-widget.stRadio > div > label[data-checked="true"] {
-            background-color: #4E73DF !important;
-            box-shadow: 0 4px 10px rgba(78,115,223,0.3);
-        }
-        div.row-widget.stRadio > div > label[data-checked="true"] * {
-            color: #FFFFFF !important;
-            font-weight: 800 !important;
-        }
-
-        /* 5. 카드형 메트릭 및 표 스타일 (이전과 동일) */
-        [data-testid="metric-container"] {
-            background-color: #FFFFFF; border-radius: 16px; padding: 20px 24px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04); border: 1px solid rgba(0,0,0,0.02);
-            transition: transform 0.2s ease;
-        }
-        [data-testid="metric-container"]:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08); }
-        [data-testid="metric-container"] label { color: #6C757D !important; font-weight: 600; font-size: 1rem; }
-        [data-testid="metric-container"] div[data-testid="stMetricValue"] { color: #2B3A55 !important; font-size: 1.8rem; font-weight: 800; }
-        .stDataFrame { background-color: #FFFFFF; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); border: 1px solid #EBEEF4; }
-        [data-testid="stTabs"] button { border-bottom: 3px solid transparent; font-weight: 600; color: #6C757D !important; }
-        [data-testid="stTabs"] button[aria-selected="true"] { color: #4E73DF !important; border-bottom: 3px solid #4E73DF !important; }
-
-        /* 모바일 반응형 */
-        @media (max-width: 768px) {
-            .block-container { padding-top: 1rem !important; padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
-            div.row-widget.stRadio > div { gap: 5px; padding: 10px; }
-            div.row-widget.stRadio > div > label { padding: 8px 10px; font-size: 0.9rem; flex: 1 1 45%; text-align: center; }
-        }
-    </style>
-""", unsafe_allow_html=True)
 
 # --------------------------------------------------------------------------
 # 2. 키 파일 및 권한 설정
@@ -175,14 +132,20 @@ try:
 except Exception as e:
     st.error(f"❌ 설정 로드 실패: {e}")
     st.stop()
-# --------------------------------------------------------------------------
-# 🛠️ 함수 모음
-# --------------------------------------------------------------------------
 
-# ==========================================================
-# [수정] 인증 및 데이터 로드 함수 (캐시 최적화 적용)
-# ==========================================================
-from google.oauth2.service_account import Credentials
+
+# --------------------------------------------------------------------------
+# 2. 함수 모음 (render_page_header 포함)
+# --------------------------------------------------------------------------
+def render_page_header(title, subtitle):
+    st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #2B3A55 0%, #1A2235 100%); 
+                    padding: 25px 30px; border-radius: 12px; color: white; margin-bottom: 25px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-left: 6px solid #800020;">
+            <h2 style="margin:0; font-size:1.6rem; font-weight:800; color:white; letter-spacing:-0.5px;">{title}</h2>
+            <p style="margin:8px 0 0 0; font-size:0.95rem; opacity:0.85; color:white;">{subtitle}</p>
+        </div>
+    """, unsafe_allow_html=True)
 
 # ==========================================================
 # 1. 구글 연결 최적화 (API 호출 제한 에러 완벽 방어 🛡️)
@@ -235,6 +198,20 @@ def load_data(sheet_name):
     df.columns = [str(c).strip() for c in df.columns]
     for col in ['날짜', '시작일', '종료일', '주문일시', '주문일']:
         if col in df.columns: df[col] = df[col].apply(clean_date_str)
+
+
+
+def render_page_header(title, subtitle):
+    """모든 탭에서 공통으로 사용하는 프리미엄 헤더 디자인"""
+    st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #2B3A55 0%, #1A2235 100%); 
+                    padding: 25px 30px; border-radius: 12px; color: white; margin-bottom: 25px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-left: 6px solid #800020;">
+            <h2 style="margin:0; font-size:1.6rem; font-weight:800; color:white; letter-spacing:-0.5px;">{title}</h2>
+            <p style="margin:8px 0 0 0; font-size:0.95rem; opacity:0.85; color:white;">{subtitle}</p>
+        </div>
+    """, unsafe_allow_html=True)
+
 
 # ==========================================================
 # 2. 캐시 분리 (데이터가 안 뜨는 '텅 빈 화면' 문제 해결)
@@ -657,41 +634,83 @@ def bulk_update_tracking_excel(sheet, df_up):
 # 🏠 상단 홈페이지형 네비게이션 헤더
 # --------------------------------------------------------------------------
 
-# 로고와 새로고침 버튼을 상단에 배치
-col_logo, col_btn = st.columns([8, 2])
-with col_logo:
-    st.markdown("<h1 style='color:#2B3A55; margin:0; padding-top:10px; font-weight:900;'>🍷 DUWELL <span style='font-weight:300; font-size:1.5rem; color:#6C757D;'>스마트 센터</span></h1>", unsafe_allow_html=True)
-with col_btn:
-    st.write("") # 버튼 위치를 살짝 내리기 위한 공백
-    if st.button("🔄 데이터 새로고침", use_container_width=True, type="secondary"): 
-        st.cache_data.clear() 
-        st.rerun()
 
-st.write("") # 간격 띄우기
 
-# 🔥 가로형 라디오 버튼 (사이드바 대신 상단 메뉴 역할)
-menu = st.radio(
-    "메뉴 이동", 
-    [
-        "🏠 통합 모니터링", 
-        "📦 주문/생산 통합 관리", 
-        "🧪 신제품 개발실",
-        "💎 마케팅/CRM 통합 센터", 
-        "🛠️ 재고 입출고 관리", 
-        "🛠️ 옵션 관리", 
-        "📅 일정 관리", 
-        "💰 마진/정산 분석",
-        "🤖 AI 비즈니스 센터"
-    ],
-    horizontal=True,
-    label_visibility="collapsed" # '메뉴 이동' 이라는 제목 글씨 숨김
-)
+# --------------------------------------------------------------------------
+# 3. 사이드바 메뉴 구성
+# --------------------------------------------------------------------------
+# --------------------------------------------------------------------------
+# 🏠 왼쪽 사이드바 네비게이션 (대메뉴 전용 - 새로고침 버튼 제거 버전)
+# --------------------------------------------------------------------------
+with st.sidebar:
+    # DUWELL 로고 디자인
+    st.markdown("""
+        <div style='text-align: center; padding: 20px 0;'>
+            <h1 style='color: #2B3A55; margin: 0; font-weight: 900; font-size: 2rem;'>DUWELL</h1>
+            <p style='color: #800020; font-size: 0.8rem; letter-spacing: 2px; margin: 5px 0 20px 0;'>SMART ERP SYSTEM</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-st.divider()
+    # 사이드바 내부 라디오 버튼 스타일링 (동그라미 제거 및 버튼화)
+    st.markdown("""
+        <style>
+            /* 사이드바 배경색 및 구분선 */
+            [data-testid="stSidebar"] { background-color: #FFFFFF !important; border-right: 1px solid #E9ECEF; }
+            [data-testid="stSidebarNav"] { display: none; } 
+
+            /* 라디오 버튼 동그라미 숨기기 */
+            [data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child { display: none !important; }
+            
+            /* 메뉴 버튼 기본 디자인 */
+            [data-testid="stSidebar"] div[role="radiogroup"] > label {
+                padding: 12px 20px !important;
+                margin-bottom: 8px !important;
+                border-radius: 10px !important;
+                border: 1px solid transparent !important;
+                transition: all 0.3s ease;
+                cursor: pointer !important;
+            }
+            
+            /* 호버 효과 */
+            [data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
+                background-color: #F8F9FA !important;
+                border-color: #E9ECEF !important;
+            }
+            
+            /* 선택된 메뉴 스타일 (네이비 배경) */
+            [data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"] {
+                background-color: #2B3A55 !important;
+                box-shadow: 0 4px 12px rgba(43,58,85,0.15) !important;
+            }
+            
+            /* 선택된 메뉴 글자색 (화이트) */
+            [data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"] p {
+                color: #FFFFFF !important;
+                font-weight: 700 !important;
+            }
+
+            /* 선택 시 발생하는 빨간색 테두리 완전 제거 */
+            [data-testid="stSidebar"] div[role="radiogroup"] > label:focus-within {
+                box-shadow: none !important;
+                outline: none !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # 메인 메뉴 리스트
+    menu = st.radio(
+        "Menu Selection",
+        ["통합 모니터링", "주문/생산 관리", "신제품 개발실", "마케팅 & CRM", "재고 관리", "옵션 관리", "일정 관리", "마진/정산 분석", "AI 비즈니스 센터"],
+        label_visibility="collapsed"
+    )
+
+    # 하단 접속 정보 (구분선 위로 깔끔하게 배치)
+    st.write("---")
+    st.caption(f"👤 접속자: {st.session_state.get('current_user', '담당자')}")
 
 # 데이터 로딩 (기존 로직 유지)
 df_duwell, sheet_main = load_data("시트1") 
-df_all = df_duwell.copy()
+df_all = df_duwell.copy() # 여기서 df_all을 생성하므로 NameError가 해결됩니다.
 
 if not df_all.empty and '날짜' in df_all.columns:
     df_all['날짜'] = pd.to_datetime(df_all['날짜'], errors='coerce')
@@ -700,10 +719,10 @@ if not df_all.empty and '날짜' in df_all.columns:
 else:
     if not df_all.empty: df_all['날짜_str'] = ""
 
-
-# === [1] 🏠 통합 모니터링 (기존 유지) ===
-if menu == "🏠 통합 모니터링":
-    st.markdown("### 📊 사업 현황 대시보드")
+# === 통합 모니터링 (기존 유지) ===
+if menu == "통합 모니터링":
+    render_page_header("📊 사업 현황 대시보드", "실시간 매출, 재고, 일정 데이터를 한눈에 파악하세요.")
+    # ... 기존 코드 동일 ...
     
     today = datetime.now()
     today_str = today.strftime("%Y-%m-%d")
@@ -841,17 +860,12 @@ if menu == "🏠 통합 모니터링":
         st.warning("📊 아직 등록된 주문 데이터가 없습니다.")
 
 
-# === [2] 📦 주문/생산 통합 관리 (5개 메뉴 완벽 통합) ===
-elif menu == "📦 주문/생산 통합 관리":
-    st.markdown("""
-        <div style="background: linear-gradient(135deg, #2B3A55 0%, #1A2235 100%); padding: 25px; border-radius: 12px; color: white; margin-bottom: 20px;">
-            <h2 style="margin:0; font-size:1.6rem; font-weight:800; color:white;">📦 주문부터 생산까지 One-Stop</h2>
-            <p style="margin:5px 0 0 0; font-size:0.95rem; opacity:0.9; color:white;">주문 등록, 시안 확인, 공장 발주, 지시서 출력, 송장 입력을 순서대로 처리하세요.</p>
-        </div>
-    """, unsafe_allow_html=True)
-
+# === 주문/생산 관리 ===
+elif menu == "주문/생산 관리":
+    render_page_header("📦 주문부터 생산까지 One-Stop", "주문 등록, 시안 확인, 공장 발주, 지시서 출력, 송장 입력을 순서대로 처리하세요.")
+    # 탭 네이밍도 깔끔하게 정리
     op_tab1, op_tab2, op_tab3, op_tab4, op_tab5 = st.tabs([
-        "📝 1. 주문 등록", "🎨 2. 시안 & 장부", "🏭 3. 공장 발주", "🖨️ 4. 작업지시서", "🚚 5. 송장 등록"
+        "1. 주문 등록", "2. 시안 & 장부", "3. 공장 발주", "4. 작업지시서", "5. 송장 등록"
     ])
 
     # 1. 주문 등록 탭
@@ -1115,14 +1129,9 @@ elif menu == "📦 주문/생산 통합 관리":
                     ok, msg = bulk_update_tracking_excel(sheet_main, df_up)
                     if ok: st.success(msg); st.cache_data.clear(); time.sleep(1); st.rerun()
                     else: st.error(msg)
-# === [3] 💎 마케팅/CRM 통합 센터 (마케팅, CRM 통합) ===
-elif menu == "💎 마케팅/CRM 통합 센터":
-    st.markdown("""
-        <div style="background: linear-gradient(135deg, #4E73DF 0%, #224ABE 100%); padding: 25px; border-radius: 12px; color: white; margin-bottom: 20px;">
-            <h2 style="margin:0; font-size:1.6rem; font-weight:800; color:white;">💎 마케팅 & CRM 통합 센터</h2>
-            <p style="margin:5px 0 0 0; font-size:0.95rem; opacity:0.9; color:white;">고객 관리부터 광고 성과 측정, AI 카피라이팅까지 한곳에서 관리하세요.</p>
-        </div>
-    """, unsafe_allow_html=True)
+# === 마케팅 & CRM ===
+elif menu == "마케팅 & CRM":
+    render_page_header("마케팅 & CRM 통합 센터", "고객 관리부터 광고 성과 측정, AI 카피라이팅까지 한곳에서 관리하세요.")
     
     m_tab1, m_tab2, m_tab3, m_tab4 = st.tabs([
         "👤 1. 고객 CRM 프로필", "📈 2. 광고 효율(ROAS)", "✍️ 3. AI 카피/네이밍", "💬 4. 리뷰/CS 응대"
@@ -1230,9 +1239,9 @@ elif menu == "💎 마케팅/CRM 통합 센터":
                 st.info(ask_ai(f"유형: {cs_type}, 내용: {cs_detail}\n프리미엄 브랜드에 맞는 정중한 사과와 해결책이 담긴 답변 작성."))
 
 
-# === [4] 🛠️ 재고 입출고 관리 (기존 유지) ===
-elif menu == "🛠️ 재고 입출고 관리":
-    st.subheader("📊 재고 통합 관리 시스템")
+# === 재고 관리 ===
+elif menu == "재고 관리":
+    render_page_header("재고 관리", "통합 재고 관리 시스템")
     df_stock, sheet_stock = load_data("재고관리")
     df_opt, _ = load_data("옵션관리")
     tab1, tab2, tab3 = st.tabs(["📊 재고 현황 (자동집계)", "📂 대량 입출고 등록 (엑셀)", "📝 개별 조정 (수동)"])
@@ -1276,9 +1285,9 @@ elif menu == "🛠️ 재고 입출고 관리":
                             add_log("재고수동조정", log_msg)
                             
                             st.success(f"✅ {target_prod}: {final_qty}개로 변경 및 로그 기록 완료!"); time.sleep(1); st.rerun()
-# === [5] 🛠️ 옵션 관리 ===
-elif menu == "🛠️ 옵션 관리":
-    st.subheader("🛠️ 옵션 및 통합 상품명 관리")
+# === 옵션 관리 ===
+elif menu == "옵션 관리":
+    render_page_header("옵션 관리", "제품 등록/수정")
     df_opt, sheet_opt = load_data("옵션관리")
     if not df_opt.empty:
         edited_df = st.data_editor(df_opt, num_rows="dynamic", use_container_width=True)
@@ -1291,9 +1300,9 @@ elif menu == "🛠️ 옵션 관리":
             
             st.success("저장됨"); st.rerun()
 
-# === [6] 📅 일정 관리 (기존 유지) ===
-elif menu == "📅 일정 관리":
-    st.subheader("📅 일정 캘린더")
+# === 일정 관리 ===
+elif menu == "일정 관리":
+    render_page_header("일정 관리", "스케쥴 관리")
     df_sch, sheet_sch = load_data("일정관리")
     col1, col2 = st.columns([1, 2])
     with col1:
@@ -1306,9 +1315,9 @@ elif menu == "📅 일정 관리":
             events = [{"title": str(r.get('일정명')), "start": str(r.get('시작일'))} for _, r in df_sch.iterrows()]
             calendar(events=events)
 
-# === [7] 💰 마진/정산 분석 ===
-elif menu == "💰 마진/정산 분석":
-    st.subheader("💰 실시간 마진 및 정산 분석기")   
+# === 마진/정산 분석 ===
+elif menu == "마진/정산 분석":
+    render_page_header("마진/정산 분석", "실시간 마진 및 정산 분석기")
     with st.expander("⚙️ 정산 기준 설정 (수수료 및 배송비 분리)", expanded=True):
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
@@ -1478,14 +1487,9 @@ elif menu == "💰 마진/정산 분석":
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
 
-# === [8] 🤖 AI 비즈니스 센터 (5대 에이전트 통합) ===
-elif menu == "🤖 AI 비즈니스 센터":
-    st.markdown("""
-        <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 25px; border-radius: 12px; color: white; margin-bottom: 20px;">
-            <h2 style="margin:0; font-size:1.6rem; font-weight:800; color:white;">🤖 DUWELL AI 비즈니스 센터</h2>
-            <p style="margin:5px 0 0 0; font-size:0.95rem; opacity:0.9; color:white;">10년의 수건 업계 노하우를 학습한 5명의 AI 전문가 팀이 대표님의 업무를 지원합니다.</p>
-        </div>
-    """, unsafe_allow_html=True)
+# ===AI 비즈니스 센터 ===
+elif menu == "AI 비즈니스 센터":
+    render_page_header("🤖 DUWELL AI 비즈니스 센터", "10년 노하우를 학습한 AI 에이전트 팀이 대표님의 업무를 지원합니다.")
 
     # 7개의 에이전트 탭 생성 (수정된 부분)
     ai_tab1, ai_tab2, ai_tab3, ai_tab4, ai_tab5, ai_tab6, ai_tab7 = st.tabs([
@@ -1712,14 +1716,9 @@ elif menu == "🤖 AI 비즈니스 센터":
                 use_container_width=True
             )
 
-# === [새로운 탭] 🧪 신제품 개발실 ===
-elif menu == "🧪 신제품 개발실":
-    st.markdown("""
-        <div style="background: linear-gradient(135deg, #FF6A00 0%, #EE0979 100%); padding: 25px; border-radius: 12px; color: white; margin-bottom: 20px;">
-            <h2 style="margin:0; font-size:1.6rem; font-weight:800; color:white;">🧪 신제품 샘플 개발실</h2>
-            <p style="margin:5px 0 0 0; font-size:0.95rem; opacity:0.9; color:white;">생산 지시서(Tech Pack) 작성부터 샘플 입고 후 체크리스트 검수까지 원스톱으로 관리하세요.</p>
-        </div>
-    """, unsafe_allow_html=True)
+# === 신제품 개발실 ===
+elif menu == "신제품 개발실":
+    render_page_header("🧪 신제품 샘플 개발실", "생산 지시서(Tech Pack) 작성부터 샘플 검수(Check-list)까지 원스톱 관리")
 
     tab_techpack, tab_checklist = st.tabs(["📝 1. 생산 지시서 (Tech Pack)", "🔎 2. 샘플 검수 (Check-list)"])
 
