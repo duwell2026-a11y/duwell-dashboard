@@ -1298,18 +1298,85 @@ elif menu == "옵션 관리":
 
 # === 일정 관리 ===
 elif menu == "일정 관리":
-    render_page_header("일정 관리", "스케쥴 관리")
+    render_page_header("📅 일정 관리", "사내 스케줄 및 주요 일정을 등록하고 관리하세요.")
     df_sch, sheet_sch = load_data("일정관리")
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        with st.form("add_schedule"):
-            d_date = st.date_input("날짜"); d_time = st.time_input("시간"); d_title = st.text_input("일정명"); d_desc = st.text_area("상세내용")
-            if st.form_submit_button("저장"):
-                if sheet_sch: sheet_sch.append_row([str(d_date), str(d_date), str(d_time), d_title, d_desc]); st.success("저장됨"); st.rerun()
-    with col2:
+    
+    # 달력 보기와 수정 화면을 탭으로 분리하여 화면을 넓게 씁니다.
+    tab_cal, tab_edit = st.tabs(["📆 캘린더 뷰", "📝 일정 등록 및 수정 (수동 편집)"])
+    
+    # ---------------------------------------------------------
+    # 1. 캘린더 뷰 탭
+    # ---------------------------------------------------------
+    with tab_cal:
         if not df_sch.empty:
-            events = [{"title": str(r.get('일정명')), "start": str(r.get('시작일'))} for _, r in df_sch.iterrows()]
-            calendar(events=events)
+            events = []
+            for _, r in df_sch.iterrows():
+                title = str(r.get('일정명', ''))
+                time_str = str(r.get('시간', ''))
+                # 시간이 있으면 제목 앞에 표시되도록 처리
+                if time_str and time_str != 'nan':
+                    title = f"[{time_str}] {title}"
+                    
+                events.append({
+                    "title": title, 
+                    "start": str(r.get('시작일', '')),
+                    "color": "#2B3A55" # DUWELL 네이비 컬러로 통일
+                })
+            
+            # 달력 출력
+            calendar(events=events, options={"height": 650})
+        else:
+            st.info("💡 아직 등록된 일정이 없습니다.")
+
+    # ---------------------------------------------------------
+    # 2. 일정 등록 및 수정 탭 (엑셀 에디터)
+    # ---------------------------------------------------------
+    with tab_edit:
+        col1, col2 = st.columns([1, 2.5])
+        
+        with col1:
+            st.markdown("##### ➕ 새 일정 추가")
+            with st.form("add_schedule"):
+                d_date = st.date_input("날짜", datetime.now())
+                d_time = st.time_input("시간")
+                d_title = st.text_input("일정명", placeholder="예: 원단 공장 미팅")
+                d_desc = st.text_area("상세내용", placeholder="세부 메모를 적어주세요.")
+                
+                if st.form_submit_button("일정 저장", type="primary"):
+                    if sheet_sch: 
+                        # 구글 시트에 A~E열 순서로 저장 (시작일, 종료일, 시간, 일정명, 상세내용)
+                        sheet_sch.append_row([str(d_date), str(d_date), str(d_time), d_title, d_desc])
+                        st.success("✅ 새 일정이 저장되었습니다!")
+                        time.sleep(1); st.rerun()
+        
+        with col2:
+            st.markdown("##### ✏️ 기존 일정 수정 및 삭제")
+            st.caption("💡 엑셀처럼 칸을 더블클릭하여 내용을 고치거나, 맨 왼쪽 체크박스를 눌러 일정을 삭제할 수 있습니다.")
+            
+            if not df_sch.empty:
+                # 데이터 에디터 생성 (num_rows="dynamic"으로 행 추가/삭제 허용)
+                edited_df = st.data_editor(
+                    df_sch,
+                    num_rows="dynamic", 
+                    use_container_width=True,
+                    key="schedule_editor"
+                )
+                
+                # 수정된 데이터를 시트에 반영하는 버튼
+                if st.button("💾 변경된 일정 내용 시트에 반영하기", type="secondary"):
+                    with st.spinner("구글 시트에 업데이트 중입니다..."):
+                        if sheet_sch:
+                            # 1. 시트의 기존 내용 모두 지우기
+                            sheet_sch.clear()
+                            
+                            # 2. 에디터에 있는(수정/삭제가 반영된) 새로운 데이터 덮어쓰기
+                            new_data = [edited_df.columns.values.tolist()] + edited_df.values.tolist()
+                            sheet_sch.update(values=new_data, range_name="A1")
+                            
+                            st.success("🎉 일정이 성공적으로 수정/삭제되었습니다!")
+                            time.sleep(1); st.rerun()
+            else:
+                st.write("등록된 일정이 없습니다.")
 
 # === 마진/정산 분석 ===
 elif menu == "마진/정산 분석":
