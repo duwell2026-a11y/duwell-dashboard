@@ -1298,11 +1298,11 @@ elif menu == "옵션 관리":
 
 # === 일정 관리 ===
 elif menu == "일정 관리":
-    render_page_header("📅 일정 관리", "사내 스케줄 및 주요 일정을 등록하고 관리하세요.")
+    render_page_header("일정 관리", "사내 스케줄 및 주요 일정을 등록하고 관리하세요.")
     df_sch, sheet_sch = load_data("일정관리")
     
     # 달력 보기와 수정 화면을 탭으로 분리하여 화면을 넓게 씁니다.
-    tab_cal, tab_edit = st.tabs(["📆 캘린더 뷰", "📝 일정 등록 및 수정 (수동 편집)"])
+    tab_cal, tab_edit = st.tabs(["캘린더 뷰", "일정 등록 및 수정 (수동 편집)"])
     
     # ---------------------------------------------------------
     # 1. 캘린더 뷰 탭
@@ -1350,7 +1350,7 @@ elif menu == "일정 관리":
                         time.sleep(1); st.rerun()
         
         with col2:
-            st.markdown("##### ✏️ 기존 일정 수정 및 삭제")
+            st.markdown("##### 기존 일정 수정 및 삭제")
             st.caption("💡 엑셀처럼 칸을 더블클릭하여 내용을 고치거나, 맨 왼쪽 체크박스를 눌러 일정을 삭제할 수 있습니다.")
             
             if not df_sch.empty:
@@ -1363,7 +1363,7 @@ elif menu == "일정 관리":
                 )
                 
                 # 수정된 데이터를 시트에 반영하는 버튼
-                if st.button("💾 변경된 일정 내용 시트에 반영하기", type="secondary"):
+                if st.button("변경된 일정 내용 시트에 반영하기", type="secondary"):
                     with st.spinner("구글 시트에 업데이트 중입니다..."):
                         if sheet_sch:
                             # 1. 시트의 기존 내용 모두 지우기
@@ -1373,7 +1373,7 @@ elif menu == "일정 관리":
                             new_data = [edited_df.columns.values.tolist()] + edited_df.values.tolist()
                             sheet_sch.update(values=new_data, range_name="A1")
                             
-                            st.success("🎉 일정이 성공적으로 수정/삭제되었습니다!")
+                            st.success(" 일정이 성공적으로 수정/삭제되었습니다!")
                             time.sleep(1); st.rerun()
             else:
                 st.write("등록된 일정이 없습니다.")
