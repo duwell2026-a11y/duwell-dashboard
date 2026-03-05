@@ -675,6 +675,7 @@ menu = st.radio(
     [
         "🏠 통합 모니터링", 
         "📦 주문/생산 통합 관리", 
+        "🧪 신제품 개발실",
         "💎 마케팅/CRM 통합 센터", 
         "🛠️ 재고 입출고 관리", 
         "🛠️ 옵션 관리", 
@@ -1708,5 +1709,432 @@ elif menu == "🤖 AI 비즈니스 센터":
                 data=st.session_state['seo_result_text'],
                 file_name=f"DUWELL_상세페이지기획_HTML_{st.session_state.get('seo_prod_name', '기본')}.txt",
                 mime="text/plain",
+                use_container_width=True
+            )
+
+# === [새로운 탭] 🧪 신제품 개발실 ===
+elif menu == "🧪 신제품 개발실":
+    st.markdown("""
+        <div style="background: linear-gradient(135deg, #FF6A00 0%, #EE0979 100%); padding: 25px; border-radius: 12px; color: white; margin-bottom: 20px;">
+            <h2 style="margin:0; font-size:1.6rem; font-weight:800; color:white;">🧪 신제품 샘플 개발실</h2>
+            <p style="margin:5px 0 0 0; font-size:0.95rem; opacity:0.9; color:white;">생산 지시서(Tech Pack) 작성부터 샘플 입고 후 체크리스트 검수까지 원스톱으로 관리하세요.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    tab_techpack, tab_checklist = st.tabs(["📝 1. 생산 지시서 (Tech Pack)", "🔎 2. 샘플 검수 (Check-list)"])
+
+    # ==========================================================
+    # 탭 1. 생산 지시서 (Tech Pack)
+    # ==========================================================
+    with tab_techpack:
+        with st.form("new_product_dev_form"):
+            st.markdown("#### 📝 신제품 생산 스펙 작성")
+            
+            c1, c2 = st.columns([1, 1])
+            with c1: 
+                dev_factory = st.text_input("🏭 공장명", placeholder="예: A방직")
+                dev_prod_name = st.text_input("📦 상품명 (ITEM)", placeholder="예: 프리미엄 와플 타월")
+            with c2: 
+                dev_color_qty = st.text_area("🎨 초도 발주 수량 (컬러 / 수량)", placeholder="예시) 기호(/)로 구분하여 작성\n웜그레이 / 500장\n네이비 / 500장\n차콜 / 300장", height=110)
+
+            st.markdown("##### ⚙️ 세부 사양 (SPEC)")
+            s1, s2, s3, s4 = st.columns(4)
+            with s1: dev_size = st.text_input("📏 사이즈", placeholder="예: 40 x 80 cm")
+            with s2: dev_weight = st.text_input("⚖️ 중량", placeholder="예: 200g")
+            with s3: dev_yarn = st.text_input("🧵 사종 (소재)", placeholder="예: 최고급 코마사 40수")
+            with s4: dev_dyeing = st.radio("🎨 염색 방식", ["선염", "후염", "해당없음"], horizontal=True)
+
+            p1, p2, p3 = st.columns(3)
+            with p1: dev_border = st.text_input("🪡 보더 디자인", placeholder="예: 양끝 3선 피카소 보더")
+            with p2: dev_pkg = st.text_input("🎁 포장 방법", placeholder="예: 개별 띠지 + OPP 폴리백")
+            with p3: dev_label_pos = st.text_input("📍 라벨/택 위치", placeholder="예: 우측 하단 1cm 띄우고 봉제")
+
+            st.markdown("##### 🖼️ 디자인 상세 및 참고 이미지")
+            i1, i2 = st.columns(2)
+            with i1:
+                dev_design_detail = st.text_area("✨ 디자인 (선염 및 보더 등 특이사항)", placeholder="예: 선염 3컬러 교차 배열, 보더 부분 자가드 포인트", height=120)
+                dev_extra = st.text_area("⚠️ 작업 시 주의사항 (*중요*)", placeholder="- 봉사 간격 잘게 치기\n- 잔실 없도록 깔끔하게 처리\n- 세탁 라벨은 뒷면에 겹쳐서 봉제", height=120)
+            with i2:
+                dev_ref_img = st.file_uploader("📸 참고 이미지 (디자인 시안/도식화)", type=['png', 'jpg', 'jpeg'])
+                dev_label_img = st.file_uploader("🏷️ 라벨/택 이미지", type=['png', 'jpg', 'jpeg'])
+
+            st.divider()
+            submit_dev = st.form_submit_button("✅ 작업지시서 문서 생성 및 구글 시트 저장", type="primary")
+
+        if submit_dev:
+            if not dev_prod_name or not dev_factory:
+                st.warning("🚨 공장명과 상품명은 필수 입력 항목입니다.")
+            else:
+                with st.spinner("지시서를 생성 중입니다... 잠시만 기다려주세요."):
+                    import base64
+                    import io
+                    from datetime import datetime
+                    
+                    today_str = datetime.now().strftime("%Y-%m-%d")
+
+                    color_qty_html = ""
+                    lines = [line.strip() for line in dev_color_qty.split('\n') if line.strip()]
+                    if not lines:
+                        color_qty_html = "<tr><td style='border-left:none; border-bottom:none; border-right:1px solid #444;'>-</td><td style='border-right:none; border-bottom:none;'>-</td></tr>"
+                    else:
+                        for i, line in enumerate(lines):
+                            if '/' in line: parts = line.split('/')
+                            elif '-' in line: parts = line.split('-')
+                            else: parts = [line, ""]
+                            
+                            color = parts[0].strip()
+                            qty = parts[1].strip() if len(parts) > 1 else ""
+                            
+                            b_bottom = "border-bottom:none;" if i == len(lines) - 1 else "border-bottom:1px solid #444;"
+                            color_qty_html += f"<tr><td style='border-left:none; {b_bottom} border-right:1px solid #444; font-weight:bold;'>{color}</td><td style='border-right:none; {b_bottom}'>{qty}</td></tr>"
+
+                    sheet_saved = False
+                    try:
+                        client = get_client()
+                        if client:
+                            sheet_dev = client.open_by_key(SHEET_ID).worksheet("신제품개발")
+                            flat_color_qty = dev_color_qty.replace('\n', ', ')
+                            row_data = [
+                                today_str, dev_factory, dev_prod_name, flat_color_qty,
+                                dev_size, dev_weight, dev_yarn, dev_dyeing, dev_border, 
+                                dev_design_detail, dev_extra, dev_pkg, dev_label_pos
+                            ]
+                            sheet_dev.append_row(row_data)
+                            sheet_saved = True
+                    except Exception as e:
+                        st.error(f"⚠️ 구글 시트 저장 실패: {e}")
+
+                    def get_image_base64(uploaded_file):
+                        if uploaded_file is not None:
+                            bytes_data = uploaded_file.getvalue()
+                            b64 = base64.b64encode(bytes_data).decode()
+                            return f"data:{uploaded_file.type};base64,{b64}"
+                        return ""
+                    
+                    b64_ref = get_image_base64(dev_ref_img)
+                    b64_label = get_image_base64(dev_label_img)
+                    
+                    ref_html = f"<img src='{b64_ref}' style='max-width:90%; max-height:300px; object-fit:contain;'>" if b64_ref else "<span style='color:#999;'>이미지 없음</span>"
+                    label_html = f"<img src='{b64_label}' style='max-width:90%; max-height:150px; object-fit:contain;'>" if b64_label else "<span style='color:#999;'>라벨 없음</span>"
+                    
+                    extra_html = dev_extra.replace('\n', '<br>')
+                    design_html = dev_design_detail.replace('\n', '<br>')
+
+                    html_content = f"""
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <style>
+                            body {{ font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #111; font-size: 13px; }}
+                            .header-container {{ text-align: center; margin-bottom: 5px; white-space: nowrap; }}
+                            .main-title {{ font-size: 32px; font-weight: 900; letter-spacing: 15px; display: inline-block; padding-left: 15px; }}
+                            .date-text {{ text-align: right; font-weight: bold; font-size: 12px; margin-bottom: 5px; color: #444; }}
+                            table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }}
+                            th, td {{ border: 1px solid #444; padding: 8px; text-align: center; vertical-align: middle; }}
+                            th {{ background-color: #F1F5F9; font-weight: bold; font-size: 13px; color: #222; }}
+                            .left-align {{ text-align: left; vertical-align: top; padding: 15px; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header-container">
+                            <span class="main-title">작업지시서</span>
+                        </div>
+                        <div class="date-text">작성일자 : {today_str}</div>
+                        
+                        <table>
+                            <tr>
+                                <th style="width:15%;">발주처</th>
+                                <td style="width:35%; font-weight:900; color:#2B3A55; font-size:16px; letter-spacing:1px;">DUWELL</td>
+                                <th style="width:15%;">업체명(공장)</th>
+                                <td style="width:35%; font-weight:bold; font-size:14px;">{dev_factory}</td>
+                            </tr>
+                            <tr>
+                                <th>ITEM (상품명)</th>
+                                <td colspan="3" style="font-weight:bold; font-size:15px;">{dev_prod_name}</td>
+                            </tr>
+                        </table>
+
+                        <table>
+                            <tr>
+                                <th style="width:50%;">DESIGN / 참고 이미지</th>
+                                <th style="width:50%;" colspan="2">PRODUCTION SPECS / 생산 사양</th>
+                            </tr>
+                            <tr>
+                                <td rowspan="6" class="left-align" style="height: 350px; text-align:center; vertical-align:middle;">
+                                    {ref_html}
+                                </td>
+                                <th style="width:15%; background-color:#F1F5F9;">염색방식</th>
+                                <td style="width:35%; font-weight:bold; color:#2B3A55;">{dev_dyeing}</td>
+                            </tr>
+                            <tr><th style="background-color:#F1F5F9;">사이즈</th><td>{dev_size}</td></tr>
+                            <tr><th style="background-color:#F1F5F9;">중량</th><td style="color:#D32F2F; font-weight:bold;">{dev_weight}</td></tr>
+                            <tr><th style="background-color:#F1F5F9;">소재(사종)</th><td>{dev_yarn}</td></tr>
+                            <tr><th style="background-color:#F1F5F9;">보더디자인</th><td>{dev_border}</td></tr>
+                            <tr>
+                                <th style="background-color:#F1F5F9;">초도 발주<br>수량</th>
+                                <td style="padding: 0; vertical-align: top;">
+                                    <table style="width:100%; height:100%; margin:0; border-collapse:collapse; border-style:hidden;">
+                                        <tr>
+                                            <th style="width:50%; border-top:none; border-left:none; border-bottom:1px solid #444; border-right:1px solid #444; background-color:#F8F9FA;">컬러 (COLOR)</th>
+                                            <th style="width:50%; border-top:none; border-right:none; border-bottom:1px solid #444; background-color:#F8F9FA;">수량 (QTY)</th>
+                                        </tr>
+                                        {color_qty_html}
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <table>
+                            <tr>
+                                <th style="width:50%;">* 디자인 상세 (선염/보더 등) *</th>
+                                <th style="width:50%;">* 작업 시 주의사항 *</th>
+                            </tr>
+                            <tr>
+                                <td class="left-align" style="height: 120px; font-size: 14px; line-height: 1.6;">{design_html}</td>
+                                <td class="left-align" style="height: 120px; font-size: 14px; line-height: 1.6;">{extra_html}</td>
+                            </tr>
+                        </table>
+
+                        <table>
+                            <tr>
+                                <th style="width:40%;">포장 방법</th>
+                                <th style="width:60%;" colspan="2">라벨 & 패키징 (LABEL & PKG)</th>
+                            </tr>
+                            <tr>
+                                <td rowspan="2" class="left-align" style="font-size:14px; line-height: 1.6;">{dev_pkg}</td>
+                                <th style="width:15%; background-color:#F1F5F9;">라벨위치</th>
+                                <td style="width:45%; text-align:left; padding-left:15px;">{dev_label_pos}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="height:120px; text-align:center; vertical-align:middle; padding: 10px;">
+                                    {label_html}
+                                </td>
+                            </tr>
+                        </table>
+                    </body>
+                    </html>
+                    """
+                    
+                    pdf_options = {'page-size': 'A4', 'encoding': 'utf-8', 'enable-local-file-access': None, 'margin-top': '15mm', 'margin-right': '15mm', 'margin-bottom': '15mm', 'margin-left': '15mm'}
+                    import pdfkit
+                    try: pdf_config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
+                    except: pdf_config = None
+                    
+                    pdf_bytes = None
+                    try: pdf_bytes = pdfkit.from_string(html_content, False, options=pdf_options, configuration=pdf_config)
+                    except Exception as e: st.error(f"🚨 PDF 변환 오류 발생: {e}")
+
+                    if sheet_saved: st.success("✅ 구글 시트 [신제품개발] 장부에 성공적으로 저장되었습니다.")
+
+                    if pdf_bytes: st.session_state['dev_pdf_bytes'] = pdf_bytes
+                    st.session_state['dev_html_content'] = html_content
+                    st.session_state['dev_pdf_name'] = f"작업지시서_{dev_prod_name}.pdf"
+                    st.session_state['dev_html_name'] = f"작업지시서_{dev_prod_name}_수정용.html"
+
+        if 'dev_html_content' in st.session_state:
+            st.divider()
+            d_col1, d_col2 = st.columns(2)
+            with d_col1:
+                if 'dev_pdf_bytes' in st.session_state and st.session_state['dev_pdf_bytes']:
+                    st.download_button(label="📄 완본 PDF 파일 다운로드", data=st.session_state['dev_pdf_bytes'], file_name=st.session_state['dev_pdf_name'], mime="application/pdf", type="primary", use_container_width=True)
+            with d_col2:
+                st.download_button(label="✏️ 수정 가능한 문서 다운로드 (Word 호환)", data=st.session_state['dev_html_content'].encode('utf-8-sig'), file_name=st.session_state['dev_html_name'], mime="text/html", use_container_width=True)
+
+
+    # ==========================================================
+    # 탭 2. 샘플 검수 (Check-list)
+    # ==========================================================
+    with tab_checklist:
+        st.markdown("#### 🔎 입고 샘플 품질 검수 리스트")
+        
+        # 1. 검수 기본 정보
+        cc1, cc2, cc3 = st.columns(3)
+        with cc1:
+            chk_prod_name = st.text_input("📦 제품명 (Product Name)", value="와플 타월")
+            chk_reviewer = st.text_input("👤 검수자", value=st.session_state.get('current_user', '담당자'))
+        with cc2:
+            chk_color_size = st.text_input("🎨 컬러 및 옵션 (Color/Size)", value="진행전 / 40*90")
+            chk_round = st.selectbox("🔄 차수", ["1차", "2차", "3차", "최종(Pre-Pro)"])
+        with cc3:
+            from datetime import datetime
+            chk_date = st.date_input("📅 작성일", datetime.now())
+            chk_result = st.selectbox("📢 최종 판정 (Result)", ["대기중", "합격 (PASS)", "수정 후 재샘플 (RE-WORK)", "드랍 (DROP)"])
+
+        st.divider()
+        st.markdown("##### 📋 세부 검수 항목 (Check-list)")
+        
+        # 2. 9대 검수 항목 데이터프레임 (기본값 세팅)
+        default_chk_data = [
+            {"항목": "사이즈", "세부 검수 기준": "작업 지시서 상의 규격과 일치하는가?", "판정": "대기", "비고": ""},
+            {"항목": "중량", "세부 검수 기준": "요구한 평량(g) 기준 오차 범위 내에 있는가?", "판정": "대기", "비고": ""},
+            {"항목": "제품디자인", "세부 검수 기준": "와플 조직감, 패턴, 직조 형태가 기획안과 동일한가?", "판정": "대기", "비고": ""},
+            {"항목": "색상", "세부 검수 기준": "지정된 컬러 발색이 정확하고 탕차이(이색)가 없는가?", "판정": "진행전", "비고": ""},
+            {"항목": "봉제", "세부 검수 기준": "테두리 마감(헤밍 등) 일정하고 바른가?", "판정": "대기", "비고": ""},
+            {"항목": "올풀림", "세부 검수 기준": "테두리 마감 부위 및 표면에 올이 나간 곳이 없는가?", "판정": "대기", "비고": ""},
+            {"항목": "보풀", "세부 검수 기준": "표면 잔털이 심하거나 마찰 시 보풀이 생기지 않는가?", "판정": "대기", "비고": ""},
+            {"항목": "라벨", "세부 검수 기준": "케어/브랜드 라벨의 부착 위치와 봉제가 반듯한가?", "판정": "진행전", "비고": ""},
+            {"항목": "기타", "세부 검수 기준": "오염, 잡사, 포장 상태 등에 문제가 없는가?", "판정": "진행전", "비고": ""}
+        ]
+        
+        df_chk = pd.DataFrame(default_chk_data)
+        
+        # 데이터 에디터로 사용자가 직접 수정 가능하도록 설정
+        edited_chk = st.data_editor(
+            df_chk, 
+            column_config={
+                "판정": st.column_config.SelectboxColumn("판정 (O/X)", options=["O", "X", "진행전", "대기"], required=True),
+                "비고": st.column_config.TextColumn("비고 (불량 사유 등)")
+            },
+            hide_index=True, use_container_width=True
+        )
+
+        st.divider()
+        st.markdown("##### 💬 공장 커뮤니케이션 요약")
+        com1, com2 = st.columns(2)
+        with com1:
+            chk_inquiry = st.text_area("🗣️ 본사 문의 사항 및 개선 요청", placeholder="예: 1. 세탁 후 올나감 현상 원인 파악\n2. 테두리 단봉 -> 삼봉 변경 가능 여부", height=100)
+        with com2:
+            chk_feedback = st.text_area("🏭 공장 피드백 (답변)", placeholder="예: 삼봉 변경 시 단가 건당 50원 인상됨.", height=100)
+
+        st.markdown("##### 📸 문제점 참고 이미지 (비교용)")
+        img1, img2 = st.columns(2)
+        with img1: chk_img1 = st.file_uploader("참고 이미지 1 (불량 부위 / 변경 전)", type=['png', 'jpg', 'jpeg'], key="chk1")
+        with img2: chk_img2 = st.file_uploader("참고 이미지 2 (정상 부위 / 변경 후)", type=['png', 'jpg', 'jpeg'], key="chk2")
+
+        submit_check = st.button("✅ 검수 리스트 PDF 생성 및 구글 시트 저장", type="primary", use_container_width=True)
+
+        if submit_check:
+            with st.spinner("검수 리스트를 처리 중입니다..."):
+                import base64
+                import io
+
+                # 구글 시트 저장 ('샘플검수' 탭이 있어야 함)
+                try:
+                    client = get_client()
+                    if client:
+                        sheet_chk = client.open_by_key(SHEET_ID).worksheet("샘플검수")
+                        row_data = [
+                            str(chk_date), chk_prod_name, chk_round, chk_color_size, 
+                            chk_reviewer, chk_result, chk_inquiry.replace('\n', ' / '), chk_feedback.replace('\n', ' / ')
+                        ]
+                        sheet_chk.append_row(row_data)
+                        st.success("✅ 구글 시트 [샘플검수] 장부에 요약본이 저장되었습니다.")
+                except Exception as e:
+                    st.error(f"⚠️ 구글 시트 저장 실패 (구글 시트에 '샘플검수'라는 이름의 빈 탭을 추가해주세요): {e}")
+
+                # 체크리스트 테이블 HTML 생성
+                chk_tbody = ""
+                for idx, row in edited_chk.iterrows():
+                    res_color = "#D32F2F" if row['판정'] == 'X' else ("#1976D2" if row['판정'] == 'O' else "#555")
+                    chk_tbody += f"""
+                    <tr>
+                        <td style='text-align:center;'>{idx+1}</td>
+                        <td style='text-align:center; font-weight:bold;'>{row['항목']}</td>
+                        <td>{row['세부 검수 기준']}</td>
+                        <td style='text-align:center; color:{res_color}; font-weight:bold;'>{row['판정']}</td>
+                        <td>{row['비고']}</td>
+                    </tr>
+                    """
+
+                # 이미지 Base64 변환
+                def get_img_b64(f):
+                    if f: return f"data:{f.type};base64,{base64.b64encode(f.getvalue()).decode()}"
+                    return ""
+                b64_img1 = get_img_b64(chk_img1)
+                b64_img2 = get_img_b64(chk_img2)
+
+                img1_html = f"<img src='{b64_img1}' style='max-width:100%; max-height:200px; object-fit:contain;'>" if b64_img1 else "이미지 없음"
+                img2_html = f"<img src='{b64_img2}' style='max-width:100%; max-height:200px; object-fit:contain;'>" if b64_img2 else "이미지 없음"
+
+                # HTML 템플릿
+                chk_html_content = f"""
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <style>
+                        body {{ font-family: 'Malgun Gothic', sans-serif; padding: 0; margin: 0; color: #111; font-size: 13px; }}
+                        .title {{ text-align: center; font-size: 28px; font-weight: 900; letter-spacing: 5px; margin-bottom: 20px; }}
+                        table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }}
+                        th, td {{ border: 1px solid #444; padding: 8px; vertical-align: middle; }}
+                        th {{ background-color: #F1F5F9; font-weight: bold; text-align: center; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="title">샘플 체크 리스트 ({chk_round})</div>
+                    
+                    <table>
+                        <tr>
+                            <th style="width:15%;">제품명</th>
+                            <td style="width:35%; font-weight:bold;">{chk_prod_name}</td>
+                            <th style="width:15%;">작성일자</th>
+                            <td style="width:35%;">{str(chk_date)}</td>
+                        </tr>
+                        <tr>
+                            <th>컬러 및 옵션</th>
+                            <td>{chk_color_size}</td>
+                            <th>검수자</th>
+                            <td>{chk_reviewer}</td>
+                        </tr>
+                        <tr>
+                            <th>최종 판정</th>
+                            <td colspan="3" style="font-weight:bold; font-size:15px; color:#EE0979;">{chk_result}</td>
+                        </tr>
+                    </table>
+
+                    <table>
+                        <tr>
+                            <th style="width:5%;">No.</th>
+                            <th style="width:15%;">검수 항목</th>
+                            <th style="width:40%;">세부 검수 기준</th>
+                            <th style="width:10%;">판정</th>
+                            <th style="width:30%;">비고</th>
+                        </tr>
+                        {chk_tbody}
+                    </table>
+
+                    <table>
+                        <tr>
+                            <th style="width:50%;">본사 문의 및 개선 요청 사항</th>
+                            <th style="width:50%;">공장 피드백</th>
+                        </tr>
+                        <tr>
+                            <td style="height:100px; vertical-align:top; padding:10px;">{chk_inquiry.replace(chr(10), '<br>')}</td>
+                            <td style="height:100px; vertical-align:top; padding:10px;">{chk_feedback.replace(chr(10), '<br>')}</td>
+                        </tr>
+                    </table>
+
+                    <table>
+                        <tr>
+                            <th style="width:50%;">참고 이미지 1</th>
+                            <th style="width:50%;">참고 이미지 2</th>
+                        </tr>
+                        <tr>
+                            <td style="height:220px; text-align:center; vertical-align:middle; padding:10px;">{img1_html}</td>
+                            <td style="height:220px; text-align:center; vertical-align:middle; padding:10px;">{img2_html}</td>
+                        </tr>
+                    </table>
+                </body>
+                </html>
+                """
+
+                pdf_options = {'page-size': 'A4', 'encoding': 'utf-8', 'enable-local-file-access': None, 'margin-top': '15mm', 'margin-right': '15mm', 'margin-bottom': '15mm', 'margin-left': '15mm'}
+                import pdfkit
+                try: pdf_config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
+                except: pdf_config = None
+                
+                try:
+                    chk_pdf_bytes = pdfkit.from_string(chk_html_content, False, options=pdf_options, configuration=pdf_config)
+                    st.session_state['chk_pdf_bytes'] = chk_pdf_bytes
+                    st.session_state['chk_pdf_name'] = f"샘플검수서_{chk_prod_name}_{chk_round}.pdf"
+                except Exception as e:
+                    st.error(f"🚨 PDF 변환 오류: {e}")
+
+        if 'chk_pdf_bytes' in st.session_state:
+            st.download_button(
+                label="📄 완본 검수 리스트 PDF 다운로드",
+                data=st.session_state['chk_pdf_bytes'],
+                file_name=st.session_state['chk_pdf_name'],
+                mime="application/pdf",
+                type="primary",
                 use_container_width=True
             )
