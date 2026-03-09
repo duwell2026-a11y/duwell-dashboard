@@ -10,3 +10,4 @@ XlsxWriter
 openpyxl
 matplotlib
 pdfkit==1.0.0
+requests
