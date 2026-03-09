@@ -16,6 +16,8 @@ from email.mime.application import MIMEApplication
 from streamlit_calendar import calendar
 import google.generativeai as genai 
 import streamlit.components.v1 as components 
+import pdfkit
+import platform
 import io
 
 # --------------------------------------------------------------------------
@@ -2200,5 +2202,15 @@ elif menu == "신제품 개발실":
                 type="primary",
                 use_container_width=True
             )
+            if platform.system() == "Windows":
+    path_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'
+else:
+    path_wkhtmltopdf = '/usr/bin/wkhtmltopdf' # 스트림릿 클라우드 기본 경로
+
+try: 
+    pdf_config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
+except: 
+    pdf_config = None
+
 
 
