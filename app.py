@@ -68,6 +68,10 @@ st.markdown("""
             background-color: #FFFFFF; border-radius: 12px; padding: 20px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); border: 1px solid #E9ECEF;
         }
+        @page { 
+    size: A4 landscape; 
+    margin: 10mm; 
+}
     </style>
 """, unsafe_allow_html=True)
 
@@ -2184,7 +2188,7 @@ elif menu == "신제품 개발실":
                 </html>
                 """
 
-                pdf_options = {'page-size': 'A4', 'encoding': 'utf-8', 'enable-local-file-access': None, 'margin-top': '15mm', 'margin-right': '15mm', 'margin-bottom': '15mm', 'margin-left': '15mm'}
+                pdf_options = {'page-size': 'A4', 'orientation': 'Landscape','encoding': 'utf-8', 'enable-local-file-access': None, 'margin-top': '15mm', 'margin-right': '15mm', 'margin-bottom': '15mm', 'margin-left': '15mm'}
                 import pdfkit
                 try: pdf_config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
                 except: pdf_config = None
@@ -2205,6 +2209,7 @@ elif menu == "신제품 개발실":
                 pdf_config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
             except: 
                 pdf_config = None
+
 
 
 
