@@ -2193,15 +2193,6 @@ elif menu == "신제품 개발실":
                 except Exception as e:
                     st.error(f"🚨 PDF 변환 오류: {e}")
 
-        if 'chk_pdf_bytes' in st.session_state:
-            st.download_button(
-                label="완본 검수 리스트 PDF 다운로드",
-                data=st.session_state['chk_pdf_bytes'],
-                file_name=st.session_state['chk_pdf_name'],
-                mime="application/pdf",
-                type="primary",
-                use_container_width=True
-            )
             if platform.system() == "Windows":
     path_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'
 else:
@@ -2211,6 +2202,7 @@ try:
     pdf_config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
 except: 
     pdf_config = None
+
 
 
 
