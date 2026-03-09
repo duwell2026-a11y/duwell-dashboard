@@ -2122,13 +2122,25 @@ elif menu == "신제품 개발실":
                 <html>
                 <head>
                     <meta charset="utf-8">
-                    <style>
-                        body {{ font-family: 'Malgun Gothic', sans-serif; padding: 0; margin: 0; color: #111; font-size: 13px; }}
-                        .title {{ text-align: center; font-size: 28px; font-weight: 900; letter-spacing: 5px; margin-bottom: 20px; }}
-                        table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }}
-                        th, td {{ border: 1px solid #444; padding: 8px; vertical-align: middle; }}
-                        th {{ background-color: #F1F5F9; font-weight: bold; text-align: center; }}
-                    </style>
+<style>
+    /* 🖨️ 가로 인쇄 및 여백 설정 */
+    @page { size: A4 landscape; margin: 10mm; }
+    
+    /* 🔠 전체 기본 글씨 크기 13px -> 16px로 확대 */
+    body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #111; font-size: 16px; }
+    
+    .header-container { text-align: center; margin-bottom: 10px; white-space: nowrap; }
+    .main-title { font-size: 36px; font-weight: 900; letter-spacing: 15px; display: inline-block; padding-left: 15px; }
+    .date-text { text-align: right; font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #444; }
+    
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }
+    
+    /* 🔠 표 내부 글씨 크기 16px 및 상하 여백(padding) 확대 */
+    th, td { border: 1px solid #444; padding: 12px; text-align: center; vertical-align: middle; font-size: 16px; line-height: 1.6; }
+    th { background-color: #F1F5F9; font-weight: bold; color: #222; }
+    
+    .left-align { text-align: left; vertical-align: top; padding: 15px; }
+</style>
                 </head>
                 <body>
                     <div class="title">샘플 체크 리스트 ({chk_round})</div>
@@ -2209,6 +2221,7 @@ elif menu == "신제품 개발실":
                 pdf_config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
             except: 
                 pdf_config = None
+
 
 
 
