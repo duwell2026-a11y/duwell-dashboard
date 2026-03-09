@@ -17,11 +17,6 @@ from streamlit_calendar import calendar
 import google.generativeai as genai 
 import streamlit.components.v1 as components 
 import io
-import pdfkit
-
-# 대부분의 Streamlit Cloud(Linux) 환경에서는 경로 지정 없이도 작동합니다.
-# 만약 에러가 나면 아래 설정을 검토하세요.
-config = pdfkit.configuration(wkhtmltopdf='/usr/bin/wkhtmltopdf')
 
 # --------------------------------------------------------------------------
 # 0. 페이지 설정 및 디자인 (CSS) - 최상단 배치
@@ -2205,4 +2200,5 @@ elif menu == "신제품 개발실":
                 type="primary",
                 use_container_width=True
             )
+
 
