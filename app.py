@@ -1979,21 +1979,23 @@ elif menu == "신제품 개발실":
                     </html>
                     """
                     
-                    pdf_options = {'page-size': 'A4', 'encoding': 'utf-8', 'enable-local-file-access': None, 'margin-top': '15mm', 'margin-right': '15mm', 'margin-bottom': '15mm', 'margin-left': '15mm'}
-                    import pdfkit
-                    try: pdf_config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
-                    except: pdf_config = None
-                    
+ # --- 작업지시서 파일 생성 및 다운로드 준비 ---
                     pdf_bytes = None
-                    try: pdf_bytes = pdfkit.from_string(html_content, False, options=pdf_options, configuration=pdf_config)
-                    except Exception as e: st.error(f"PDF 변환 오류 발생: {e}")
+                    try:
+                        import pdfkit
+                        import platform
+                        if platform.system() == "Windows":
+                            pdf_config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
+                            pdf_bytes = pdfkit.from_string(html_content, False, options=pdf_options, configuration=pdf_config)
+                    except Exception as e:
+                        pass # 클라우드에서는 오류를 무시하고 HTML만 생성합니다.
 
                     if sheet_saved: st.success("구글 시트 [신제품개발] 장부에 성공적으로 저장되었습니다.")
 
                     if pdf_bytes: st.session_state['dev_pdf_bytes'] = pdf_bytes
                     st.session_state['dev_html_content'] = html_content
                     st.session_state['dev_pdf_name'] = f"작업지시서_{dev_prod_name}.pdf"
-                    st.session_state['dev_html_name'] = f"작업지시서_{dev_prod_name}_수정용.html"
+                    st.session_state['dev_html_name'] = f"작업지시서_{dev_prod_name}.html"
 
         if 'dev_html_content' in st.session_state:
             st.divider()
@@ -2001,9 +2003,10 @@ elif menu == "신제품 개발실":
             with d_col1:
                 if 'dev_pdf_bytes' in st.session_state and st.session_state['dev_pdf_bytes']:
                     st.download_button(label="완본 PDF 파일 다운로드", data=st.session_state['dev_pdf_bytes'], file_name=st.session_state['dev_pdf_name'], mime="application/pdf", type="primary", use_container_width=True)
+                else:
+                    st.info("💡 클라우드 환경입니다. 우측의 HTML 문서를 다운로드하여 열고 'Ctrl+P(인쇄) -> PDF로 저장'을 이용해 주세요.")
             with d_col2:
-                st.download_button(label="수정 가능한 문서 다운로드 (Word 호환)", data=st.session_state['dev_html_content'].encode('utf-8-sig'), file_name=st.session_state['dev_html_name'], mime="text/html", use_container_width=True)
-
+                st.download_button(label="작업지시서 다운로드 (HTML)", data=st.session_state['dev_html_content'].encode('utf-8-sig'), file_name=st.session_state['dev_html_name'], mime="text/html", use_container_width=True)
 
     # ==========================================================
     # 탭 2. 샘플 검수 (Check-list)
