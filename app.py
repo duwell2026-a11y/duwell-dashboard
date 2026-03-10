@@ -1889,6 +1889,7 @@ elif menu == "신제품 개발실":
                     extra_html = dev_extra.replace('\n', '<br>')
                     design_html = dev_design_detail.replace('\n', '<br>')
 
+                   # 🚀 [수정됨] 상단 기본정보 표 제거 및 우측 텍스트 정렬 (세련된 헤더 디자인)
                     html_content = f"""
                     <html>
                     <head>
@@ -1897,9 +1898,6 @@ elif menu == "신제품 개발실":
                             @page {{ margin: 5mm; }}
                             * {{ box-sizing: border-box; }}
                             body {{ font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #111; font-size: 18pt; }}
-                            .header-container {{ text-align: center; margin-bottom: 5px; white-space: nowrap; }}
-                            .main-title {{ font-size: 38pt; font-weight: 900; letter-spacing: 15px; display: inline-block; padding-left: 10px; }}
-                            .date-text {{ text-align: right; font-weight: bold; font-size: 14pt; margin-bottom: 5px; color: #444; }}
                             table {{ width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }}
                             th, td {{ border: 2px solid #222; padding: 6px 8px; text-align: center; vertical-align: middle; font-size: 18pt; line-height: 1.4; word-break: keep-all; }}
                             th {{ background-color: #F1F5F9; font-weight: bold; color: #111; }}
@@ -1907,33 +1905,29 @@ elif menu == "신제품 개발실":
                         </style>
                     </head>
                     <body>
-                        <div class="header-container">
-                            <span class="main-title">작업지시서</span>
-                        </div>
-                        <div class="date-text">작성일자 : {today_str}</div>
                         
-                        <table>
-                            <colgroup>
-                                <col style="width: 15%;">
-                                <col style="width: 35%;">
-                                <col style="width: 15%;">
-                                <col style="width: 35%;">
-                            </colgroup>
-                            <tr>
-                                <th>발주처</th>
-                                <td style="font-weight:900; color:#2B3A55; font-size:22pt; letter-spacing:1px;">DUWELL</td>
-                                <th>업체명(공장)</th>
-                                <td style="font-weight:bold; font-size:20pt;">{dev_factory}</td>
-                            </tr>
-                            <tr>
-                                <th>ITEM (상품명)</th>
-                                <td colspan="3" style="font-weight:bold; font-size:20pt;">{dev_prod_name}</td>
-                            </tr>
-                        </table>
+                        <div style="border-bottom: 4px solid #111; padding-bottom: 15px; margin-bottom: 20px;">
+                            <table style="width: 100%; border: none; margin: 0;">
+                                <tr>
+                                    <td style="border: none; text-align: left; vertical-align: bottom; padding: 0;">
+                                        <span style="font-size: 48pt; font-weight: 900; letter-spacing: 15px; padding-left: 10px;">작업지시서</span>
+                                    </td>
+                                    <td style="border: none; text-align: right; vertical-align: bottom; font-size: 16pt; line-height: 1.6; padding: 0;">
+                                        <strong>작성일자 :</strong> {today_str}<br>
+                                        <strong>발 주 처 :</strong> <span style="font-weight:900; color:#2B3A55;">DUWELL</span><br>
+                                        <strong>업체(공장) :</strong> {dev_factory}<br>
+                                        <strong>ITEM(상품명) :</strong> <span style="font-size: 20pt; font-weight: 900;">{dev_prod_name}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
 
                         <table>
                             <colgroup>
-                                <col style="width: 45%;"> <col style="width: 20%;"> <col style="width: 35%;"> </colgroup>
+                                <col style="width: 45%;">
+                                <col style="width: 20%;">
+                                <col style="width: 35%;">
+                            </colgroup>
                             <tr>
                                 <th style="font-size:20pt; letter-spacing:2px;">DESIGN & LABEL / 디자인 및 라벨</th>
                                 <th colspan="2" style="font-size:20pt; letter-spacing:2px;">PRODUCTION SPECS / 생산 사양</th>
@@ -1984,6 +1978,7 @@ elif menu == "신제품 개발실":
                     </body>
                     </html>
                     """
+                                
                     st.session_state['dev_html_content'] = html_content
                     st.session_state['dev_html_name'] = f"작업지시서_{dev_prod_name}.html"
                     
@@ -2193,6 +2188,7 @@ elif menu == "신제품 개발실":
                 mime="text/html", 
                 use_container_width=True
             )
+
 
 
 
