@@ -1882,21 +1882,20 @@ elif menu == "신제품 개발실":
                     b64_ref = get_image_base64(dev_ref_img)
                     b64_label = get_image_base64(dev_label_img)
                     
-                    # 🚀 이미지 높이를 A4 비율에 맞춰 다이어트 (축소 현상 방지)
-                    ref_html = f"<img src='{b64_ref}' style='width:100%; max-height:360px; object-fit:contain;'>" if b64_ref else "<span style='color:#999;'>이미지 없음</span>"
-                    label_html = f"<img src='{b64_label}' style='max-width:90%; max-height:100px; object-fit:contain;'>" if b64_label else "<span style='color:#999;'>라벨 없음</span>"
+                    # 🚀 [수정됨] 이미지 좌측 / 텍스트 우측 완벽 분할 레이아웃
+                    ref_html = f"<img src='{b64_ref}' style='width:100%; max-height:420px; object-fit:contain;'>" if b64_ref else "<span style='color:#999;'>이미지 없음</span>"
+                    label_html = f"<img src='{b64_label}' style='width:100%; max-height:150px; object-fit:contain;'>" if b64_label else "<span style='color:#999;'>라벨 없음</span>"
                     
                     extra_html = dev_extra.replace('\n', '<br>')
                     design_html = dev_design_detail.replace('\n', '<br>')
 
-                    # 🚀 여백(padding/margin)을 대폭 줄이고 폰트 크기는 18pt 유지!
-                   # 🚀 레이아웃 정렬 및 라벨/패키징 구조 개선
                     html_content = f"""
                     <html>
                     <head>
                         <meta charset="utf-8">
                         <style>
                             @page {{ margin: 5mm; }}
+                            * {{ box-sizing: border-box; }}
                             body {{ font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #111; font-size: 18pt; }}
                             .header-container {{ text-align: center; margin-bottom: 5px; white-space: nowrap; }}
                             .main-title {{ font-size: 38pt; font-weight: 900; letter-spacing: 15px; display: inline-block; padding-left: 10px; }}
@@ -1904,7 +1903,7 @@ elif menu == "신제품 개발실":
                             table {{ width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }}
                             th, td {{ border: 2px solid #222; padding: 6px 8px; text-align: center; vertical-align: middle; font-size: 18pt; line-height: 1.4; word-break: keep-all; }}
                             th {{ background-color: #F1F5F9; font-weight: bold; color: #111; }}
-                            .left-align {{ text-align: left; vertical-align: top; padding: 8px; }}
+                            .left-align {{ text-align: left; vertical-align: top; padding: 10px; }}
                         </style>
                     </head>
                     <body>
@@ -1914,11 +1913,17 @@ elif menu == "신제품 개발실":
                         <div class="date-text">작성일자 : {today_str}</div>
                         
                         <table>
+                            <colgroup>
+                                <col style="width: 15%;">
+                                <col style="width: 35%;">
+                                <col style="width: 15%;">
+                                <col style="width: 35%;">
+                            </colgroup>
                             <tr>
-                                <th style="width:15%;">발주처</th>
-                                <td style="width:35%; font-weight:900; color:#2B3A55; font-size:22pt; letter-spacing:1px;">DUWELL</td>
-                                <th style="width:15%;">업체명(공장)</th>
-                                <td style="width:35%; font-weight:bold; font-size:20pt;">{dev_factory}</td>
+                                <th>발주처</th>
+                                <td style="font-weight:900; color:#2B3A55; font-size:22pt; letter-spacing:1px;">DUWELL</td>
+                                <th>업체명(공장)</th>
+                                <td style="font-weight:bold; font-size:20pt;">{dev_factory}</td>
                             </tr>
                             <tr>
                                 <th>ITEM (상품명)</th>
@@ -1927,64 +1932,53 @@ elif menu == "신제품 개발실":
                         </table>
 
                         <table>
+                            <colgroup>
+                                <col style="width: 45%;"> <col style="width: 20%;"> <col style="width: 35%;"> </colgroup>
                             <tr>
-                                <th style="width:50%;">DESIGN / 참고 이미지</th>
-                                <th style="width:50%;" colspan="2">PRODUCTION SPECS / 생산 사양</th>
+                                <th style="font-size:20pt; letter-spacing:2px;">DESIGN & LABEL / 디자인 및 라벨</th>
+                                <th colspan="2" style="font-size:20pt; letter-spacing:2px;">PRODUCTION SPECS / 생산 사양</th>
                             </tr>
+                            
                             <tr>
-                                <td rowspan="6" class="left-align" style="text-align:center; vertical-align:middle; padding:2px;">
+                                <td rowspan="7" style="text-align:center; vertical-align:middle; padding:5px;">
                                     {ref_html}
                                 </td>
-                                <th style="width:15%; background-color:#F1F5F9;">염색방식</th>
-                                <td style="width:35%; font-weight:bold; color:#2B3A55;">{dev_dyeing}</td>
+                                <th>염색방식</th>
+                                <td style="font-weight:bold; color:#2B3A55;">{dev_dyeing}</td>
                             </tr>
-                            <tr><th style="background-color:#F1F5F9;">사이즈</th><td>{dev_size}</td></tr>
-                            <tr><th style="background-color:#F1F5F9;">중량</th><td style="color:#D32F2F; font-weight:bold;">{dev_weight}</td></tr>
-                            <tr><th style="background-color:#F1F5F9;">소재(사종)</th><td>{dev_yarn}</td></tr>
-                            <tr><th style="background-color:#F1F5F9;">보더디자인</th><td>{dev_border}</td></tr>
+                            <tr><th>사이즈</th><td>{dev_size}</td></tr>
+                            <tr><th>중량</th><td style="color:#D32F2F; font-weight:bold;">{dev_weight}</td></tr>
+                            <tr><th>소재(사종)</th><td>{dev_yarn}</td></tr>
+                            <tr><th>보더디자인</th><td>{dev_border}</td></tr>
+                            <tr><th>포장방법(PKG)</th><td>{dev_pkg}</td></tr>
                             <tr>
-                                <th style="background-color:#F1F5F9;">초도 발주<br>수량</th>
+                                <th>초도발주수량</th>
                                 <td style="padding: 0; vertical-align: top;">
                                     <table style="width:100%; height:100%; margin:0; border-collapse:collapse; border-style:hidden;">
                                         <tr>
-                                            <th style="width:50%; border-top:none; border-left:none; border-bottom:2px solid #222; border-right:2px solid #222; background-color:#F8F9FA;">컬러 (COLOR)</th>
-                                            <th style="width:50%; border-top:none; border-right:none; border-bottom:2px solid #222; background-color:#F8F9FA;">수량 (QTY)</th>
+                                            <th style="width:50%; border-top:none; border-left:none; border-bottom:2px solid #222; border-right:2px solid #222; background-color:#F8F9FA;">컬러</th>
+                                            <th style="width:50%; border-top:none; border-right:none; border-bottom:2px solid #222; background-color:#F8F9FA;">수량</th>
                                         </tr>
                                         {color_qty_html}
                                     </table>
                                 </td>
                             </tr>
-                        </table>
 
-                        <table>
                             <tr>
-                                <th style="width:50%;">* 디자인 상세 (선염/보더 등) *</th>
-                                <th style="width:50%;">* 작업 시 주의사항 *</th>
-                            </tr>
-                            <tr>
-                                <td class="left-align" style="height: 80px;">{design_html}</td>
-                                <td class="left-align" style="height: 80px;">{extra_html}</td>
-                            </tr>
-                        </table>
-
-                        <table>
-                            <tr>
-                                <th colspan="2">라벨 & 패키징 (LABEL & PKG)</th>
-                            </tr>
-                            <tr>
-                                <th style="width:50%;">포장 방법 (패키징)</th>
-                                <th style="width:50%;">라벨 위치 및 참고 이미지</th>
-                            </tr>
-                            <tr>
-                                <td class="left-align" style="height: 120px;">{dev_pkg}</td>
-                                <td class="left-align" style="height: 120px;">
-                                    <div style="margin-bottom: 8px; border-bottom: 1px dashed #444; padding-bottom: 8px;">
-                                        <strong>[부착 위치]</strong> {dev_label_pos}
-                                    </div>
-                                    <div style="text-align:center;">
-                                        {label_html}
-                                    </div>
+                                <td rowspan="4" style="text-align:center; vertical-align:middle; padding:10px;">
+                                    <div style="font-size:14pt; margin-bottom:8px;"><strong>[라벨 부착 위치]</strong><br>{dev_label_pos}</div>
+                                    {label_html}
                                 </td>
+                                <th colspan="2">* 디자인 상세 (선염/보더 등) *</th>
+                            </tr>
+                            <tr>
+                                <td colspan="2" class="left-align" style="height: 100px;">{design_html}</td>
+                            </tr>
+                            <tr>
+                                <th colspan="2">* 작업 시 주의사항 *</th>
+                            </tr>
+                            <tr>
+                                <td colspan="2" class="left-align" style="height: 100px;">{extra_html}</td>
                             </tr>
                         </table>
                     </body>
@@ -2199,5 +2193,6 @@ elif menu == "신제품 개발실":
                 mime="text/html", 
                 use_container_width=True
             )
+
 
 
