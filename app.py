@@ -1829,7 +1829,6 @@ elif menu == "신제품 개발실":
             st.divider()
             submit_dev = st.form_submit_button("작업지시서 문서 생성 및 구글 시트 저장", type="primary")
 
-        # 🚀 [수정됨] 버튼 클릭 시 동작 로직
         if submit_dev:
             if not dev_prod_name or not dev_factory:
                 st.warning("공장명과 상품명은 필수 입력 항목입니다.")
@@ -1883,24 +1882,26 @@ elif menu == "신제품 개발실":
                     b64_ref = get_image_base64(dev_ref_img)
                     b64_label = get_image_base64(dev_label_img)
                     
-                    ref_html = f"<img src='{b64_ref}' style='max-width:90%; max-height:460px; object-fit:contain;'>" if b64_ref else "<span style='color:#999;'>이미지 없음</span>"
-                    label_html = f"<img src='{b64_label}' style='max-width:90%; max-height:130px; object-fit:contain;'>" if b64_label else "<span style='color:#999;'>라벨 없음</span>"
+                    # 🚀 이미지 꽉 차게 변경 (가로/세로 비율 유지하면서 최대 크기로)
+                    ref_html = f"<img src='{b64_ref}' style='width:100%; max-height:550px; object-fit:contain;'>" if b64_ref else "<span style='color:#999;'>이미지 없음</span>"
+                    label_html = f"<img src='{b64_label}' style='width:100%; max-height:180px; object-fit:contain;'>" if b64_label else "<span style='color:#999;'>라벨 없음</span>"
                     
                     extra_html = dev_extra.replace('\n', '<br>')
                     design_html = dev_design_detail.replace('\n', '<br>')
 
+                    # 🚀 폰트 18~20pt 수준으로 대폭 상향 & 높이 꽉 차게 재설정
                     html_content = f"""
                     <html>
                     <head>
                         <meta charset="utf-8">
                         <style>
                             @page {{ size: A4 landscape; margin: 5mm; }}
-                            body {{ font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #111; font-size: 16pt; }}
+                            body {{ font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #111; font-size: 18pt; }}
                             .header-container {{ text-align: center; margin-bottom: 10px; white-space: nowrap; }}
-                            .main-title {{ font-size: 40pt; font-weight: 900; letter-spacing: 20px; display: inline-block; padding-left: 20px; }}
-                            .date-text {{ text-align: right; font-weight: bold; font-size: 14pt; margin-bottom: 10px; color: #444; }}
+                            .main-title {{ font-size: 45pt; font-weight: 900; letter-spacing: 20px; display: inline-block; padding-left: 20px; }}
+                            .date-text {{ text-align: right; font-weight: bold; font-size: 16pt; margin-bottom: 10px; color: #444; }}
                             table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }}
-                            th, td {{ border: 2px solid #222; padding: 15px; text-align: center; vertical-align: middle; font-size: 16pt; line-height: 1.6; word-break: keep-all; }}
+                            th, td {{ border: 2px solid #222; padding: 15px; text-align: center; vertical-align: middle; font-size: 18pt; line-height: 1.6; word-break: keep-all; }}
                             th {{ background-color: #F1F5F9; font-weight: bold; color: #111; }}
                             .left-align {{ text-align: left; vertical-align: top; padding: 15px; }}
                         </style>
@@ -1914,13 +1915,13 @@ elif menu == "신제품 개발실":
                         <table>
                             <tr>
                                 <th style="width:15%;">발주처</th>
-                                <td style="width:35%; font-weight:900; color:#2B3A55; font-size:20pt; letter-spacing:2px;">DUWELL</td>
+                                <td style="width:35%; font-weight:900; color:#2B3A55; font-size:24pt; letter-spacing:2px;">DUWELL</td>
                                 <th style="width:15%;">업체명(공장)</th>
-                                <td style="width:35%; font-weight:bold; font-size:18pt;">{dev_factory}</td>
+                                <td style="width:35%; font-weight:bold; font-size:20pt;">{dev_factory}</td>
                             </tr>
                             <tr>
                                 <th>ITEM (상품명)</th>
-                                <td colspan="3" style="font-weight:bold; font-size:18pt;">{dev_prod_name}</td>
+                                <td colspan="3" style="font-weight:bold; font-size:20pt;">{dev_prod_name}</td>
                             </tr>
                         </table>
 
@@ -1930,7 +1931,7 @@ elif menu == "신제품 개발실":
                                 <th style="width:50%;" colspan="2">PRODUCTION SPECS / 생산 사양</th>
                             </tr>
                             <tr>
-                                <td rowspan="6" class="left-align" style="height: 480px; text-align:center; vertical-align:middle;">
+                                <td rowspan="6" class="left-align" style="height: 550px; text-align:center; vertical-align:middle; padding:5px;">
                                     {ref_html}
                                 </td>
                                 <th style="width:15%; background-color:#F1F5F9;">염색방식</th>
@@ -1960,8 +1961,8 @@ elif menu == "신제품 개발실":
                                 <th style="width:50%;">* 작업 시 주의사항 *</th>
                             </tr>
                             <tr>
-                                <td class="left-align" style="height: 160px;">{design_html}</td>
-                                <td class="left-align" style="height: 160px;">{extra_html}</td>
+                                <td class="left-align" style="height: 200px;">{design_html}</td>
+                                <td class="left-align" style="height: 200px;">{extra_html}</td>
                             </tr>
                         </table>
 
@@ -1971,7 +1972,7 @@ elif menu == "신제품 개발실":
                                 <th style="width:60%;" colspan="2">라벨 & 패키징 (LABEL & PKG)</th>
                             </tr>
                             <tr>
-                                <td rowspan="2" class="left-align" style="height: 160px;">{dev_pkg}</td>
+                                <td rowspan="2" class="left-align" style="height: 200px;">{dev_pkg}</td>
                                 <th style="width:15%; background-color:#F1F5F9;">라벨위치</th>
                                 <td style="width:45%; text-align:left; padding-left:15px;">{dev_label_pos}</td>
                             </tr>
@@ -1989,14 +1990,13 @@ elif menu == "신제품 개발실":
                     st.session_state['dev_html_name'] = f"작업지시서_{dev_prod_name}.html"
                     
                     st.success("✅ 지시서 생성이 완료되었습니다! 아래에서 다운로드 버튼을 눌러주세요.")
-                    time.sleep(1) # 완료 메시지를 잠깐 보여준 후
-                    st.rerun() # 🚀 강제로 화면을 갱신하여 숨겨진 버튼을 끌어냅니다!
+                    time.sleep(1) 
+                    st.rerun()
 
-        # --- 🚀 확실하게 밖으로 빼낸 다운로드 버튼 영역 ---
         if 'dev_html_content' in st.session_state:
             st.divider()
             st.markdown("##### 🖨️ 생성된 문서 다운로드")
-            st.info("💡 우측의 HTML 문서를 다운로드하여 브라우저에서 열고 'Ctrl+P(인쇄) -> PDF로 저장'을 이용해 주세요. (여백 없음, 맞춤 100% 권장)")
+            st.info("💡 우측의 HTML 문서를 다운로드하여 브라우저에서 열고 'Ctrl+P(인쇄) -> PDF로 저장'을 이용해 주세요. (여백 없음, 비율 100% 권장)")
             st.download_button(
                 label="✅ 작업지시서 다운로드 (HTML)", 
                 data=st.session_state['dev_html_content'].encode('utf-8-sig'), 
@@ -2065,7 +2065,6 @@ elif menu == "신제품 개발실":
 
         submit_check = st.button("검수 리스트 문서 생성 및 구글 시트 저장", type="primary", use_container_width=True)
 
-        # 🚀 [수정됨] 버튼 클릭 시 동작 로직
         if submit_check:
             with st.spinner("검수 리스트를 처리 중입니다..."):
                 import base64
@@ -2102,19 +2101,21 @@ elif menu == "신제품 개발실":
                 b64_img1 = get_img_b64(chk_img1)
                 b64_img2 = get_img_b64(chk_img2)
 
-                img1_html = f"<img src='{b64_img1}' style='max-width:100%; max-height:300px; object-fit:contain;'>" if b64_img1 else "이미지 없음"
-                img2_html = f"<img src='{b64_img2}' style='max-width:100%; max-height:300px; object-fit:contain;'>" if b64_img2 else "이미지 없음"
+                # 🚀 검수서 이미지도 꽉 차게 최대 크기로 확장
+                img1_html = f"<img src='{b64_img1}' style='width:100%; max-height:450px; object-fit:contain;'>" if b64_img1 else "이미지 없음"
+                img2_html = f"<img src='{b64_img2}' style='width:100%; max-height:450px; object-fit:contain;'>" if b64_img2 else "이미지 없음"
 
+                # 🚀 폰트 18~22pt 적용 및 테이블 높이 확장
                 chk_html_content = f"""
                 <html>
                 <head>
                     <meta charset="utf-8">
                     <style>
                         @page {{ size: A4 landscape; margin: 5mm; }}
-                        body {{ font-family: 'Malgun Gothic', sans-serif; padding: 0; margin: 0; color: #111; font-size: 15pt; }}
-                        .title {{ text-align: center; font-size: 36pt; font-weight: 900; letter-spacing: 8px; margin-bottom: 25px; }}
+                        body {{ font-family: 'Malgun Gothic', sans-serif; padding: 0; margin: 0; color: #111; font-size: 18pt; }}
+                        .title {{ text-align: center; font-size: 40pt; font-weight: 900; letter-spacing: 8px; margin-bottom: 25px; }}
                         table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }}
-                        th, td {{ border: 2px solid #222; padding: 12px; vertical-align: middle; font-size: 15pt; line-height: 1.6; word-break: keep-all; }}
+                        th, td {{ border: 2px solid #222; padding: 15px; vertical-align: middle; font-size: 18pt; line-height: 1.6; word-break: keep-all; }}
                         th {{ background-color: #F1F5F9; font-weight: bold; text-align: center; color: #111; }}
                     </style>
                 </head>
@@ -2124,19 +2125,19 @@ elif menu == "신제품 개발실":
                     <table>
                         <tr>
                             <th style="width:15%;">제품명</th>
-                            <td style="width:35%; font-weight:bold; font-size:16pt;">{chk_prod_name}</td>
+                            <td style="width:35%; font-weight:bold; font-size:20pt;">{chk_prod_name}</td>
                             <th style="width:15%;">작성일자</th>
                             <td style="width:35%;">{str(chk_date)}</td>
                         </tr>
                         <tr>
                             <th>컬러 및 옵션</th>
-                            <td style="font-size:16pt;">{chk_color_size}</td>
+                            <td style="font-size:20pt;">{chk_color_size}</td>
                             <th>검수자</th>
                             <td>{chk_reviewer}</td>
                         </tr>
                         <tr>
                             <th>최종 판정</th>
-                            <td colspan="3" style="font-weight:900; font-size:22pt; color:#EE0979;">{chk_result}</td>
+                            <td colspan="3" style="font-weight:900; font-size:26pt; color:#EE0979; text-align:center;">{chk_result}</td>
                         </tr>
                     </table>
 
@@ -2157,8 +2158,8 @@ elif menu == "신제품 개발실":
                             <th style="width:50%;">공장 피드백</th>
                         </tr>
                         <tr>
-                            <td style="height:150px; vertical-align:top; padding:15px;">{chk_inquiry.replace(chr(10), '<br>')}</td>
-                            <td style="height:150px; vertical-align:top; padding:15px;">{chk_feedback.replace(chr(10), '<br>')}</td>
+                            <td style="height:180px; vertical-align:top; padding:15px;">{chk_inquiry.replace(chr(10), '<br>')}</td>
+                            <td style="height:180px; vertical-align:top; padding:15px;">{chk_feedback.replace(chr(10), '<br>')}</td>
                         </tr>
                     </table>
 
@@ -2168,8 +2169,8 @@ elif menu == "신제품 개발실":
                             <th style="width:50%;">참고 이미지 2</th>
                         </tr>
                         <tr>
-                            <td style="height:320px; text-align:center; vertical-align:middle; padding:10px;">{img1_html}</td>
-                            <td style="height:320px; text-align:center; vertical-align:middle; padding:10px;">{img2_html}</td>
+                            <td style="height:450px; text-align:center; vertical-align:middle; padding:10px;">{img1_html}</td>
+                            <td style="height:450px; text-align:center; vertical-align:middle; padding:10px;">{img2_html}</td>
                         </tr>
                     </table>
                 </body>
@@ -2181,9 +2182,8 @@ elif menu == "신제품 개발실":
                 
                 st.success("✅ 검수 리스트 생성이 완료되었습니다! 아래에서 다운로드 버튼을 눌러주세요.")
                 time.sleep(1)
-                st.rerun() # 🚀 강제로 화면을 갱신!
+                st.rerun()
 
-        # --- 🚀 확실하게 밖으로 빼낸 다운로드 버튼 영역 ---
         if 'chk_html_content' in st.session_state:
             st.divider()
             st.markdown("##### 🖨️ 생성된 문서 다운로드")
@@ -2195,16 +2195,3 @@ elif menu == "신제품 개발실":
                 mime="text/html", 
                 use_container_width=True
             )
-
-
-
-
-
-
-
-
-
-
-
-
-
