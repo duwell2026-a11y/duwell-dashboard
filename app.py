@@ -1889,7 +1889,7 @@ elif menu == "신제품 개발실":
                     extra_html = dev_extra.replace('\n', '<br>')
                     design_html = dev_design_detail.replace('\n', '<br>')
 
-                   # 🚀 [수정됨] 상단 기본정보 표 제거 및 우측 텍스트 정렬 (세련된 헤더 디자인)
+                  # 🚀 [수정됨] 대제목 상단 중앙 배치 + 하단 텍스트 정보 가로 정렬
                     html_content = f"""
                     <html>
                     <head>
@@ -1906,28 +1906,22 @@ elif menu == "신제품 개발실":
                     </head>
                     <body>
                         
-                        <div style="border-bottom: 4px solid #111; padding-bottom: 15px; margin-bottom: 20px;">
-                            <table style="width: 100%; border: none; margin: 0;">
+                        <div style="text-align: center; margin-bottom: 15px;">
+                            <div style="font-size: 45pt; font-weight: 900; letter-spacing: 25px; margin-bottom: 15px; padding-left: 25px;">작업지시서</div>
+                            
+                            <table style="width: 100%; border: none; margin: 0; border-top: 3px solid #111; border-bottom: 3px solid #111;">
                                 <tr>
-                                    <td style="border: none; text-align: left; vertical-align: bottom; padding: 0;">
-                                        <span style="font-size: 48pt; font-weight: 900; letter-spacing: 15px; padding-left: 10px;">작업지시서</span>
-                                    </td>
-                                    <td style="border: none; text-align: right; vertical-align: bottom; font-size: 16pt; line-height: 1.6; padding: 0;">
-                                        <strong>작성일자 :</strong> {today_str}<br>
-                                        <strong>발 주 처 :</strong> <span style="font-weight:900; color:#2B3A55;">DUWELL</span><br>
-                                        <strong>업체(공장) :</strong> {dev_factory}<br>
-                                        <strong>ITEM(상품명) :</strong> <span style="font-size: 20pt; font-weight: 900;">{dev_prod_name}</span>
-                                    </td>
+                                    <td style="border: none; padding: 10px 5px; text-align: center; font-size: 15pt;"><strong>작성일자 :</strong> {today_str}</td>
+                                    <td style="border: none; padding: 10px 5px; text-align: center; font-size: 15pt;"><strong>발주처 :</strong> <span style="font-weight:900; color:#2B3A55;">DUWELL</span></td>
+                                    <td style="border: none; padding: 10px 5px; text-align: center; font-size: 15pt;"><strong>업체(공장) :</strong> {dev_factory}</td>
+                                    <td style="border: none; padding: 10px 5px; text-align: center; font-size: 18pt; font-weight: 900;"><strong>ITEM :</strong> {dev_prod_name}</td>
                                 </tr>
                             </table>
                         </div>
 
                         <table>
                             <colgroup>
-                                <col style="width: 45%;">
-                                <col style="width: 20%;">
-                                <col style="width: 35%;">
-                            </colgroup>
+                                <col style="width: 45%;"> <col style="width: 20%;"> <col style="width: 35%;"> </colgroup>
                             <tr>
                                 <th style="font-size:20pt; letter-spacing:2px;">DESIGN & LABEL / 디자인 및 라벨</th>
                                 <th colspan="2" style="font-size:20pt; letter-spacing:2px;">PRODUCTION SPECS / 생산 사양</th>
@@ -2188,6 +2182,7 @@ elif menu == "신제품 개발실":
                 mime="text/html", 
                 use_container_width=True
             )
+
 
 
 
