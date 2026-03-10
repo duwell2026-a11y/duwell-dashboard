@@ -1890,6 +1890,7 @@ elif menu == "신제품 개발실":
                     design_html = dev_design_detail.replace('\n', '<br>')
 
                     # 🚀 여백(padding/margin)을 대폭 줄이고 폰트 크기는 18pt 유지!
+                   # 🚀 레이아웃 정렬 및 라벨/패키징 구조 개선
                     html_content = f"""
                     <html>
                     <head>
@@ -1968,24 +1969,27 @@ elif menu == "신제품 개발실":
 
                         <table>
                             <tr>
-                                <th style="width:40%;">포장 방법</th>
-                                <th style="width:60%;" colspan="2">라벨 & 패키징 (LABEL & PKG)</th>
+                                <th colspan="2">라벨 & 패키징 (LABEL & PKG)</th>
                             </tr>
                             <tr>
-                                <td rowspan="2" class="left-align" style="height: 80px;">{dev_pkg}</td>
-                                <th style="width:15%; background-color:#F1F5F9;">라벨위치</th>
-                                <td style="width:45%; text-align:left; padding-left:10px;">{dev_label_pos}</td>
+                                <th style="width:50%;">포장 방법 (패키징)</th>
+                                <th style="width:50%;">라벨 위치 및 참고 이미지</th>
                             </tr>
                             <tr>
-                                <td colspan="2" style="text-align:center; vertical-align:middle; padding: 5px;">
-                                    {label_html}
+                                <td class="left-align" style="height: 120px;">{dev_pkg}</td>
+                                <td class="left-align" style="height: 120px;">
+                                    <div style="margin-bottom: 8px; border-bottom: 1px dashed #444; padding-bottom: 8px;">
+                                        <strong>[부착 위치]</strong> {dev_label_pos}
+                                    </div>
+                                    <div style="text-align:center;">
+                                        {label_html}
+                                    </div>
                                 </td>
                             </tr>
                         </table>
                     </body>
                     </html>
                     """
-
                     st.session_state['dev_html_content'] = html_content
                     st.session_state['dev_html_name'] = f"작업지시서_{dev_prod_name}.html"
                     
@@ -2195,4 +2199,5 @@ elif menu == "신제품 개발실":
                 mime="text/html", 
                 use_container_width=True
             )
+
 
