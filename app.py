@@ -1895,7 +1895,7 @@ elif menu == "신제품 개발실":
                     <head>
                         <meta charset="utf-8">
                         <style>
-                            @page {{ size: A4 landscape; margin: 5mm; }}
+                            @page {{ margin: 5mm; }}
                             body {{ font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #111; font-size: 18pt; }}
                             .header-container {{ text-align: center; margin-bottom: 5px; white-space: nowrap; }}
                             .main-title {{ font-size: 38pt; font-weight: 900; letter-spacing: 15px; display: inline-block; padding-left: 10px; }}
@@ -2111,7 +2111,7 @@ elif menu == "신제품 개발실":
                 <head>
                     <meta charset="utf-8">
                     <style>
-                        @page {{ size: A4 landscape; margin: 5mm; }}
+                        @page {{ margin: 5mm; }}
                         body {{ font-family: 'Malgun Gothic', sans-serif; padding: 0; margin: 0; color: #111; font-size: 18pt; }}
                         .title {{ text-align: center; font-size: 38pt; font-weight: 900; letter-spacing: 5px; margin-bottom: 10px; }}
                         table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; }}
@@ -2195,3 +2195,4 @@ elif menu == "신제품 개발실":
                 mime="text/html", 
                 use_container_width=True
             )
+
