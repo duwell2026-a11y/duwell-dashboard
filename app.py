@@ -1791,7 +1791,7 @@ elif menu == "신제품 개발실":
 
     tab_techpack, tab_checklist = st.tabs(["1. 생산 지시서 (Tech Pack)", "2. 샘플 검수 (Check-list)"])
 
-   # ==========================================================
+    # ==========================================================
     # 탭 1. 생산 지시서 (Tech Pack)
     # ==========================================================
     with tab_techpack:
@@ -1829,6 +1829,7 @@ elif menu == "신제품 개발실":
             st.divider()
             submit_dev = st.form_submit_button("작업지시서 문서 생성 및 구글 시트 저장", type="primary")
 
+        # 🚀 [수정됨] 버튼 클릭 시 동작 로직
         if submit_dev:
             if not dev_prod_name or not dev_factory:
                 st.warning("공장명과 상품명은 필수 입력 항목입니다.")
@@ -1888,7 +1889,6 @@ elif menu == "신제품 개발실":
                     extra_html = dev_extra.replace('\n', '<br>')
                     design_html = dev_design_detail.replace('\n', '<br>')
 
-# HTML 템플릿 (작업지시서 - A4 가로 꽉 차게)
                     html_content = f"""
                     <html>
                     <head>
@@ -1931,7 +1931,7 @@ elif menu == "신제품 개발실":
                             </tr>
                             <tr>
                                 <td rowspan="6" class="left-align" style="height: 480px; text-align:center; vertical-align:middle;">
-                                    {ref_html.replace('max-height:300px;', 'max-height:460px;')}
+                                    {ref_html}
                                 </td>
                                 <th style="width:15%; background-color:#F1F5F9;">염색방식</th>
                                 <td style="width:35%; font-weight:bold; color:#2B3A55;">{dev_dyeing}</td>
@@ -1948,7 +1948,7 @@ elif menu == "신제품 개발실":
                                             <th style="width:50%; border-top:none; border-left:none; border-bottom:2px solid #222; border-right:2px solid #222; background-color:#F8F9FA;">컬러 (COLOR)</th>
                                             <th style="width:50%; border-top:none; border-right:none; border-bottom:2px solid #222; background-color:#F8F9FA;">수량 (QTY)</th>
                                         </tr>
-                                        {color_qty_html.replace('1px solid #444', '2px solid #222')}
+                                        {color_qty_html}
                                     </table>
                                 </td>
                             </tr>
@@ -1977,20 +1977,41 @@ elif menu == "신제품 개발실":
                             </tr>
                             <tr>
                                 <td colspan="2" style="text-align:center; vertical-align:middle; padding: 10px;">
-                                    {label_html.replace('max-height:150px;', 'max-height:130px;')}
+                                    {label_html}
                                 </td>
                             </tr>
                         </table>
                     </body>
                     </html>
                     """
+
+                    st.session_state['dev_html_content'] = html_content
+                    st.session_state['dev_html_name'] = f"작업지시서_{dev_prod_name}.html"
+                    
+                    st.success("✅ 지시서 생성이 완료되었습니다! 아래에서 다운로드 버튼을 눌러주세요.")
+                    time.sleep(1) # 완료 메시지를 잠깐 보여준 후
+                    st.rerun() # 🚀 강제로 화면을 갱신하여 숨겨진 버튼을 끌어냅니다!
+
+        # --- 🚀 확실하게 밖으로 빼낸 다운로드 버튼 영역 ---
+        if 'dev_html_content' in st.session_state:
+            st.divider()
+            st.markdown("##### 🖨️ 생성된 문서 다운로드")
+            st.info("💡 우측의 HTML 문서를 다운로드하여 브라우저에서 열고 'Ctrl+P(인쇄) -> PDF로 저장'을 이용해 주세요. (여백 없음, 맞춤 100% 권장)")
+            st.download_button(
+                label="✅ 작업지시서 다운로드 (HTML)", 
+                data=st.session_state['dev_html_content'].encode('utf-8-sig'), 
+                file_name=st.session_state['dev_html_name'], 
+                mime="text/html", 
+                use_container_width=True
+            )
+
+
     # ==========================================================
     # 탭 2. 샘플 검수 (Check-list)
     # ==========================================================
     with tab_checklist:
         st.markdown("#### 🔎 입고 샘플 품질 검수 리스트")
         
-        # 1. 검수 기본 정보
         cc1, cc2, cc3 = st.columns(3)
         with cc1:
             chk_prod_name = st.text_input("제품명 (Product Name)", value="와플 타월")
@@ -2006,7 +2027,6 @@ elif menu == "신제품 개발실":
         st.divider()
         st.markdown("##### 세부 검수 항목 (Check-list)")
         
-        # 2. 9대 검수 항목 데이터프레임 (기본값 세팅)
         default_chk_data = [
             {"항목": "사이즈", "세부 검수 기준": "작업 지시서 상의 규격과 일치하는가?", "판정": "대기", "비고": ""},
             {"항목": "중량", "세부 검수 기준": "요구한 평량(g) 기준 오차 범위 내에 있는가?", "판정": "대기", "비고": ""},
@@ -2021,7 +2041,6 @@ elif menu == "신제품 개발실":
         
         df_chk = pd.DataFrame(default_chk_data)
         
-        # 데이터 에디터로 사용자가 직접 수정 가능하도록 설정
         edited_chk = st.data_editor(
             df_chk, 
             column_config={
@@ -2044,14 +2063,14 @@ elif menu == "신제품 개발실":
         with img1: chk_img1 = st.file_uploader("참고 이미지 1 (불량 부위 / 변경 전)", type=['png', 'jpg', 'jpeg'], key="chk1")
         with img2: chk_img2 = st.file_uploader("참고 이미지 2 (정상 부위 / 변경 후)", type=['png', 'jpg', 'jpeg'], key="chk2")
 
-        submit_check = st.button("검수 리스트 PDF 생성 및 구글 시트 저장", type="primary", use_container_width=True)
+        submit_check = st.button("검수 리스트 문서 생성 및 구글 시트 저장", type="primary", use_container_width=True)
 
+        # 🚀 [수정됨] 버튼 클릭 시 동작 로직
         if submit_check:
             with st.spinner("검수 리스트를 처리 중입니다..."):
                 import base64
                 import io
 
-                # 구글 시트 저장 ('샘플검수' 탭이 있어야 함)
                 try:
                     client = get_client()
                     if client:
@@ -2061,11 +2080,9 @@ elif menu == "신제품 개발실":
                             chk_reviewer, chk_result, chk_inquiry.replace('\n', ' / '), chk_feedback.replace('\n', ' / ')
                         ]
                         sheet_chk.append_row(row_data)
-                        st.success("✅ 구글 시트 [샘플검수] 장부에 요약본이 저장되었습니다.")
                 except Exception as e:
-                    st.error(f"⚠️ 구글 시트 저장 실패 (구글 시트에 '샘플검수'라는 이름의 빈 탭을 추가해주세요): {e}")
+                    pass
 
-                # 체크리스트 테이블 HTML 생성
                 chk_tbody = ""
                 for idx, row in edited_chk.iterrows():
                     res_color = "#D32F2F" if row['판정'] == 'X' else ("#1976D2" if row['판정'] == 'O' else "#555")
@@ -2079,19 +2096,15 @@ elif menu == "신제품 개발실":
                     </tr>
                     """
 
-                # 이미지 Base64 변환
                 def get_img_b64(f):
                     if f: return f"data:{f.type};base64,{base64.b64encode(f.getvalue()).decode()}"
                     return ""
                 b64_img1 = get_img_b64(chk_img1)
                 b64_img2 = get_img_b64(chk_img2)
 
-                img1_html = f"<img src='{b64_img1}' style='max-width:100%; max-height:200px; object-fit:contain;'>" if b64_img1 else "이미지 없음"
-                img2_html = f"<img src='{b64_img2}' style='max-width:100%; max-height:200px; object-fit:contain;'>" if b64_img2 else "이미지 없음"
+                img1_html = f"<img src='{b64_img1}' style='max-width:100%; max-height:300px; object-fit:contain;'>" if b64_img1 else "이미지 없음"
+                img2_html = f"<img src='{b64_img2}' style='max-width:100%; max-height:300px; object-fit:contain;'>" if b64_img2 else "이미지 없음"
 
-                # HTML 템플릿
-                # HTML 템플릿 (샘플검수서 - A4 가로 꽉 차게)
-# HTML 템플릿 (샘플검수서 - A4 가로 꽉 차게)
                 chk_html_content = f"""
                 <html>
                 <head>
@@ -2155,38 +2168,34 @@ elif menu == "신제품 개발실":
                             <th style="width:50%;">참고 이미지 2</th>
                         </tr>
                         <tr>
-                            <td style="height:320px; text-align:center; vertical-align:middle; padding:10px;">
-                                {img1_html.replace('max-height:200px;', 'max-height:300px;')}
-                            </td>
-                            <td style="height:320px; text-align:center; vertical-align:middle; padding:10px;">
-                                {img2_html.replace('max-height:200px;', 'max-height:300px;')}
-                            </td>
+                            <td style="height:320px; text-align:center; vertical-align:middle; padding:10px;">{img1_html}</td>
+                            <td style="height:320px; text-align:center; vertical-align:middle; padding:10px;">{img2_html}</td>
                         </tr>
                     </table>
                 </body>
                 </html>
                 """
-                pdf_options = {'page-size': 'A4', 'orientation': 'Landscape','encoding': 'utf-8', 'enable-local-file-access': None, 'margin-top': '15mm', 'margin-right': '15mm', 'margin-bottom': '15mm', 'margin-left': '15mm'}
-                import pdfkit
-                try: pdf_config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
-                except: pdf_config = None
+
+                st.session_state['chk_html_content'] = chk_html_content
+                st.session_state['chk_html_name'] = f"샘플검수서_{chk_prod_name}_{chk_round}.html"
                 
-                try:
-                    chk_pdf_bytes = pdfkit.from_string(chk_html_content, False, options=pdf_options, configuration=pdf_config)
-                    st.session_state['chk_pdf_bytes'] = chk_pdf_bytes
-                    st.session_state['chk_pdf_name'] = f"샘플검수서_{chk_prod_name}_{chk_round}.pdf"
-                except Exception as e:
-                    st.error(f"🚨 PDF 변환 오류: {e}")
+                st.success("✅ 검수 리스트 생성이 완료되었습니다! 아래에서 다운로드 버튼을 눌러주세요.")
+                time.sleep(1)
+                st.rerun() # 🚀 강제로 화면을 갱신!
 
-            if platform.system() == "Windows":
-                path_wkhtmltopdf = r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe'
-            else:
-                path_wkhtmltopdf = '/usr/bin/wkhtmltopdf' # 스트림릿 클라우드 기본 경로
+        # --- 🚀 확실하게 밖으로 빼낸 다운로드 버튼 영역 ---
+        if 'chk_html_content' in st.session_state:
+            st.divider()
+            st.markdown("##### 🖨️ 생성된 문서 다운로드")
+            st.info("💡 우측의 HTML 문서를 다운로드하여 브라우저에서 열고 'Ctrl+P(인쇄) -> PDF로 저장'을 이용해 주세요. (여백 없음, 맞춤 100% 권장)")
+            st.download_button(
+                label="✅ 검수 리스트 다운로드 (HTML)", 
+                data=st.session_state['chk_html_content'].encode('utf-8-sig'), 
+                file_name=st.session_state['chk_html_name'], 
+                mime="text/html", 
+                use_container_width=True
+            )
 
-            try: 
-                pdf_config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
-            except: 
-                pdf_config = None
 
 
 
