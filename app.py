@@ -1843,7 +1843,7 @@ elif menu == "신제품 개발실":
                     color_qty_html = ""
                     lines = [line.strip() for line in dev_color_qty.split('\n') if line.strip()]
                     if not lines:
-                        color_qty_html = "<tr><td style='border-left:none; border-bottom:none; border-right:2px solid #222;'>-</td><td style='border-right:none; border-bottom:none;'>-</td></tr>"
+                        color_qty_html = "<tr><td style='border-left:none; border-bottom:none; border-right:2px solid #222; padding:4px;'>-</td><td style='border-right:none; border-bottom:none; padding:4px;'>-</td></tr>"
                     else:
                         for i, line in enumerate(lines):
                             if '/' in line: parts = line.split('/')
@@ -1854,7 +1854,7 @@ elif menu == "신제품 개발실":
                             qty = parts[1].strip() if len(parts) > 1 else ""
                             
                             b_bottom = "border-bottom:none;" if i == len(lines) - 1 else "border-bottom:2px solid #222;"
-                            color_qty_html += f"<tr><td style='border-left:none; {b_bottom} border-right:2px solid #222; font-weight:bold;'>{color}</td><td style='border-right:none; {b_bottom}'>{qty}</td></tr>"
+                            color_qty_html += f"<tr><td style='border-left:none; {b_bottom} border-right:2px solid #222; font-weight:bold; padding:4px;'>{color}</td><td style='border-right:none; {b_bottom} padding:4px;'>{qty}</td></tr>"
 
                     sheet_saved = False
                     try:
@@ -1882,14 +1882,14 @@ elif menu == "신제품 개발실":
                     b64_ref = get_image_base64(dev_ref_img)
                     b64_label = get_image_base64(dev_label_img)
                     
-                    # 🚀 이미지 꽉 차게 변경 (가로/세로 비율 유지하면서 최대 크기로)
-                    ref_html = f"<img src='{b64_ref}' style='width:100%; max-height:550px; object-fit:contain;'>" if b64_ref else "<span style='color:#999;'>이미지 없음</span>"
-                    label_html = f"<img src='{b64_label}' style='width:100%; max-height:180px; object-fit:contain;'>" if b64_label else "<span style='color:#999;'>라벨 없음</span>"
+                    # 🚀 이미지 높이를 A4 비율에 맞춰 다이어트 (축소 현상 방지)
+                    ref_html = f"<img src='{b64_ref}' style='width:100%; max-height:360px; object-fit:contain;'>" if b64_ref else "<span style='color:#999;'>이미지 없음</span>"
+                    label_html = f"<img src='{b64_label}' style='max-width:90%; max-height:100px; object-fit:contain;'>" if b64_label else "<span style='color:#999;'>라벨 없음</span>"
                     
                     extra_html = dev_extra.replace('\n', '<br>')
                     design_html = dev_design_detail.replace('\n', '<br>')
 
-                    # 🚀 폰트 18~20pt 수준으로 대폭 상향 & 높이 꽉 차게 재설정
+                    # 🚀 여백(padding/margin)을 대폭 줄이고 폰트 크기는 18pt 유지!
                     html_content = f"""
                     <html>
                     <head>
@@ -1897,13 +1897,13 @@ elif menu == "신제품 개발실":
                         <style>
                             @page {{ size: A4 landscape; margin: 5mm; }}
                             body {{ font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #111; font-size: 18pt; }}
-                            .header-container {{ text-align: center; margin-bottom: 10px; white-space: nowrap; }}
-                            .main-title {{ font-size: 45pt; font-weight: 900; letter-spacing: 20px; display: inline-block; padding-left: 20px; }}
-                            .date-text {{ text-align: right; font-weight: bold; font-size: 16pt; margin-bottom: 10px; color: #444; }}
-                            table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }}
-                            th, td {{ border: 2px solid #222; padding: 15px; text-align: center; vertical-align: middle; font-size: 18pt; line-height: 1.6; word-break: keep-all; }}
+                            .header-container {{ text-align: center; margin-bottom: 5px; white-space: nowrap; }}
+                            .main-title {{ font-size: 38pt; font-weight: 900; letter-spacing: 15px; display: inline-block; padding-left: 10px; }}
+                            .date-text {{ text-align: right; font-weight: bold; font-size: 14pt; margin-bottom: 5px; color: #444; }}
+                            table {{ width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }}
+                            th, td {{ border: 2px solid #222; padding: 6px 8px; text-align: center; vertical-align: middle; font-size: 18pt; line-height: 1.4; word-break: keep-all; }}
                             th {{ background-color: #F1F5F9; font-weight: bold; color: #111; }}
-                            .left-align {{ text-align: left; vertical-align: top; padding: 15px; }}
+                            .left-align {{ text-align: left; vertical-align: top; padding: 8px; }}
                         </style>
                     </head>
                     <body>
@@ -1915,7 +1915,7 @@ elif menu == "신제품 개발실":
                         <table>
                             <tr>
                                 <th style="width:15%;">발주처</th>
-                                <td style="width:35%; font-weight:900; color:#2B3A55; font-size:24pt; letter-spacing:2px;">DUWELL</td>
+                                <td style="width:35%; font-weight:900; color:#2B3A55; font-size:22pt; letter-spacing:1px;">DUWELL</td>
                                 <th style="width:15%;">업체명(공장)</th>
                                 <td style="width:35%; font-weight:bold; font-size:20pt;">{dev_factory}</td>
                             </tr>
@@ -1931,7 +1931,7 @@ elif menu == "신제품 개발실":
                                 <th style="width:50%;" colspan="2">PRODUCTION SPECS / 생산 사양</th>
                             </tr>
                             <tr>
-                                <td rowspan="6" class="left-align" style="height: 550px; text-align:center; vertical-align:middle; padding:5px;">
+                                <td rowspan="6" class="left-align" style="text-align:center; vertical-align:middle; padding:2px;">
                                     {ref_html}
                                 </td>
                                 <th style="width:15%; background-color:#F1F5F9;">염색방식</th>
@@ -1961,8 +1961,8 @@ elif menu == "신제품 개발실":
                                 <th style="width:50%;">* 작업 시 주의사항 *</th>
                             </tr>
                             <tr>
-                                <td class="left-align" style="height: 200px;">{design_html}</td>
-                                <td class="left-align" style="height: 200px;">{extra_html}</td>
+                                <td class="left-align" style="height: 80px;">{design_html}</td>
+                                <td class="left-align" style="height: 80px;">{extra_html}</td>
                             </tr>
                         </table>
 
@@ -1972,12 +1972,12 @@ elif menu == "신제품 개발실":
                                 <th style="width:60%;" colspan="2">라벨 & 패키징 (LABEL & PKG)</th>
                             </tr>
                             <tr>
-                                <td rowspan="2" class="left-align" style="height: 200px;">{dev_pkg}</td>
+                                <td rowspan="2" class="left-align" style="height: 80px;">{dev_pkg}</td>
                                 <th style="width:15%; background-color:#F1F5F9;">라벨위치</th>
-                                <td style="width:45%; text-align:left; padding-left:15px;">{dev_label_pos}</td>
+                                <td style="width:45%; text-align:left; padding-left:10px;">{dev_label_pos}</td>
                             </tr>
                             <tr>
-                                <td colspan="2" style="text-align:center; vertical-align:middle; padding: 10px;">
+                                <td colspan="2" style="text-align:center; vertical-align:middle; padding: 5px;">
                                     {label_html}
                                 </td>
                             </tr>
@@ -1996,7 +1996,7 @@ elif menu == "신제품 개발실":
         if 'dev_html_content' in st.session_state:
             st.divider()
             st.markdown("##### 🖨️ 생성된 문서 다운로드")
-            st.info("💡 우측의 HTML 문서를 다운로드하여 브라우저에서 열고 'Ctrl+P(인쇄) -> PDF로 저장'을 이용해 주세요. (여백 없음, 비율 100% 권장)")
+            st.info("💡 우측의 HTML 문서를 다운로드하여 브라우저에서 열고 'Ctrl+P(인쇄) -> PDF로 저장'을 이용해 주세요.")
             st.download_button(
                 label="✅ 작업지시서 다운로드 (HTML)", 
                 data=st.session_state['dev_html_content'].encode('utf-8-sig'), 
@@ -2089,9 +2089,9 @@ elif menu == "신제품 개발실":
                     <tr>
                         <td style='text-align:center;'>{idx+1}</td>
                         <td style='text-align:center; font-weight:bold;'>{row['항목']}</td>
-                        <td>{row['세부 검수 기준']}</td>
+                        <td style='text-align:left;'>{row['세부 검수 기준']}</td>
                         <td style='text-align:center; color:{res_color}; font-weight:bold;'>{row['판정']}</td>
-                        <td>{row['비고']}</td>
+                        <td style='text-align:left;'>{row['비고']}</td>
                     </tr>
                     """
 
@@ -2101,11 +2101,11 @@ elif menu == "신제품 개발실":
                 b64_img1 = get_img_b64(chk_img1)
                 b64_img2 = get_img_b64(chk_img2)
 
-                # 🚀 검수서 이미지도 꽉 차게 최대 크기로 확장
-                img1_html = f"<img src='{b64_img1}' style='width:100%; max-height:450px; object-fit:contain;'>" if b64_img1 else "이미지 없음"
-                img2_html = f"<img src='{b64_img2}' style='width:100%; max-height:450px; object-fit:contain;'>" if b64_img2 else "이미지 없음"
+                # 🚀 이미지 높이 군살 빼기
+                img1_html = f"<img src='{b64_img1}' style='width:100%; max-height:280px; object-fit:contain;'>" if b64_img1 else "이미지 없음"
+                img2_html = f"<img src='{b64_img2}' style='width:100%; max-height:280px; object-fit:contain;'>" if b64_img2 else "이미지 없음"
 
-                # 🚀 폰트 18~22pt 적용 및 테이블 높이 확장
+                # 🚀 여백(padding/margin) 축소 & 폰트 크기 유지
                 chk_html_content = f"""
                 <html>
                 <head>
@@ -2113,9 +2113,9 @@ elif menu == "신제품 개발실":
                     <style>
                         @page {{ size: A4 landscape; margin: 5mm; }}
                         body {{ font-family: 'Malgun Gothic', sans-serif; padding: 0; margin: 0; color: #111; font-size: 18pt; }}
-                        .title {{ text-align: center; font-size: 40pt; font-weight: 900; letter-spacing: 8px; margin-bottom: 25px; }}
-                        table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }}
-                        th, td {{ border: 2px solid #222; padding: 15px; vertical-align: middle; font-size: 18pt; line-height: 1.6; word-break: keep-all; }}
+                        .title {{ text-align: center; font-size: 38pt; font-weight: 900; letter-spacing: 5px; margin-bottom: 10px; }}
+                        table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; }}
+                        th, td {{ border: 2px solid #222; padding: 6px 8px; vertical-align: middle; font-size: 18pt; line-height: 1.4; word-break: keep-all; }}
                         th {{ background-color: #F1F5F9; font-weight: bold; text-align: center; color: #111; }}
                     </style>
                 </head>
@@ -2137,7 +2137,7 @@ elif menu == "신제품 개발실":
                         </tr>
                         <tr>
                             <th>최종 판정</th>
-                            <td colspan="3" style="font-weight:900; font-size:26pt; color:#EE0979; text-align:center;">{chk_result}</td>
+                            <td colspan="3" style="font-weight:900; font-size:24pt; color:#EE0979; text-align:center;">{chk_result}</td>
                         </tr>
                     </table>
 
@@ -2158,8 +2158,8 @@ elif menu == "신제품 개발실":
                             <th style="width:50%;">공장 피드백</th>
                         </tr>
                         <tr>
-                            <td style="height:180px; vertical-align:top; padding:15px;">{chk_inquiry.replace(chr(10), '<br>')}</td>
-                            <td style="height:180px; vertical-align:top; padding:15px;">{chk_feedback.replace(chr(10), '<br>')}</td>
+                            <td style="height:80px; vertical-align:top; padding:10px;">{chk_inquiry.replace(chr(10), '<br>')}</td>
+                            <td style="height:80px; vertical-align:top; padding:10px;">{chk_feedback.replace(chr(10), '<br>')}</td>
                         </tr>
                     </table>
 
@@ -2169,8 +2169,8 @@ elif menu == "신제품 개발실":
                             <th style="width:50%;">참고 이미지 2</th>
                         </tr>
                         <tr>
-                            <td style="height:450px; text-align:center; vertical-align:middle; padding:10px;">{img1_html}</td>
-                            <td style="height:450px; text-align:center; vertical-align:middle; padding:10px;">{img2_html}</td>
+                            <td style="height:300px; text-align:center; vertical-align:middle; padding:5px;">{img1_html}</td>
+                            <td style="height:300px; text-align:center; vertical-align:middle; padding:5px;">{img2_html}</td>
                         </tr>
                     </table>
                 </body>
@@ -2187,7 +2187,7 @@ elif menu == "신제품 개발실":
         if 'chk_html_content' in st.session_state:
             st.divider()
             st.markdown("##### 🖨️ 생성된 문서 다운로드")
-            st.info("💡 우측의 HTML 문서를 다운로드하여 브라우저에서 열고 'Ctrl+P(인쇄) -> PDF로 저장'을 이용해 주세요. (여백 없음, 맞춤 100% 권장)")
+            st.info("💡 우측의 HTML 문서를 다운로드하여 브라우저에서 열고 'Ctrl+P(인쇄) -> PDF로 저장'을 이용해 주세요.")
             st.download_button(
                 label="✅ 검수 리스트 다운로드 (HTML)", 
                 data=st.session_state['chk_html_content'].encode('utf-8-sig'), 
