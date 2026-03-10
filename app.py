@@ -1888,100 +1888,102 @@ elif menu == "신제품 개발실":
                     extra_html = dev_extra.replace('\n', '<br>')
                     design_html = dev_design_detail.replace('\n', '<br>')
 
-                    html_content = f"""
-                    <html>
-                    <head>
-                        <meta charset="utf-8">
-                        <style>
-                            body {{ font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #111; font-size: 13px; }}
-                            .header-container {{ text-align: center; margin-bottom: 5px; white-space: nowrap; }}
-                            .main-title {{ font-size: 32px; font-weight: 900; letter-spacing: 15px; display: inline-block; padding-left: 15px; }}
-                            .date-text {{ text-align: right; font-weight: bold; font-size: 12px; margin-bottom: 5px; color: #444; }}
-                            table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }}
-                            th, td {{ border: 1px solid #444; padding: 8px; text-align: center; vertical-align: middle; }}
-                            th {{ background-color: #F1F5F9; font-weight: bold; font-size: 13px; color: #222; }}
-                            .left-align {{ text-align: left; vertical-align: top; padding: 15px; }}
-                        </style>
-                    </head>
-                    <body>
-                        <div class="header-container">
-                            <span class="main-title">작업지시서</span>
-                        </div>
-                        <div class="date-text">작성일자 : {today_str}</div>
-                        
-                        <table>
-                            <tr>
-                                <th style="width:15%;">발주처</th>
-                                <td style="width:35%; font-weight:900; color:#2B3A55; font-size:16px; letter-spacing:1px;">DUWELL</td>
-                                <th style="width:15%;">업체명(공장)</th>
-                                <td style="width:35%; font-weight:bold; font-size:14px;">{dev_factory}</td>
-                            </tr>
-                            <tr>
-                                <th>ITEM (상품명)</th>
-                                <td colspan="3" style="font-weight:bold; font-size:15px;">{dev_prod_name}</td>
-                            </tr>
-                        </table>
+                   # HTML 템플릿 (작업지시서 - A4 가로 꽉 차게)
+                html_content = f"""
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <style>
+                        @page {{ size: A4 landscape; margin: 5mm; }}
+                        body {{ font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #111; font-size: 16pt; }}
+                        .header-container {{ text-align: center; margin-bottom: 10px; white-space: nowrap; }}
+                        .main-title {{ font-size: 40pt; font-weight: 900; letter-spacing: 20px; display: inline-block; padding-left: 20px; }}
+                        .date-text {{ text-align: right; font-weight: bold; font-size: 14pt; margin-bottom: 10px; color: #444; }}
+                        table {{ width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }}
+                        th, td {{ border: 2px solid #222; padding: 15px; text-align: center; vertical-align: middle; font-size: 16pt; line-height: 1.6; word-break: keep-all; }}
+                        th {{ background-color: #F1F5F9; font-weight: bold; color: #111; }}
+                        .left-align {{ text-align: left; vertical-align: top; padding: 15px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="header-container">
+                        <span class="main-title">작업지시서</span>
+                    </div>
+                    <div class="date-text">작성일자 : {today_str}</div>
+                    
+                    <table>
+                        <tr>
+                            <th style="width:15%;">발주처</th>
+                            <td style="width:35%; font-weight:900; color:#2B3A55; font-size:20pt; letter-spacing:2px;">DUWELL</td>
+                            <th style="width:15%;">업체명(공장)</th>
+                            <td style="width:35%; font-weight:bold; font-size:18pt;">{dev_factory}</td>
+                        </tr>
+                        <tr>
+                            <th>ITEM (상품명)</th>
+                            <td colspan="3" style="font-weight:bold; font-size:18pt;">{dev_prod_name}</td>
+                        </tr>
+                    </table>
 
-                        <table>
-                            <tr>
-                                <th style="width:50%;">DESIGN / 참고 이미지</th>
-                                <th style="width:50%;" colspan="2">PRODUCTION SPECS / 생산 사양</th>
-                            </tr>
-                            <tr>
-                                <td rowspan="6" class="left-align" style="height: 350px; text-align:center; vertical-align:middle;">
-                                    {ref_html}
-                                </td>
-                                <th style="width:15%; background-color:#F1F5F9;">염색방식</th>
-                                <td style="width:35%; font-weight:bold; color:#2B3A55;">{dev_dyeing}</td>
-                            </tr>
-                            <tr><th style="background-color:#F1F5F9;">사이즈</th><td>{dev_size}</td></tr>
-                            <tr><th style="background-color:#F1F5F9;">중량</th><td style="color:#D32F2F; font-weight:bold;">{dev_weight}</td></tr>
-                            <tr><th style="background-color:#F1F5F9;">소재(사종)</th><td>{dev_yarn}</td></tr>
-                            <tr><th style="background-color:#F1F5F9;">보더디자인</th><td>{dev_border}</td></tr>
-                            <tr>
-                                <th style="background-color:#F1F5F9;">초도 발주<br>수량</th>
-                                <td style="padding: 0; vertical-align: top;">
-                                    <table style="width:100%; height:100%; margin:0; border-collapse:collapse; border-style:hidden;">
-                                        <tr>
-                                            <th style="width:50%; border-top:none; border-left:none; border-bottom:1px solid #444; border-right:1px solid #444; background-color:#F8F9FA;">컬러 (COLOR)</th>
-                                            <th style="width:50%; border-top:none; border-right:none; border-bottom:1px solid #444; background-color:#F8F9FA;">수량 (QTY)</th>
-                                        </tr>
-                                        {color_qty_html}
-                                    </table>
-                                </td>
-                            </tr>
-                        </table>
+                    <table>
+                        <tr>
+                            <th style="width:50%;">DESIGN / 참고 이미지</th>
+                            <th style="width:50%;" colspan="2">PRODUCTION SPECS / 생산 사양</th>
+                        </tr>
+                        <tr>
+                            <td rowspan="6" class="left-align" style="height: 480px; text-align:center; vertical-align:middle;">
+                                {ref_html.replace('max-height:300px;', 'max-height:460px;')}
+                            </td>
+                            <th style="width:15%; background-color:#F1F5F9;">염색방식</th>
+                            <td style="width:35%; font-weight:bold; color:#2B3A55;">{dev_dyeing}</td>
+                        </tr>
+                        <tr><th style="background-color:#F1F5F9;">사이즈</th><td>{dev_size}</td></tr>
+                        <tr><th style="background-color:#F1F5F9;">중량</th><td style="color:#D32F2F; font-weight:bold;">{dev_weight}</td></tr>
+                        <tr><th style="background-color:#F1F5F9;">소재(사종)</th><td>{dev_yarn}</td></tr>
+                        <tr><th style="background-color:#F1F5F9;">보더디자인</th><td>{dev_border}</td></tr>
+                        <tr>
+                            <th style="background-color:#F1F5F9;">초도 발주<br>수량</th>
+                            <td style="padding: 0; vertical-align: top;">
+                                <table style="width:100%; height:100%; margin:0; border-collapse:collapse; border-style:hidden;">
+                                    <tr>
+                                        <th style="width:50%; border-top:none; border-left:none; border-bottom:2px solid #222; border-right:2px solid #222; background-color:#F8F9FA;">컬러 (COLOR)</th>
+                                        <th style="width:50%; border-top:none; border-right:none; border-bottom:2px solid #222; background-color:#F8F9FA;">수량 (QTY)</th>
+                                    </tr>
+                                    {color_qty_html.replace('1px solid #444', '2px solid #222')}
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
 
-                        <table>
-                            <tr>
-                                <th style="width:50%;">* 디자인 상세 (선염/보더 등) *</th>
-                                <th style="width:50%;">* 작업 시 주의사항 *</th>
-                            </tr>
-                            <tr>
-                                <td class="left-align" style="height: 120px; font-size: 14px; line-height: 1.6;">{design_html}</td>
-                                <td class="left-align" style="height: 120px; font-size: 14px; line-height: 1.6;">{extra_html}</td>
-                            </tr>
-                        </table>
+                    <table>
+                        <tr>
+                            <th style="width:50%;">* 디자인 상세 (선염/보더 등) *</th>
+                            <th style="width:50%;">* 작업 시 주의사항 *</th>
+                        </tr>
+                        <tr>
+                            <td class="left-align" style="height: 160px;">{design_html}</td>
+                            <td class="left-align" style="height: 160px;">{extra_html}</td>
+                        </tr>
+                    </table>
 
-                        <table>
-                            <tr>
-                                <th style="width:40%;">포장 방법</th>
-                                <th style="width:60%;" colspan="2">라벨 & 패키징 (LABEL & PKG)</th>
-                            </tr>
-                            <tr>
-                                <td rowspan="2" class="left-align" style="font-size:14px; line-height: 1.6;">{dev_pkg}</td>
-                                <th style="width:15%; background-color:#F1F5F9;">라벨위치</th>
-                                <td style="width:45%; text-align:left; padding-left:15px;">{dev_label_pos}</td>
-                            </tr>
-                            <tr>
-                                <td colspan="2" style="height:120px; text-align:center; vertical-align:middle; padding: 10px;">
-                                    {label_html}
-                                </td>
-                            </tr>
-                        </table>
-                    </body>
-                    </html>
-                    """
+                    <table>
+                        <tr>
+                            <th style="width:40%;">포장 방법</th>
+                            <th style="width:60%;" colspan="2">라벨 & 패키징 (LABEL & PKG)</th>
+                        </tr>
+                        <tr>
+                            <td rowspan="2" class="left-align" style="height: 160px;">{dev_pkg}</td>
+                            <th style="width:15%; background-color:#F1F5F9;">라벨위치</th>
+                            <td style="width:45%; text-align:left; padding-left:15px;">{dev_label_pos}</td>
+                        </tr>
+                        <tr>
+                            <td colspan="2" style="text-align:center; vertical-align:middle; padding: 10px;">
+                                {label_html.replace('max-height:150px;', 'max-height:130px;')}
+                            </td>
+                        </tr>
+                    </table>
+                </body>
+                </html>
+                """
                     
  # --- 작업지시서 파일 생성 및 다운로드 준비 ---
                     pdf_bytes = None
@@ -2118,29 +2120,19 @@ elif menu == "신제품 개발실":
                 img2_html = f"<img src='{b64_img2}' style='max-width:100%; max-height:200px; object-fit:contain;'>" if b64_img2 else "이미지 없음"
 
                 # HTML 템플릿
+                # HTML 템플릿 (샘플검수서 - A4 가로 꽉 차게)
                 chk_html_content = f"""
                 <html>
                 <head>
                     <meta charset="utf-8">
-<style>
-    /* 🖨️ 가로 인쇄 및 여백 설정 */
-    @page { size: A4 landscape; margin: 10mm; }
-    
-    /* 🔠 전체 기본 글씨 크기 13px -> 16px로 확대 */
-    body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #111; font-size: 16px; }
-    
-    .header-container { text-align: center; margin-bottom: 10px; white-space: nowrap; }
-    .main-title { font-size: 36px; font-weight: 900; letter-spacing: 15px; display: inline-block; padding-left: 15px; }
-    .date-text { text-align: right; font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #444; }
-    
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }
-    
-    /* 🔠 표 내부 글씨 크기 16px 및 상하 여백(padding) 확대 */
-    th, td { border: 1px solid #444; padding: 12px; text-align: center; vertical-align: middle; font-size: 16px; line-height: 1.6; }
-    th { background-color: #F1F5F9; font-weight: bold; color: #222; }
-    
-    .left-align { text-align: left; vertical-align: top; padding: 15px; }
-</style>
+                    <style>
+                        @page {{ size: A4 landscape; margin: 5mm; }}
+                        body {{ font-family: 'Malgun Gothic', sans-serif; padding: 0; margin: 0; color: #111; font-size: 15pt; }}
+                        .title {{ text-align: center; font-size: 36pt; font-weight: 900; letter-spacing: 8px; margin-bottom: 25px; }}
+                        table {{ width: 100%; border-collapse: collapse; margin-bottom: 20px; table-layout: fixed; }}
+                        th, td {{ border: 2px solid #222; padding: 12px; vertical-align: middle; font-size: 15pt; line-height: 1.6; word-break: keep-all; }}
+                        th {{ background-color: #F1F5F9; font-weight: bold; text-align: center; color: #111; }}
+                    </style>
                 </head>
                 <body>
                     <div class="title">샘플 체크 리스트 ({chk_round})</div>
@@ -2148,19 +2140,19 @@ elif menu == "신제품 개발실":
                     <table>
                         <tr>
                             <th style="width:15%;">제품명</th>
-                            <td style="width:35%; font-weight:bold;">{chk_prod_name}</td>
+                            <td style="width:35%; font-weight:bold; font-size:16pt;">{chk_prod_name}</td>
                             <th style="width:15%;">작성일자</th>
                             <td style="width:35%;">{str(chk_date)}</td>
                         </tr>
                         <tr>
                             <th>컬러 및 옵션</th>
-                            <td>{chk_color_size}</td>
+                            <td style="font-size:16pt;">{chk_color_size}</td>
                             <th>검수자</th>
                             <td>{chk_reviewer}</td>
                         </tr>
                         <tr>
                             <th>최종 판정</th>
-                            <td colspan="3" style="font-weight:bold; font-size:15px; color:#EE0979;">{chk_result}</td>
+                            <td colspan="3" style="font-weight:900; font-size:22pt; color:#EE0979;">{chk_result}</td>
                         </tr>
                     </table>
 
@@ -2181,8 +2173,8 @@ elif menu == "신제품 개발실":
                             <th style="width:50%;">공장 피드백</th>
                         </tr>
                         <tr>
-                            <td style="height:100px; vertical-align:top; padding:10px;">{chk_inquiry.replace(chr(10), '<br>')}</td>
-                            <td style="height:100px; vertical-align:top; padding:10px;">{chk_feedback.replace(chr(10), '<br>')}</td>
+                            <td style="height:150px; vertical-align:top; padding:15px;">{chk_inquiry.replace(chr(10), '<br>')}</td>
+                            <td style="height:150px; vertical-align:top; padding:15px;">{chk_feedback.replace(chr(10), '<br>')}</td>
                         </tr>
                     </table>
 
@@ -2192,14 +2184,17 @@ elif menu == "신제품 개발실":
                             <th style="width:50%;">참고 이미지 2</th>
                         </tr>
                         <tr>
-                            <td style="height:220px; text-align:center; vertical-align:middle; padding:10px;">{img1_html}</td>
-                            <td style="height:220px; text-align:center; vertical-align:middle; padding:10px;">{img2_html}</td>
+                            <td style="height:320px; text-align:center; vertical-align:middle; padding:10px;">
+                                {img1_html.replace('max-height:200px;', 'max-height:300px;')}
+                            </td>
+                            <td style="height:320px; text-align:center; vertical-align:middle; padding:10px;">
+                                {img2_html.replace('max-height:200px;', 'max-height:300px;')}
+                            </td>
                         </tr>
                     </table>
                 </body>
                 </html>
                 """
-
                 pdf_options = {'page-size': 'A4', 'orientation': 'Landscape','encoding': 'utf-8', 'enable-local-file-access': None, 'margin-top': '15mm', 'margin-right': '15mm', 'margin-bottom': '15mm', 'margin-left': '15mm'}
                 import pdfkit
                 try: pdf_config = pdfkit.configuration(wkhtmltopdf=r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe')
@@ -2221,6 +2216,7 @@ elif menu == "신제품 개발실":
                 pdf_config = pdfkit.configuration(wkhtmltopdf=path_wkhtmltopdf)
             except: 
                 pdf_config = None
+
 
 
 
