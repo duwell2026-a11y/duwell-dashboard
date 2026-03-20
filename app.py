@@ -241,7 +241,6 @@ def load_data(sheet_name):
     df = pd.DataFrame(raw_data)
     
     # [핵심] 시트 객체(sheet)는 캐시하지 않고 그때그때 가져옵니다. 
-    # (이렇게 해야 나중에 옵션 '저장' 버튼을 누를 때 에러가 안 납니다!)
     client = get_client()
     sheet = client.open_by_key(SHEET_ID).worksheet(sheet_name) if client else None
     
@@ -254,7 +253,7 @@ def load_data(sheet_name):
     
     rename_map = {
         '주문일시': '날짜', '주문일': '날짜', '일자': '날짜',
-        '금액': '결제금액', '총 주문금액': '결제금액',
+        '금액': '결제금액', '총 주문금액': '결제금액', '예상견적': '결제금액',  # 🔴 정산을 위해 필수 추가!
         '성함': '구매자명', '고객명': '구매자명', '이름': '구매자명', '수취인명': '구매자명',
         '연락처': '연락처', '수취인연락처1': '연락처', '전화번호': '연락처',
         '주소': '주소', '배송지': '주소',
@@ -264,6 +263,8 @@ def load_data(sheet_name):
         '배송메세지': '요청사항', '비고': '요청사항', '메모': '요청사항',
         '포장옵션': '포장옵션', '컬러': '컬러'
     }
+    
+    # 🔴 수정됨: 이전에 붙여넣으시면서 깨졌던 }ename 오타를 복구했습니다.
     df.rename(columns=rename_map, inplace=True)
     df = df.loc[:, ~df.columns.duplicated()]
     
@@ -871,7 +872,7 @@ elif menu == "주문/생산 관리":
         "1. 주문 등록", "2. 시안 & 장부", "3. 발주 및 지시서 생성", "4. 송장 등록"
     ])
 
-    # ---------------------------------------------------------
+   # ---------------------------------------------------------
     # 1. 주문 등록 탭
     # ---------------------------------------------------------
     with op_tab1:
@@ -899,18 +900,30 @@ elif menu == "주문/생산 관리":
                         try: price = int(pd.to_numeric(raw_price, errors='coerce')) if raw_price else 0
                         except: price = 0
 
+                        # 🔴 구글 시트 15개 칸(A~O)에 완벽히 맞춘 엑셀 배열
                         rows_add.append([
-                            str(row.get('주문일시','')), str(row.get('수취인명','')), str(row.get('수취인연락처1','')),
-                            str(row.get('배송지','')), p_name, str(qty), str(price), "", "", str(row.get('배송메세지','')), "", "신규"
+                            str(row.get('주문일시','')),     # A: 주문일시
+                            str(row.get('수취인명','')),     # B: 성함
+                            str(row.get('수취인연락처1','')),# C: 연락처
+                            str(row.get('배송지','')),       # D: 주소
+                            p_name,                          # E: 제품명
+                            "",                              # F: 컬러 (빈칸 유지)
+                            "",                              # G: 희망수령일 (빈칸 유지)
+                            "",                              # H: 디자인파일
+                            str(qty),                        # I: 수량 (이제 수량 자리에 들어갑니다)
+                            str(price),                      # J: 예상견적 (이제 견적 자리에 들어갑니다)
+                            "",                              # K: 포장옵션
+                            "신규",                          # L: 상태
+                            "",                              # M: 빈칸
+                            str(row.get('배송메세지','')),   # N: 요청사항
+                            ""                               # O: 송장번호
                         ])
                         
-                        ok, msg = deduct_stock_smart(p_name, qty, df_opt, sheet_stock)
-                        log_msg.append(msg)
-
                     if sheet_main:
-                        sheet_main.append_rows(rows_add)
+                        sheet_main.append_rows(rows_add, value_input_option='USER_ENTERED', table_range='A1')
                         st.success(f"{len(rows_add)}건 처리 완료")
-                        with st.expander("처리 로그 보기"): st.write(log_msg)
+                        
+                        st.cache_data.clear() # 캐시 강제 초기화
                         time.sleep(1); st.rerun()
                         
                 except Exception as e:
@@ -933,13 +946,34 @@ elif menu == "주문/생산 관리":
                 
                 if st.form_submit_button("등록 및 재고차감", type="primary"):
                     if sheet_main:
-                        sheet_main.append_row([str(m_date), m_name, m_phone, m_addr, m_prod, str(m_qty), str(m_price), m_file, "", m_req, "", "신규(수동)"])
+                        # 🔴 구글 시트 15개 칸(A~O)에 완벽히 맞춘 수동 배열
+                        new_row_data = [
+                            str(m_date),  # A: 주문일시
+                            m_name,       # B: 성함
+                            m_phone,      # C: 연락처
+                            m_addr,       # D: 주소
+                            m_prod,       # E: 제품명
+                            "",           # F: 컬러 (빈칸 유지)
+                            "",           # G: 희망수령일 (빈칸 유지)
+                            m_file,       # H: 디자인파일
+                            str(m_qty),   # I: 수량 (이제 수량 자리에 들어갑니다)
+                            str(m_price), # J: 결제견적 (이제 견적 자리에 들어갑니다)
+                            "",           # K: 포장옵션
+                            "신규",       # L: 진행상태
+                            "",           # M: 빈칸
+                            m_req,        # N: 비고
+                            ""            # O: 송장번호
+                        ]
+                        
+                        sheet_main.insert_row(new_row_data, index=2, value_input_option='USER_ENTERED')
+                        
                         df_opt, _ = load_data("옵션관리")
                         _, sheet_stock = load_data("재고관리")
                         ok, msg = deduct_stock_smart(m_prod, m_qty, df_opt, sheet_stock)
                         st.success(msg)
+                        
+                        st.cache_data.clear() # 캐시 강제 초기화
                         time.sleep(1); st.rerun()
-
     # ---------------------------------------------------------
     # 2. 시안 및 장부 탭
     # ---------------------------------------------------------
@@ -1454,7 +1488,7 @@ elif menu == "마진/정산 분석":
             
             return pd.Series([total_revenue, commission_fee, total_cost, net_profit, margin_rate])
 
-        df_calc[['예상결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']] = df_calc.apply(calculate_profit, axis=1)
+        df_calc[['결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']] = df_calc.apply(calculate_profit, axis=1)
 
         tab_sum, tab_month, tab_cal, tab_detail = st.tabs([
             "전체 요약", "월별 정산 내역", "일별 매출 캘린더", "주문별 상세 내역"
@@ -1462,7 +1496,7 @@ elif menu == "마진/정산 분석":
 
         with tab_sum:
             st.markdown("### 누적 정산 리포트")
-            total_sales = df_calc['예상결제금액'].sum()
+            total_sales = df_calc['결제금액'].sum()
             total_profit = df_calc['예상순이익'].sum()
             avg_margin = (total_profit / total_sales * 100) if total_sales > 0 else 0
             
@@ -1477,7 +1511,7 @@ elif menu == "마진/정산 분석":
             
             monthly_profit = df_calc.groupby('월').agg(
                 주문건수=('구매자명', 'count'),
-                매출액=('예상결제금액', 'sum'),
+                매출액=('결제금액', 'sum'),
                 마켓수수료=('마켓수수료', 'sum'),
                 총매입원가=('총매입원가', 'sum'),
                 순이익=('예상순이익', 'sum')
@@ -1520,7 +1554,7 @@ elif menu == "마진/정산 분석":
             
             if not valid_dates.empty:
                 daily_sales = valid_dates.groupby('날짜_str').agg(
-                    매출액=('예상결제금액', 'sum'), 
+                    매출액=('결제금액', 'sum'), 
                     순이익=('예상순이익', 'sum')
                 ).reset_index()
 
@@ -1539,9 +1573,9 @@ elif menu == "마진/정산 분석":
 
         with tab_detail:
             st.markdown("### 주문건별 상세 내역")
-            display_cols = ['날짜_str', '구매자명', '상품명', '수량', '예상결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']
+            display_cols = ['날짜_str', '구매자명', '상품명', '수량', '결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']
             styled_df = df_calc[display_cols].style.format({
-                '예상결제금액': '{:,.0f}', '마켓수수료': '{:,.0f}', '총매입원가': '{:,.0f}',
+                '결제금액': '{:,.0f}', '마켓수수료': '{:,.0f}', '총매입원가': '{:,.0f}',
                 '예상순이익': '{:,.0f}', '마진율(%)': '{:.1f}%'
             })
             try: styled_df = styled_df.background_gradient(subset=['마진율(%)'], cmap='RdYlGn')
