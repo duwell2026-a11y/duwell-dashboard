@@ -1445,23 +1445,23 @@ elif menu == "마진/정산 분석":
 
         if df_calc.empty:
             st.warning("현재 정산 가능한 유효 판매 데이터가 없습니다. (모두 취소/반품 상태이거나 데이터 없음)")
-        else:
+else:
             df_calc['수량'] = pd.to_numeric(df_calc['수량'], errors='coerce').fillna(1)
             if '주문처' not in df_calc.columns: df_calc['주문처'] = '자사몰'
 
-def calculate_profit(row):
+            def calculate_profit(row):
                 market = str(row.get('주문처', '자사몰'))
                 qty = row['수량']
                 
                 item_name = str(row['상품명']).strip()
                 item_clean = item_name.replace(" ", "").lower()
                 
-                # ✅ 1. 주문 시트에서 '실제 고객이 결제한 금액' 가져오기 (할인이 이미 다 적용된 진짜 매출)
+                # 실제 결제금액 반영
                 raw_paid = str(row.get('결제금액', '0')).replace(',', '').replace('원', '').strip()
                 actual_paid = pd.to_numeric(raw_paid, errors='coerce')
                 if pd.isna(actual_paid): actual_paid = 0
                 
-                # 마켓별 수수료율
+                # 수수료율 결정
                 if '스마트스토어' in market: fee_rate = fee_smart / 100
                 elif '쿠팡' in market: fee_rate = fee_coupang / 100
                 elif '자사몰' in market: fee_rate = fee_own / 100
@@ -1470,7 +1470,7 @@ def calculate_profit(row):
                 unit_cost = 0
                 unit_price = 0
                 
-                # 옵션관리 시트에서 매입원가 및 정가 매칭
+                # 옵션관리 시트에서 매입원가 매칭
                 if not df_cost.empty:
                     for _, opt in df_cost.iterrows():
                         std_name = str(opt.get('상품명', '')).strip()
@@ -1489,18 +1489,16 @@ def calculate_profit(row):
                                 if pd.isna(unit_cost): unit_cost = 0
                                 break 
                 
-                # ✅ 2. 매출액 결정 (실제 결제금액 최우선 적용)
-                # 만약 수동 입력 시 실수로 금액을 0원으로 넣었거나 비워뒀다면, (옵션관리의 정가 * 수량)으로 방어해 줍니다.
+                # 정산 계산
                 total_revenue = actual_paid if actual_paid > 0 else (unit_price * qty)
-                
-                # ✅ 3. 총 원가 및 마진 계산 (원가는 할인과 무관하게 변하지 않음)
                 total_cost = unit_cost * qty
-                commission_fee = total_revenue * fee_rate # 수수료도 할인이 적용된 실제 결제금액 기준으로 부과됨
+                commission_fee = total_revenue * fee_rate
                 net_profit = total_revenue - total_cost - commission_fee - shipping_cost
                 margin_rate = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
                 
                 return pd.Series([total_revenue, commission_fee, total_cost, net_profit, margin_rate])
 
+            # 🔴 오류가 났던 부분! 윗줄의 def calculate_profit(row): 와 왼쪽 줄이 반듯하게 일치하도록 수정되었습니다.
             df_calc[['예상결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']] = df_calc.apply(calculate_profit, axis=1)
 
             tab_sum, tab_month, tab_cal, tab_detail = st.tabs([
