@@ -967,6 +967,7 @@ with sub2:
                             ""            # O: 송장번호
                         ]
                         
+# ... (위쪽 수동 입력 배열 부분) ...
                         sheet_main.insert_row(new_row_data, index=2, value_input_option='USER_ENTERED')
                         
                         df_opt, _ = load_data("옵션관리")
@@ -976,6 +977,7 @@ with sub2:
                         
                         st.cache_data.clear() 
                         time.sleep(1); st.rerun()
+
     # ---------------------------------------------------------
     # 2. 시안 및 장부 탭
     # ---------------------------------------------------------
@@ -987,6 +989,7 @@ with sub2:
             if df_all.empty: st.warning("데이터가 없습니다.")
             else:
                 df_wait = df_all[df_all['상태'] != '완료']
+                # ... (이하 기존 코드와 동일) ...
                 for i, r in df_wait.iterrows():
                     with st.expander(f"📌 {r.get('구매자명')} - {r.get('상품명')}"):
                         wc1, wc2 = st.columns([1, 2])
