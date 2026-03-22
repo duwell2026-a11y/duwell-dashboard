@@ -1421,7 +1421,7 @@ elif menu == "일정 관리":
 # === 마진/정산 분석 ===
 elif menu == "마진/정산 분석":
     render_page_header("마진/정산 분석", "실시간 마진 및 정산 분석기")
-    with st.expander("정산 기준 설정 (수수료 및 배송비 분리)", expanded=True):
+    with st.expander("정산 기준 설정 (수수료 및 택배비)", expanded=True):
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
             fee_smart = st.number_input("스마트스토어 수수료 (%)", value=5.5)
@@ -1430,8 +1430,8 @@ elif menu == "마진/정산 분석":
             fee_coupang = st.number_input("쿠팡 수수료 (%)", value=10.8)
             fee_etc = st.number_input("기타 마켓 수수료 (%)", value=5.0)
         with col_f3:
-            shipping_revenue = st.number_input("고객 결제 배송비 (매출, 원)", value=3000, step=100)
-            shipping_cost = st.number_input("택배사 실제 청구비 (매입, 원)", value=2500, step=100)
+            # 🔴 수정됨: 고객 결제 배송비(매출)를 지우고, 직관적으로 '건당 택배비(비용)'만 입력받습니다.
+            shipping_cost = st.number_input("건당 발송 택배비 (원)", value=2500, step=100)
 
     if not df_all.empty:
         df_cost, _ = load_data("옵션관리") 
@@ -1440,152 +1440,164 @@ elif menu == "마진/정산 분석":
         if '원가' not in df_cost.columns:
             st.error("[중요] 옵션관리 시트에 '원가' 열이 없어서 순이익이 과다하게 계산됩니다! 반드시 추가해주세요.")
 
-        df_calc = df_all.copy()
-        df_calc['수량'] = pd.to_numeric(df_calc['수량'], errors='coerce').fillna(1)
-        if '주문처' not in df_calc.columns: df_calc['주문처'] = '자사몰'
+        # 🔴 수정됨 (1. 취소/반품 필터링): 진짜로 판매된(취소/반품이 아닌) 건만 정산 대상으로 삼습니다.
+        df_calc = df_all[~df_all['상태'].isin(['취소', '반품', '교환'])].copy()
 
-        def calculate_profit(row):
-            market = str(row.get('주문처', '자사몰'))
-            qty = row['수량']
-            
-            item_name = str(row['상품명']).strip()
-            item_clean = item_name.replace(" ", "").lower()
-            
-            if '스마트스토어' in market: fee_rate = fee_smart / 100
-            elif '쿠팡' in market: fee_rate = fee_coupang / 100
-            elif '자사몰' in market: fee_rate = fee_own / 100
-            else: fee_rate = fee_etc / 100
-            
-            unit_cost = 0
-            unit_price = 0
-            
-            if not df_cost.empty:
-                for _, opt in df_cost.iterrows():
-                    std_name = str(opt.get('상품명', '')).strip()
-                    mapping_str = str(opt.get('매핑명', '')).strip()
-                    keywords = [k.strip() for k in mapping_str.split(',') if k.strip()] + [std_name]
-                    
-                    for kw in keywords:
-                        if not kw: continue
-                        kw_clean = kw.replace(" ", "").lower()
-                        if kw_clean in item_clean:
-                            raw_price = str(opt.get('가격', 0)).replace(',', '').replace('원', '').strip()
-                            raw_cost = str(opt.get('원가', 0)).replace(',', '').replace('원', '').strip()
-                            unit_price = pd.to_numeric(raw_price, errors='coerce')
-                            unit_cost = pd.to_numeric(raw_cost, errors='coerce')
-                            if pd.isna(unit_price): unit_price = 0
-                            if pd.isna(unit_cost): unit_cost = 0
-                            break 
-            
-            # 배송비 매출과 매입을 분리하여 정밀 계산
-            expected_item_revenue = unit_price * qty
-            total_revenue = expected_item_revenue + shipping_revenue
-            commission_fee = total_revenue * fee_rate
-            total_cost = (unit_cost * qty) + shipping_cost
-            
-            net_profit = total_revenue - commission_fee - total_cost
-            margin_rate = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
-            
-            return pd.Series([total_revenue, commission_fee, total_cost, net_profit, margin_rate])
+        if df_calc.empty:
+            st.warning("현재 정산 가능한 유효 판매 데이터가 없습니다. (모두 취소/반품 상태이거나 데이터 없음)")
+        else:
+            df_calc['수량'] = pd.to_numeric(df_calc['수량'], errors='coerce').fillna(1)
+            if '주문처' not in df_calc.columns: df_calc['주문처'] = '자사몰'
 
-        df_calc[['결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']] = df_calc.apply(calculate_profit, axis=1)
-
-        tab_sum, tab_month, tab_cal, tab_detail = st.tabs([
-            "전체 요약", "월별 정산 내역", "일별 매출 캘린더", "주문별 상세 내역"
-        ])
-
-        with tab_sum:
-            st.markdown("### 누적 정산 리포트")
-            total_sales = df_calc['결제금액'].sum()
-            total_profit = df_calc['예상순이익'].sum()
-            avg_margin = (total_profit / total_sales * 100) if total_sales > 0 else 0
-            
-            c1, c2, c3 = st.columns(3)
-            c1.metric("누적 예상결제금액 (매출)", f"{total_sales:,.0f} 원")
-            c2.metric("누적 예상순이익", f"{total_profit:,.0f} 원")
-            c3.metric("평균 마진율", f"{avg_margin:.1f} %")
-
-        with tab_month:
-            st.markdown("### 월별 마진/정산 통계")
-            df_calc['월'] = df_calc['날짜'].dt.strftime('%Y-%m')
-            
-            monthly_profit = df_calc.groupby('월').agg(
-                주문건수=('구매자명', 'count'),
-                매출액=('결제금액', 'sum'),
-                마켓수수료=('마켓수수료', 'sum'),
-                총매입원가=('총매입원가', 'sum'),
-                순이익=('예상순이익', 'sum')
-            ).reset_index().sort_values('월', ascending=False)
-            
-            monthly_profit['평균마진율(%)'] = (monthly_profit['순이익'] / monthly_profit['매출액'] * 100).fillna(0)
-
-            styled_monthly = monthly_profit.style.format({
-                '매출액': '{:,.0f}', '마켓수수료': '{:,.0f}', '총매입원가': '{:,.0f}',
-                '순이익': '{:,.0f}', '평균마진율(%)': '{:.1f}%'
-            })
-            try: styled_monthly = styled_monthly.background_gradient(subset=['평균마진율(%)'], cmap='RdYlGn')
-            except: pass
-            
-            st.dataframe(styled_monthly, use_container_width=True, hide_index=True)
-            
-            st.markdown("#### 월별 순이익 추이")
-            bar_monthly_profit = alt.Chart(monthly_profit).mark_bar(color='#2ca02c', opacity=0.8).encode(
-                x=alt.X('월:N', title='월별'),
-                y=alt.Y('순이익:Q', title='순이익(원)'),
-                tooltip=['월', '매출액', '순이익']
-            ).properties(height=300)
-            st.altair_chart(bar_monthly_profit, use_container_width=True)
-
-        with tab_cal:
-            st.markdown("### 캘린더 뷰 (일별 매출 & 순이익)")
-            
-            cal_options = {
-                "headerToolbar": {
-                    "left": "prev,next today",
-                    "center": "title",
-                    "right": "dayGridMonth"
-                },
-                "initialView": "dayGridMonth", 
-                "height": 650, # 탭 안에서도 안 숨도록 높이 강제 고정!
-            }
-            
-            events = []
-            valid_dates = df_calc[df_calc['날짜_str'].astype(bool) & (df_calc['날짜_str'] != 'nan') & (df_calc['날짜_str'] != '')]
-            
-            if not valid_dates.empty:
-                daily_sales = valid_dates.groupby('날짜_str').agg(
-                    매출액=('결제금액', 'sum'), 
-                    순이익=('예상순이익', 'sum')
-                ).reset_index()
-
-                for _, row in daily_sales.iterrows():
-                    d_str = str(row['날짜_str']).strip()
-                    events.append({"title": f"매출: {row['매출액']:,.0f}", "start": d_str, "color": "#555555"})
-                    events.append({"title": f"이익: {row['순이익']:,.0f}", "start": d_str, "color": "#800020"})
-            
-            # [핵심 1] 이벤트가 텅 비었을 때 오류를 막기 위해 오늘 날짜에 '투명한 가짜 데이터'를 하나 심어줍니다.
-            if not events:
-                events.append({"title": "기록 없음", "start": datetime.now().strftime('%Y-%m-%d'), "color": "transparent", "textColor": "#999999"})
-                st.info("💡 아직 발생한 매출 데이터가 없습니다. 빈 달력입니다.")
-
-            # [핵심 2] 달력에 고유한 주민번호(key)를 줘서 탭 안에서도 무조건 화면에 그리도록 강제합니다.
-            calendar(events=events, options=cal_options, key="sales_dashboard_calendar_v1")
-
-        with tab_detail:
-            st.markdown("### 주문건별 상세 내역")
-            display_cols = ['날짜_str', '구매자명', '상품명', '수량', '결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']
-            styled_df = df_calc[display_cols].style.format({
-                '결제금액': '{:,.0f}', '마켓수수료': '{:,.0f}', '총매입원가': '{:,.0f}',
-                '예상순이익': '{:,.0f}', '마진율(%)': '{:.1f}%'
-            })
-            try: styled_df = styled_df.background_gradient(subset=['마진율(%)'], cmap='RdYlGn')
-            except: pass
+            def calculate_profit(row):
+                market = str(row.get('주문처', '자사몰'))
+                qty = row['수량']
                 
-            st.dataframe(styled_df, use_container_width=True, hide_index=True)
-            
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='xlsxwriter') as writer: df_calc[display_cols].to_excel(writer, index=False)
-            st.download_button("전체 정산 내역 엑셀 다운로드", output.getvalue(), f"예상정산리포트_{datetime.now().strftime('%Y%m%d')}.xlsx")
+                item_name = str(row['상품명']).strip()
+                item_clean = item_name.replace(" ", "").lower()
+                
+                # 수수료율 결정
+                if '스마트스토어' in market: fee_rate = fee_smart / 100
+                elif '쿠팡' in market: fee_rate = fee_coupang / 100
+                elif '자사몰' in market: fee_rate = fee_own / 100
+                else: fee_rate = fee_etc / 100
+                
+                unit_cost = 0
+                unit_price = 0
+                
+                # 옵션관리 시트에서 판매가와 원가 매칭
+                if not df_cost.empty:
+                    for _, opt in df_cost.iterrows():
+                        std_name = str(opt.get('상품명', '')).strip()
+                        mapping_str = str(opt.get('매핑명', '')).strip()
+                        keywords = [k.strip() for k in mapping_str.split(',') if k.strip()] + [std_name]
+                        
+                        for kw in keywords:
+                            if not kw: continue
+                            kw_clean = kw.replace(" ", "").lower()
+                            if kw_clean in item_clean:
+                                raw_price = str(opt.get('가격', 0)).replace(',', '').replace('원', '').strip()
+                                raw_cost = str(opt.get('원가', 0)).replace(',', '').replace('원', '').strip()
+                                unit_price = pd.to_numeric(raw_price, errors='coerce')
+                                unit_cost = pd.to_numeric(raw_cost, errors='coerce')
+                                if pd.isna(unit_price): unit_price = 0
+                                if pd.isna(unit_cost): unit_cost = 0
+                                break 
+                
+                # 🔴 수정됨 (2. 직관적인 정산 계산식)
+                # 총 매출액 = 판매가 * 수량
+                total_revenue = unit_price * qty
+                
+                # 총 원가 = 매입원가 * 수량
+                total_cost = unit_cost * qty
+                
+                # 수수료 = 총 매출액 * 마켓 수수료율
+                commission_fee = total_revenue * fee_rate
+                
+                # 순이익 = 총 매출액 - 총 원가 - 수수료 - 택배비
+                net_profit = total_revenue - total_cost - commission_fee - shipping_cost
+                
+                # 마진율 = (순이익 / 총 매출액) * 100
+                margin_rate = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
+                
+                return pd.Series([total_revenue, commission_fee, total_cost, net_profit, margin_rate])
+
+            df_calc[['예상결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']] = df_calc.apply(calculate_profit, axis=1)
+
+            tab_sum, tab_month, tab_cal, tab_detail = st.tabs([
+                "전체 요약", "월별 정산 내역", "일별 매출 캘린더", "주문별 상세 내역"
+            ])
+
+            with tab_sum:
+                st.markdown("### 누적 정산 리포트")
+                total_sales = df_calc['예상결제금액'].sum()
+                total_profit = df_calc['예상순이익'].sum()
+                avg_margin = (total_profit / total_sales * 100) if total_sales > 0 else 0
+                
+                c1, c2, c3 = st.columns(3)
+                c1.metric("누적 총 매출액", f"{total_sales:,.0f} 원")
+                c2.metric("누적 총 순이익", f"{total_profit:,.0f} 원")
+                c3.metric("평균 마진율", f"{avg_margin:.1f} %")
+
+            with tab_month:
+                st.markdown("### 월별 마진/정산 통계")
+                df_calc['월'] = df_calc['날짜'].dt.strftime('%Y-%m')
+                
+                monthly_profit = df_calc.groupby('월').agg(
+                    주문건수=('구매자명', 'count'),
+                    매출액=('예상결제금액', 'sum'),
+                    마켓수수료=('마켓수수료', 'sum'),
+                    총매입원가=('총매입원가', 'sum'),
+                    순이익=('예상순이익', 'sum')
+                ).reset_index().sort_values('월', ascending=False)
+                
+                monthly_profit['평균마진율(%)'] = (monthly_profit['순이익'] / monthly_profit['매출액'] * 100).fillna(0)
+
+                styled_monthly = monthly_profit.style.format({
+                    '매출액': '{:,.0f}', '마켓수수료': '{:,.0f}', '총매입원가': '{:,.0f}',
+                    '순이익': '{:,.0f}', '평균마진율(%)': '{:.1f}%'
+                })
+                try: styled_monthly = styled_monthly.background_gradient(subset=['평균마진율(%)'], cmap='RdYlGn')
+                except: pass
+                
+                st.dataframe(styled_monthly, use_container_width=True, hide_index=True)
+                
+                st.markdown("#### 월별 순이익 추이")
+                bar_monthly_profit = alt.Chart(monthly_profit).mark_bar(color='#2ca02c', opacity=0.8).encode(
+                    x=alt.X('월:N', title='월별'),
+                    y=alt.Y('순이익:Q', title='순이익(원)'),
+                    tooltip=['월', '매출액', '순이익']
+                ).properties(height=300)
+                st.altair_chart(bar_monthly_profit, use_container_width=True)
+
+            with tab_cal:
+                st.markdown("### 캘린더 뷰 (일별 매출 & 순이익)")
+                
+                cal_options = {
+                    "headerToolbar": {
+                        "left": "prev,next today",
+                        "center": "title",
+                        "right": "dayGridMonth"
+                    },
+                    "initialView": "dayGridMonth", 
+                    "height": 650, 
+                }
+                
+                events = []
+                valid_dates = df_calc[df_calc['날짜_str'].astype(bool) & (df_calc['날짜_str'] != 'nan') & (df_calc['날짜_str'] != '')]
+                
+                if not valid_dates.empty:
+                    daily_sales = valid_dates.groupby('날짜_str').agg(
+                        매출액=('예상결제금액', 'sum'), 
+                        순이익=('예상순이익', 'sum')
+                    ).reset_index()
+
+                    for _, row in daily_sales.iterrows():
+                        d_str = str(row['날짜_str']).strip()
+                        events.append({"title": f"매출: {row['매출액']:,.0f}", "start": d_str, "color": "#555555"})
+                        events.append({"title": f"이익: {row['순이익']:,.0f}", "start": d_str, "color": "#800020"})
+                
+                if not events:
+                    events.append({"title": "기록 없음", "start": datetime.now().strftime('%Y-%m-%d'), "color": "transparent", "textColor": "#999999"})
+                    st.info("💡 유효한 판매 데이터가 없습니다.")
+
+                calendar(events=events, options=cal_options, key="sales_dashboard_calendar_v1")
+
+            with tab_detail:
+                st.markdown("### 주문건별 상세 내역")
+                display_cols = ['날짜_str', '구매자명', '상품명', '수량', '예상결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']
+                styled_df = df_calc[display_cols].style.format({
+                    '예상결제금액': '{:,.0f}', '마켓수수료': '{:,.0f}', '총매입원가': '{:,.0f}',
+                    '예상순이익': '{:,.0f}', '마진율(%)': '{:.1f}%'
+                })
+                try: styled_df = styled_df.background_gradient(subset=['마진율(%)'], cmap='RdYlGn')
+                except: pass
+                    
+                st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer: df_calc[display_cols].to_excel(writer, index=False)
+                st.download_button("전체 정산 내역 엑셀 다운로드", output.getvalue(), f"예상정산리포트_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
     else:
         st.warning("분석할 주문 데이터가 없습니다.")
