@@ -929,7 +929,7 @@ elif menu == "주문/생산 관리":
                 except Exception as e:
                     st.error(f"오류: {e}")
 
-        with sub2:
+with sub2:
             with st.form("manual"):
                 col1, col2 = st.columns(2)
                 with col1:
@@ -942,26 +942,28 @@ elif menu == "주문/생산 관리":
                     m_qty = st.number_input("수량", 1, 1000, 1)
                     m_price = st.number_input("금액", 0)
                     m_file = st.text_input("디자인링크")
+                    
+                # 🔴 수정됨: 판매 채널을 선택하는 항목을 추가했습니다.
+                m_market = st.selectbox("판매 채널 (수수료 계산용)", ["개인판매(수수료 0%)", "스마트스토어", "쿠팡", "자사몰", "기타"])
                 m_req = st.text_area("요청사항(자수)")
                 
                 if st.form_submit_button("등록 및 재고차감", type="primary"):
                     if sheet_main:
-                        # 🔴 구글 시트 15개 칸(A~O)에 완벽히 맞춘 수동 배열
                         new_row_data = [
                             str(m_date),  # A: 주문일시
                             m_name,       # B: 성함
                             m_phone,      # C: 연락처
                             m_addr,       # D: 주소
                             m_prod,       # E: 제품명
-                            "",           # F: 컬러 (빈칸 유지)
-                            "",           # G: 희망수령일 (빈칸 유지)
+                            "",           # F: 컬러 
+                            "",           # G: 희망수령일 
                             m_file,       # H: 디자인파일
-                            str(m_qty),   # I: 수량 (이제 수량 자리에 들어갑니다)
-                            str(m_price), # J: 결제견적 (이제 견적 자리에 들어갑니다)
+                            str(m_qty),   # I: 수량 
+                            str(m_price), # J: 예상견적 
                             "",           # K: 포장옵션
-                            "신규",       # L: 진행상태
-                            "",           # M: 빈칸
-                            m_req,        # N: 비고
+                            "신규",       # L: 상태
+                            m_market,     # 🔴 M열: 빈칸이었던 자리에 '판매 채널'이 들어갑니다!
+                            m_req,        # N: 요청사항
                             ""            # O: 송장번호
                         ]
                         
@@ -972,7 +974,7 @@ elif menu == "주문/생산 관리":
                         ok, msg = deduct_stock_smart(m_prod, m_qty, df_opt, sheet_stock)
                         st.success(msg)
                         
-                        st.cache_data.clear() # 캐시 강제 초기화
+                        st.cache_data.clear() 
                         time.sleep(1); st.rerun()
     # ---------------------------------------------------------
     # 2. 시안 및 장부 탭
@@ -1428,8 +1430,10 @@ elif menu == "마진/정산 분석":
             fee_own = st.number_input("자사몰(PG) 수수료 (%)", value=3.0)
         with col_f2:
             fee_coupang = st.number_input("쿠팡 수수료 (%)", value=10.8)
-            fee_etc = st.number_input("기타 마켓 수수료 (%)", value=5.0)
+            # 🔴 추가됨: 개인 판매용 수수료 입력칸 (기본값 0%)
+            fee_personal = st.number_input("개인판매/B2B 수수료 (%)", value=0.0) 
         with col_f3:
+            fee_etc = st.number_input("기타 마켓 수수료 (%)", value=5.0)
             shipping_cost = st.number_input("건당 발송 택배비 (원)", value=2500, step=100)
 
     if not df_all.empty:
@@ -1442,9 +1446,10 @@ elif menu == "마진/정산 분석":
         df_calc = df_all[~df_all['상태'].isin(['취소', '반품', '교환'])].copy()
 
         if df_calc.empty:
-            st.warning("현재 정산 가능한 유효 판매 데이터가 없습니다. (모두 취소/반품 상태이거나 데이터 없음)")
+            st.warning("현재 정산 가능한 유효 판매 데이터가 없습니다.")
         else:
             df_calc['수량'] = pd.to_numeric(df_calc['수량'], errors='coerce').fillna(1)
+            # 만약 시트에 '주문처'가 비어있다면 자사몰로 간주
             if '주문처' not in df_calc.columns: df_calc['주문처'] = '자사몰'
 
             def calculate_profit(row):
@@ -1458,10 +1463,14 @@ elif menu == "마진/정산 분석":
                 actual_paid = pd.to_numeric(raw_paid, errors='coerce')
                 if pd.isna(actual_paid): actual_paid = 0
                 
+                # 🔴 수정됨: '개인판매' 키워드가 있으면 개인판매 수수료(0%)를 적용합니다.
                 if '스마트스토어' in market: fee_rate = fee_smart / 100
                 elif '쿠팡' in market: fee_rate = fee_coupang / 100
                 elif '자사몰' in market: fee_rate = fee_own / 100
+                elif '개인' in market or 'B2B' in market: fee_rate = fee_personal / 100
                 else: fee_rate = fee_etc / 100
+                
+                # ... (아래 원가 매칭 및 계산식 코드는 기존과 동일) ...
                 
                 unit_cost = 0
                 unit_price = 0
