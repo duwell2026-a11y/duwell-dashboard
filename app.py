@@ -862,7 +862,6 @@ if menu == "통합 모니터링":
     else:
         st.warning("아직 등록된 주문 데이터가 없습니다.")
 
-
 # === 주문/생산 관리 ===
 elif menu == "주문/생산 관리":
     render_page_header("주문부터 생산까지 One-Stop", "주문 등록, 시안 확인, 공장 발주, 지시서 출력, 송장 입력을 순서대로 처리하세요.")
@@ -872,7 +871,7 @@ elif menu == "주문/생산 관리":
         "1. 주문 등록", "2. 시안 & 장부", "3. 발주 및 지시서 생성", "4. 송장 등록"
     ])
 
-   # ---------------------------------------------------------
+    # ---------------------------------------------------------
     # 1. 주문 등록 탭
     # ---------------------------------------------------------
     with op_tab1:
@@ -900,21 +899,21 @@ elif menu == "주문/생산 관리":
                         try: price = int(pd.to_numeric(raw_price, errors='coerce')) if raw_price else 0
                         except: price = 0
 
-                        # 🔴 구글 시트 15개 칸(A~O)에 완벽히 맞춘 엑셀 배열
+                        # 15개 열(A~O)에 맞춘 엑셀 배열
                         rows_add.append([
                             str(row.get('주문일시','')),     # A: 주문일시
-                            str(row.get('수취인명','')),     # B: 성함
+                            str(row.get('수취인명','')),     # B: 구매자명
                             str(row.get('수취인연락처1','')),# C: 연락처
                             str(row.get('배송지','')),       # D: 주소
-                            p_name,                          # E: 제품명
-                            "",                              # F: 컬러 (빈칸 유지)
-                            "",                              # G: 희망수령일 (빈칸 유지)
+                            p_name,                          # E: 상품명
+                            "",                              # F: 컬러
+                            "",                              # G: 희망수령일
                             "",                              # H: 디자인파일
-                            str(qty),                        # I: 수량 (이제 수량 자리에 들어갑니다)
-                            str(price),                      # J: 예상견적 (이제 견적 자리에 들어갑니다)
+                            str(qty),                        # I: 수량
+                            str(price),                      # J: 결제금액
                             "",                              # K: 포장옵션
                             "신규",                          # L: 상태
-                            "",                              # M: 빈칸
+                            "엑셀일괄",                      # M: 주문처(판매채널)
                             str(row.get('배송메세지','')),   # N: 요청사항
                             ""                               # O: 송장번호
                         ])
@@ -922,14 +921,13 @@ elif menu == "주문/생산 관리":
                     if sheet_main:
                         sheet_main.append_rows(rows_add, value_input_option='USER_ENTERED', table_range='A1')
                         st.success(f"{len(rows_add)}건 처리 완료")
-                        
-                        st.cache_data.clear() # 캐시 강제 초기화
+                        st.cache_data.clear()
                         time.sleep(1); st.rerun()
                         
                 except Exception as e:
                     st.error(f"오류: {e}")
 
-with sub2:
+        with sub2:
             with st.form("manual"):
                 col1, col2 = st.columns(2)
                 with col1:
@@ -942,40 +940,38 @@ with sub2:
                     m_qty = st.number_input("수량", 1, 1000, 1)
                     m_price = st.number_input("금액", 0)
                     m_file = st.text_input("디자인링크")
-                    
-                # 🔴 수정됨: 판매 채널을 선택하는 항목을 추가했습니다.
+                
                 m_market = st.selectbox("판매 채널 (수수료 계산용)", ["개인판매(수수료 0%)", "스마트스토어", "쿠팡", "자사몰", "기타"])
                 m_req = st.text_area("요청사항(자수)")
                 
                 if st.form_submit_button("등록 및 재고차감", type="primary"):
                     if sheet_main:
+                        # 15개 열(A~O)에 맞춘 수동 배열
                         new_row_data = [
-                            str(m_date),  # A: 주문일시
-                            m_name,       # B: 성함
+                            str(m_date),  # A: 날짜
+                            m_name,       # B: 구매자명
                             m_phone,      # C: 연락처
                             m_addr,       # D: 주소
-                            m_prod,       # E: 제품명
-                            "",           # F: 컬러 
-                            "",           # G: 희망수령일 
+                            m_prod,       # E: 상품명
+                            "",           # F: 컬러
+                            "",           # G: 희망수령일
                             m_file,       # H: 디자인파일
-                            str(m_qty),   # I: 수량 
-                            str(m_price), # J: 예상견적 
+                            str(m_qty),   # I: 수량
+                            str(m_price), # J: 결제금액
                             "",           # K: 포장옵션
                             "신규",       # L: 상태
-                            m_market,     # 🔴 M열: 빈칸이었던 자리에 '판매 채널'이 들어갑니다!
+                            m_market,     # M: 판매채널
                             m_req,        # N: 요청사항
                             ""            # O: 송장번호
                         ]
                         
-# ... (위쪽 수동 입력 배열 부분) ...
                         sheet_main.insert_row(new_row_data, index=2, value_input_option='USER_ENTERED')
-                        
                         df_opt, _ = load_data("옵션관리")
                         _, sheet_stock = load_data("재고관리")
                         ok, msg = deduct_stock_smart(m_prod, m_qty, df_opt, sheet_stock)
                         st.success(msg)
                         
-                        st.cache_data.clear() 
+                        st.cache_data.clear()
                         time.sleep(1); st.rerun()
 
     # ---------------------------------------------------------
@@ -989,7 +985,6 @@ with sub2:
             if df_all.empty: st.warning("데이터가 없습니다.")
             else:
                 df_wait = df_all[df_all['상태'] != '완료']
-                # ... (이하 기존 코드와 동일) ...
                 for i, r in df_wait.iterrows():
                     with st.expander(f"📌 {r.get('구매자명')} - {r.get('상품명')}"):
                         wc1, wc2 = st.columns([1, 2])
@@ -1002,7 +997,10 @@ with sub2:
                             st.write(f"요청사항: {r.get('요청사항', '-')}")
                             if st.button("시안 확정 (완료 처리)", key=f"btn_sian_{i}"):
                                 success, msg = update_status_in_sheet(sheet_main, r, "완료")
-                                if success: st.success(msg); time.sleep(1); st.rerun()
+                                if success: 
+                                    st.success(msg)
+                                    st.cache_data.clear()
+                                    time.sleep(1); st.rerun()
         
         with c_tab2:
             st.markdown("#### 전체 주문 장부 및 취소/반품 처리")
@@ -1048,19 +1046,19 @@ with sub2:
                                     try: add_log("주문교환", f"{search_buyer} 고객 주문 상태 교환 변경")
                                     except: pass
                                 
+                                st.cache_data.clear()
                                 time.sleep(2); st.rerun()
                             else:
                                 st.error(msg)
 
     # ---------------------------------------------------------
-    # 3. 통합 발주 및 지시서 생성 탭 (메일 발송 삭제 버전)
+    # 3. 통합 발주 및 지시서 생성 탭
     # ---------------------------------------------------------
     with op_tab3:
         st.markdown("#### 통합 발주 및 지시서 생성")
         st.info("발주 확정 시 수량 리스트(Excel)와 상세 제작 지시서(HTML)가 함께 준비됩니다.")
         
         if not df_all.empty:
-            # 발주 대기 중인 주문만 필터링
             pending_orders = df_all[~df_all['상태'].isin(['발주완료', '배송중', '배송완료', '취소', '반품'])].copy()
             
             if pending_orders.empty:
@@ -1069,7 +1067,7 @@ with sub2:
                 if "선택" not in pending_orders.columns: 
                     pending_orders.insert(0, "선택", False)
                 
-                st.markdown("##### 1️발주 대상 선택")
+                st.markdown("##### 1️⃣ 발주 대상 선택")
                 edited_orders = st.data_editor(
                     pending_orders,
                     column_config={"선택": st.column_config.CheckboxColumn(required=True)},
@@ -1082,16 +1080,13 @@ with sub2:
                 if not selected_data.empty:
                     st.divider()
                     if st.button("발주 확정 및 파일 생성", type="primary", use_container_width=True):
-                        # (1) 구글 시트 상태 '발주완료'로 업데이트
                         for _, row in selected_data.iterrows():
                             update_status_in_sheet(sheet_main, row, "발주완료")
                         
-                        # (2) 엑셀 발주서 생성
                         excel_out = io.BytesIO()
                         with pd.ExcelWriter(excel_out, engine='xlsxwriter') as writer:
                             selected_data[['구매자명', '연락처', '주소', '상품명', '수량', '요청사항']].to_excel(writer, index=False)
                         
-                        # (3) 작업지시서 HTML 생성
                         all_html = "<html><body style='font-family:sans-serif;'>"
                         for _, row in selected_data.iterrows():
                             b_name = str(row['구매자명']).strip()
@@ -1116,8 +1111,8 @@ with sub2:
                         st.session_state['ready_excel'] = excel_out.getvalue()
                         st.session_state['ready_html'] = all_html.encode('utf-8-sig')
                         st.success("발주 처리가 완료되었습니다. 아래 버튼으로 파일을 받아 검토 후 수동 발송하세요.")
+                        st.cache_data.clear()
                     
-                    # 파일 다운로드 버튼
                     if 'ready_excel' in st.session_state:
                         c1, c2 = st.columns(2)
                         with c1:
@@ -1138,7 +1133,7 @@ with sub2:
                             )
 
     # ---------------------------------------------------------
-    # 4. 송장 등록 탭 (기존 5번에서 4번으로 탭 이름 변경 완료)
+    # 4. 송장 등록 탭
     # ---------------------------------------------------------
     with op_tab4:
         st.markdown("#### 배송 정보(송장) 업데이트")
@@ -1160,7 +1155,9 @@ with sub2:
                             if t_num and t_num != "nan":
                                 ok, _ = update_tracking_in_sheet(sheet_main, row, t_num)
                                 if ok: cnt += 1
-                        st.success(f"{cnt}건 저장 완료!"); st.cache_data.clear(); time.sleep(1); st.rerun()
+                        st.success(f"{cnt}건 저장 완료!")
+                        st.cache_data.clear()
+                        time.sleep(1); st.rerun()
             
             with sc2:
                 st.markdown("##### 엑셀 일괄 등록")
@@ -1168,8 +1165,12 @@ with sub2:
                 if up_f and st.button("엑셀 데이터 시트 반영"):
                     df_up = pd.read_excel(up_f)
                     ok, msg = bulk_update_tracking_excel(sheet_main, df_up)
-                    if ok: st.success(msg); st.cache_data.clear(); time.sleep(1); st.rerun()
-                    else: st.error(msg)
+                    if ok: 
+                        st.success(msg)
+                        st.cache_data.clear()
+                        time.sleep(1); st.rerun()
+                    else: 
+                        st.error(msg)
 # === 마케팅 & CRM ===
 elif menu == "마케팅 & CRM":
     render_page_header("마케팅 & CRM 통합 센터", "고객 관리부터 광고 성과 측정, AI 카피라이팅까지 한곳에서 관리하세요.")
