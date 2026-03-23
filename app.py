@@ -932,24 +932,31 @@ elif menu == "주문/생산 관리":
                 except Exception as e:
                     st.error(f"오류: {e}")
 
-        with sub2:
+with sub2:
             with st.form("manual"):
+                st.markdown("##### 📝 수동 주문 입력")
+                
+                # 화면을 좌우 딱 절반으로 나눕니다.
                 col1, col2 = st.columns(2)
+                
+                # 왼쪽 칸: 고객 및 기본 주문 정보 (5개)
                 with col1:
                     m_date = st.date_input("날짜", datetime.now())
+                    m_market = st.selectbox("판매 채널 (수수료 계산용)", ["개인판매(수수료 0%)", "스마트스토어", "쿠팡", "자사몰", "기타"])
                     m_name = st.text_input("구매자명")
                     m_phone = st.text_input("연락처")
                     m_addr = st.text_input("주소")
+                    
+                # 오른쪽 칸: 상품 및 결제 정보 (6개)
                 with col2:
                     m_prod = st.text_input("상품명 (옵션매핑명)")
                     m_color = st.text_input("컬러 (예: 웜그레이)") 
-                    m_qty = st.number_input("수량", 1, 1000, 1)
-                    # 🔴 수동 금액과 택배비를 분리해서 받습니다.
-                    m_price = st.number_input("결제금액 (제품가만)", 0)
-                    m_shipping = st.number_input("택배비 (무배면 0, 유배면 3000 등)", 0)
+                    m_qty = st.number_input("수량", min_value=1, value=1)
+                    m_price = st.number_input("결제금액 (제품가만)", value=0, step=1000)
+                    m_shipping = st.number_input("택배비 (무배면 0, 유배면 3000 등)", value=0, step=500)
                     m_file = st.text_input("디자인링크")
                 
-                m_market = st.selectbox("판매 채널 (수수료 계산용)", ["개인판매(수수료 0%)", "스마트스토어", "쿠팡", "자사몰", "기타"])
+                # 가로 전체를 쓰는 넓은 칸
                 m_req = st.text_area("요청사항(자수)")
                 
                 if st.form_submit_button("등록 및 재고차감", type="primary"):
@@ -971,7 +978,7 @@ elif menu == "주문/생산 관리":
                             m_market,     # M: 판매채널
                             m_req,        # N: 요청사항
                             "",           # O: 송장번호
-                            str(m_shipping) # 🔴 P: 택배비
+                            str(m_shipping) # P: 택배비
                         ]
                         
                         sheet_main.insert_row(new_row_data, index=2, value_input_option='USER_ENTERED')
