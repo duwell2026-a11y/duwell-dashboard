@@ -236,24 +236,21 @@ def fetch_raw_data(sheet_name):
 # 3. 대표님의 기존 데이터 로직 100% 복구 + 시트 객체 연결
 # ==========================================================
 def load_data(sheet_name):
-    # 캐시된 데이터 가져오기
     raw_data = fetch_raw_data(sheet_name)
     df = pd.DataFrame(raw_data)
     
-    # [핵심] 시트 객체(sheet)는 캐시하지 않고 그때그때 가져옵니다. 
     client = get_client()
     sheet = client.open_by_key(SHEET_ID).worksheet(sheet_name) if client else None
     
     if df.empty: return df, sheet
     
-    # --- 대표님의 기존 전처리 코드 완벽하게 동일 ---
     df.columns = [str(c).strip() for c in df.columns]
     for col in ['날짜', '시작일', '종료일', '주문일시', '주문일']:
         if col in df.columns: df[col] = df[col].apply(clean_date_str)
     
     rename_map = {
         '주문일시': '날짜', '주문일': '날짜', '일자': '날짜',
-        '금액': '결제금액', '총 주문금액': '결제금액', '예상견적': '결제금액',  # 🔴 정산을 위해 필수 추가!
+        '금액': '결제금액', '총 주문금액': '결제금액', '예상견적': '결제금액',
         '성함': '구매자명', '고객명': '구매자명', '이름': '구매자명', '수취인명': '구매자명',
         '연락처': '연락처', '수취인연락처1': '연락처', '전화번호': '연락처',
         '주소': '주소', '배송지': '주소',
@@ -261,14 +258,14 @@ def load_data(sheet_name):
         '디자인파일': '디자인파일', '첨부파일': '디자인파일', '시안': '디자인파일',
         '상태': '상태', '진행상태': '상태',
         '배송메세지': '요청사항', '비고': '요청사항', '메모': '요청사항',
-        '포장옵션': '포장옵션', '컬러': '컬러'
+        '포장옵션': '포장옵션', '컬러': '컬러',
+        '택배비': '택배비'  # 🔴 파이썬이 시트의 택배비를 읽을 수 있도록 추가!
     }
     
-    # 🔴 수정됨: 이전에 붙여넣으시면서 깨졌던 }ename 오타를 복구했습니다.
     df.rename(columns=rename_map, inplace=True)
     df = df.loc[:, ~df.columns.duplicated()]
     
-    required_cols = ['날짜', '구매자명', '연락처', '주소', '상품명', '수량', '결제금액', '요청사항', '디자인파일', '상태', '포장옵션']
+    required_cols = ['날짜', '구매자명', '연락처', '주소', '상품명', '수량', '결제금액', '요청사항', '디자인파일', '상태', '포장옵션', '택배비']
     for col in required_cols:
         if col not in df.columns: df[col] = "" 
     
@@ -1438,18 +1435,17 @@ elif menu == "일정 관리":
 # === 마진/정산 분석 ===
 elif menu == "마진/정산 분석":
     render_page_header("마진/정산 분석", "실시간 마진 및 정산 분석기")
-    with st.expander("정산 기준 설정 (수수료 및 택배비)", expanded=True):
+    with st.expander("정산 기준 설정 (수수료율 입력)", expanded=True):
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
             fee_smart = st.number_input("스마트스토어 수수료 (%)", value=5.5)
             fee_own = st.number_input("자사몰(PG) 수수료 (%)", value=3.0)
         with col_f2:
             fee_coupang = st.number_input("쿠팡 수수료 (%)", value=10.8)
-            # 🔴 추가됨: 개인 판매용 수수료 입력칸 (기본값 0%)
             fee_personal = st.number_input("개인판매/B2B 수수료 (%)", value=0.0) 
         with col_f3:
             fee_etc = st.number_input("기타 마켓 수수료 (%)", value=5.0)
-            shipping_cost = st.number_input("건당 발송 택배비 (원)", value=2500, step=100)
+            # 🔴 화면의 고정 택배비 입력칸은 이제 불필요하므로 삭제했습니다.
 
     if not df_all.empty:
         df_cost, _ = load_data("옵션관리") 
@@ -1464,32 +1460,38 @@ elif menu == "마진/정산 분석":
             st.warning("현재 정산 가능한 유효 판매 데이터가 없습니다.")
         else:
             df_calc['수량'] = pd.to_numeric(df_calc['수량'], errors='coerce').fillna(1)
-            # 만약 시트에 '주문처'가 비어있다면 자사몰로 간주
             if '주문처' not in df_calc.columns: df_calc['주문처'] = '자사몰'
 
             def calculate_profit(row):
-                market = str(row.get('주문처', '자사몰'))
-                qty = row['수량']
+                market = str(row.get('주문처', '자사몰')).strip()
+                if market == "" or market == "nan": 
+                    market = "자사몰"
                 
+                qty = row['수량']
                 item_name = str(row['상품명']).strip()
                 item_clean = item_name.replace(" ", "").lower()
                 
+                # 1. 결제금액 (매출)
                 raw_paid = str(row.get('결제금액', '0')).replace(',', '').replace('원', '').strip()
                 actual_paid = pd.to_numeric(raw_paid, errors='coerce')
                 if pd.isna(actual_paid): actual_paid = 0
                 
-                # 🔴 수정됨: '개인판매' 키워드가 있으면 개인판매 수수료(0%)를 적용합니다.
+                # 🔴 2. 시트1에 기록된 해당 주문의 실제 택배비 가져오기
+                raw_ship = str(row.get('택배비', '0')).replace(',', '').replace('원', '').strip()
+                actual_ship_cost = pd.to_numeric(raw_ship, errors='coerce')
+                if pd.isna(actual_ship_cost): actual_ship_cost = 0
+                
+                # 3. 수수료율 결정
                 if '스마트스토어' in market: fee_rate = fee_smart / 100
                 elif '쿠팡' in market: fee_rate = fee_coupang / 100
                 elif '자사몰' in market: fee_rate = fee_own / 100
                 elif '개인' in market or 'B2B' in market: fee_rate = fee_personal / 100
                 else: fee_rate = fee_etc / 100
                 
-                # ... (아래 원가 매칭 및 계산식 코드는 기존과 동일) ...
-                
                 unit_cost = 0
                 unit_price = 0
                 
+                # 4. 옵션관리 시트에서 원가/정가 매칭
                 if not df_cost.empty:
                     for _, opt in df_cost.iterrows():
                         std_name = str(opt.get('상품명', '')).strip()
@@ -1508,15 +1510,19 @@ elif menu == "마진/정산 분석":
                                 if pd.isna(unit_cost): unit_cost = 0
                                 break 
                 
+                # 5. 최종 계산
                 total_revenue = actual_paid if actual_paid > 0 else (unit_price * qty)
                 total_cost = unit_cost * qty
                 commission_fee = total_revenue * fee_rate
-                net_profit = total_revenue - total_cost - commission_fee - shipping_cost
+                
+                # 🔴 순이익 = 매출액 - 원가 - 수수료 - (시트에 입력된 개별 택배비)
+                net_profit = total_revenue - total_cost - commission_fee - actual_ship_cost
                 margin_rate = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
                 
-                return pd.Series([total_revenue, commission_fee, total_cost, net_profit, margin_rate])
+                return pd.Series([total_revenue, commission_fee, total_cost, actual_ship_cost, net_profit, margin_rate])
 
-            df_calc[['예상결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']] = df_calc.apply(calculate_profit, axis=1)
+            # 화면 표시에 택배비 항목도 노출되도록 추가
+            df_calc[['예상결제금액', '마켓수수료', '총매입원가', '적용택배비', '예상순이익', '마진율(%)']] = df_calc.apply(calculate_profit, axis=1)
 
             tab_sum, tab_month, tab_cal, tab_detail = st.tabs([
                 "전체 요약", "월별 정산 내역", "일별 매출 캘린더", "주문별 상세 내역"
@@ -1542,13 +1548,14 @@ elif menu == "마진/정산 분석":
                     매출액=('예상결제금액', 'sum'),
                     마켓수수료=('마켓수수료', 'sum'),
                     총매입원가=('총매입원가', 'sum'),
+                    택배비총합=('적용택배비', 'sum'), # 🔴 월별 택배비 지출 총합 확인용 추가
                     순이익=('예상순이익', 'sum')
                 ).reset_index().sort_values('월', ascending=False)
                 
                 monthly_profit['평균마진율(%)'] = (monthly_profit['순이익'] / monthly_profit['매출액'] * 100).fillna(0)
 
                 styled_monthly = monthly_profit.style.format({
-                    '매출액': '{:,.0f}', '마켓수수료': '{:,.0f}', '총매입원가': '{:,.0f}',
+                    '매출액': '{:,.0f}', '마켓수수료': '{:,.0f}', '총매입원가': '{:,.0f}', '택배비총합': '{:,.0f}',
                     '순이익': '{:,.0f}', '평균마진율(%)': '{:.1f}%'
                 })
                 try: styled_monthly = styled_monthly.background_gradient(subset=['평균마진율(%)'], cmap='RdYlGn')
@@ -1599,9 +1606,9 @@ elif menu == "마진/정산 분석":
 
             with tab_detail:
                 st.markdown("### 주문건별 상세 내역")
-                display_cols = ['날짜_str', '구매자명', '상품명', '수량', '예상결제금액', '마켓수수료', '총매입원가', '예상순이익', '마진율(%)']
+                display_cols = ['날짜_str', '구매자명', '상품명', '수량', '예상결제금액', '마켓수수료', '총매입원가', '적용택배비', '예상순이익', '마진율(%)']
                 styled_df = df_calc[display_cols].style.format({
-                    '예상결제금액': '{:,.0f}', '마켓수수료': '{:,.0f}', '총매입원가': '{:,.0f}',
+                    '예상결제금액': '{:,.0f}', '마켓수수료': '{:,.0f}', '총매입원가': '{:,.0f}', '적용택배비': '{:,.0f}',
                     '예상순이익': '{:,.0f}', '마진율(%)': '{:.1f}%'
                 })
                 try: styled_df = styled_df.background_gradient(subset=['마진율(%)'], cmap='RdYlGn')
