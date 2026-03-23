@@ -898,18 +898,22 @@ elif menu == "주문/생산 관리":
                         raw_price = str(row.get('총 주문금액', '0')).replace(',', '').replace('원', '').strip()
                         try: price = int(pd.to_numeric(raw_price, errors='coerce')) if raw_price else 0
                         except: price = 0
+                            
+                        # 🔴 네이버 엑셀의 '배송비' 열을 읽어옵니다.
+                        raw_ship = str(row.get('배송비', '0')).replace(',', '').replace('원', '').strip()
+                        try: ship_fee = int(pd.to_numeric(raw_ship, errors='coerce')) if raw_ship else 0
+                        except: ship_fee = 0
 
-                        # 🔴 컬러 추가: 엑셀에 '컬러' 열이 있으면 쓰고, 없으면 네이버 '옵션정보' 열을 가져옵니다.
                         excel_color = str(row.get('컬러', row.get('옵션정보', ''))).strip()
 
-                        # 15개 열(A~O)에 맞춘 엑셀 배열
+                        # 🔴 16개 열(A~P)에 맞춘 엑셀 배열
                         rows_add.append([
                             str(row.get('주문일시','')),     # A: 날짜
                             str(row.get('수취인명','')),     # B: 구매자명
                             str(row.get('수취인연락처1','')),# C: 연락처
                             str(row.get('배송지','')),       # D: 주소
                             p_name,                          # E: 상품명
-                            excel_color,                     # 🔴 F: 컬러 (정확히 입력됨!)
+                            excel_color,                     # F: 컬러 
                             "",                              # G: 희망수령일
                             "",                              # H: 디자인파일
                             str(qty),                        # I: 수량
@@ -918,7 +922,8 @@ elif menu == "주문/생산 관리":
                             "신규",                          # L: 상태
                             "엑셀일괄",                      # M: 주문처(판매채널)
                             str(row.get('배송메세지','')),   # N: 요청사항
-                            ""                               # O: 송장번호
+                            "",                              # O: 송장번호
+                            str(ship_fee)                    # 🔴 P: 택배비
                         ])
                         
                     if sheet_main:
@@ -940,10 +945,11 @@ elif menu == "주문/생산 관리":
                     m_addr = st.text_input("주소")
                 with col2:
                     m_prod = st.text_input("상품명 (옵션매핑명)")
-                    # 🔴 컬러 입력 칸 추가!
                     m_color = st.text_input("컬러 (예: 웜그레이)") 
                     m_qty = st.number_input("수량", 1, 1000, 1)
-                    m_price = st.number_input("금액", 0)
+                    # 🔴 수동 금액과 택배비를 분리해서 받습니다.
+                    m_price = st.number_input("결제금액 (제품가만)", 0)
+                    m_shipping = st.number_input("택배비 (무배면 0, 유배면 3000 등)", 0)
                     m_file = st.text_input("디자인링크")
                 
                 m_market = st.selectbox("판매 채널 (수수료 계산용)", ["개인판매(수수료 0%)", "스마트스토어", "쿠팡", "자사몰", "기타"])
@@ -951,14 +957,14 @@ elif menu == "주문/생산 관리":
                 
                 if st.form_submit_button("등록 및 재고차감", type="primary"):
                     if sheet_main:
-                        # 15개 열(A~O)에 맞춘 수동 배열
+                        # 🔴 16개 열(A~P)에 맞춘 수동 배열
                         new_row_data = [
                             str(m_date),  # A: 날짜
                             m_name,       # B: 구매자명
                             m_phone,      # C: 연락처
                             m_addr,       # D: 주소
                             m_prod,       # E: 상품명
-                            m_color,      # 🔴 F: 컬러 (이제 시트에 입력됩니다!)
+                            m_color,      # F: 컬러 
                             "",           # G: 희망수령일
                             m_file,       # H: 디자인파일
                             str(m_qty),   # I: 수량
@@ -967,7 +973,8 @@ elif menu == "주문/생산 관리":
                             "신규",       # L: 상태
                             m_market,     # M: 판매채널
                             m_req,        # N: 요청사항
-                            ""            # O: 송장번호
+                            "",           # O: 송장번호
+                            str(m_shipping) # 🔴 P: 택배비
                         ]
                         
                         sheet_main.insert_row(new_row_data, index=2, value_input_option='USER_ENTERED')
@@ -978,7 +985,6 @@ elif menu == "주문/생산 관리":
                         
                         st.cache_data.clear()
                         time.sleep(1); st.rerun()
-
     # ---------------------------------------------------------
     # 2. 시안 및 장부 탭
     # ---------------------------------------------------------
