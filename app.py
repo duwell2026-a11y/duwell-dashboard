@@ -1181,8 +1181,9 @@ elif menu == "주문/생산 관리":
 elif menu == "마케팅 & CRM":
     render_page_header("마케팅 & CRM 통합 센터", "고객 관리부터 광고 성과 측정, AI 카피라이팅까지 한곳에서 관리하세요.")
     
-    m_tab1, m_tab2, m_tab3, m_tab4 = st.tabs([
-        "1. 고객 CRM 프로필", "2. 광고 효율(ROAS)", "3. AI 카피/네이밍", "4. 리뷰/CS 응대"
+    # 🔴 5번 탭(SNS 콘텐츠 생성)이 추가되었습니다.
+    m_tab1, m_tab2, m_tab3, m_tab4, m_tab5 = st.tabs([
+        "1. 고객 CRM 프로필", "2. 광고 효율(ROAS)", "3. AI 카피/네이밍", "4. 리뷰/CS 응대", "5. SNS 콘텐츠 생성"
     ])
 
     # 1. 고객 CRM 탭
@@ -1286,6 +1287,55 @@ elif menu == "마케팅 & CRM":
             if st.button("방어 답변 생성") and cs_detail:
                 st.info(ask_ai(f"유형: {cs_type}, 내용: {cs_detail}\n프리미엄 브랜드에 맞는 정중한 사과와 해결책이 담긴 답변 작성."))
 
+    # 🔴 5. SNS 콘텐츠 자동 생성 탭 (신규 추가!)
+    with m_tab5:
+        st.markdown("#### 📸 AI 블로그/인스타 콘텐츠 및 이미지 생성")
+        st.info("주제, 컨셉, 또는 참고 URL을 입력하면 AI가 블로그/인스타그램용 글과 추천 이미지를 생성해 줍니다.")
+        
+        sns_type = st.radio("어떤 플랫폼에 올리실 건가요?", ["📸 인스타그램", "📝 네이버 블로그", "💬 스레드 / X"], horizontal=True)
+        
+        with st.form("ai_sns_form"):
+            col_m1, col_m2 = st.columns(2)
+            with col_m1:
+                mkt_topic = st.text_input("콘텐츠 주제 또는 제품명", placeholder="예: 봄맞이 프리미엄 호텔 수건 세트")
+                mkt_url = st.text_input("참고 URL (선택)", placeholder="예: 상세페이지 또는 참고할 타사 링크")
+            with col_m2:
+                mkt_tone = st.selectbox("글의 톤앤매너", [
+                    "친근하고 발랄하게 (이모지 듬뿍 😊)", 
+                    "전문적이고 신뢰감 있게 (호텔 납품 퀄리티 강조 🏨)", 
+                    "감성적이고 따뜻하게 (집들이 선물 추천 🎁)", 
+                    "유머러스하고 재치있게 (시선 강탈 👀)"
+                ])
+                mkt_concept = st.text_input("이미지 컨셉 (선택)", placeholder="예: 따뜻한 햇살이 비치는 화이트 욕실에 놓인 수건")
+                
+            mkt_detail = st.text_area("핵심 내용 및 강조할 포인트 (할인 행사, 특장점 등)", placeholder="예: 40수 코마사 면 100%, 먼지 없는 수건, 이번 주말까지 20% 할인!")
+            
+            submit_btn = st.form_submit_button("✨ AI 콘텐츠 및 사진 생성하기", type="primary")
+
+        if submit_btn:
+            if not mkt_topic and not mkt_detail:
+                st.warning("주제나 핵심 내용을 최소한 하나는 입력해 주세요!")
+            else:
+                with st.spinner("AI가 열심히 글을 작성하고 사진을 기획하고 있습니다... (약 10~20초 소요)"):
+                    # 기존에 구현해두신 ask_ai 함수를 그대로 활용하여 텍스트를 뽑아냅니다!
+                    prompt = f"플랫폼: {sns_type}\n주제: {mkt_topic}\n참고URL: {mkt_url}\n톤앤매너: {mkt_tone}\n핵심내용: {mkt_detail}\n\n위 내용을 바탕으로 {sns_type}에 바로 올릴 수 있는 매력적인 홍보 글을 작성해줘. 해시태그도 5개 이상 넉넉히 포함해줘."
+                    try:
+                        generated_text = ask_ai(prompt)
+                    except:
+                        generated_text = "AI 서버와 연결할 수 없습니다. ask_ai 설정을 확인해주세요."
+                    
+                    st.success("🎉 마케팅 콘텐츠가 성공적으로 생성되었습니다!")
+                    
+                    tab_text, tab_img = st.tabs(["📝 생성된 텍스트", "🎨 생성된 이미지"])
+                    
+                    with tab_text:
+                        st.markdown(f"**[{sns_type} 맞춤형 텍스트]**")
+                        st.text_area("복사해서 바로 SNS에 올려보세요!", generated_text.strip(), height=300)
+                        
+                    with tab_img:
+                        st.markdown(f"****")
+                        st.info("💡 현재 이미지는 샘플용입니다. 실제 AI(DALL-E)가 그림을 그리게 하려면 OpenAI 이미지 API 코드를 추가 연동해야 합니다!")
+                        st.image("https://images.unsplash.com/photo-1584947937402-28e4e9fbdba8?q=80&w=800&auto=format&fit=crop", caption="AI 생성 이미지 미리보기 (샘플)")
 
 # === 재고 관리 ===
 elif menu == "재고 관리":
@@ -1305,7 +1355,7 @@ elif menu == "재고 관리":
             st.info("재고 일괄 반영 로직 수행 (이전 코드 동일)")
             
     with tab3:
-        st.markdown("### 개별 상품 입/출고 (블랙박스 작동중 )")
+        st.markdown("### 개별 상품 입/출고 (블랙박스 작동중)")
         if not df_stock.empty:
             with st.form("manual_stock"):
                 col1, col2, col3 = st.columns([2, 1, 1])
@@ -1333,6 +1383,7 @@ elif menu == "재고 관리":
                             add_log("재고수동조정", log_msg)
                             
                             st.success(f"✅ {target_prod}: {final_qty}개로 변경 및 로그 기록 완료!"); time.sleep(1); st.rerun()
+
 # === 옵션 관리 ===
 elif menu == "옵션 관리":
     render_page_header("옵션 관리", "제품 등록/수정")
@@ -1443,7 +1494,6 @@ elif menu == "마진/정산 분석":
             fee_personal = st.number_input("개인판매/B2B 수수료 (%)", value=0.0) 
         with col_f3:
             fee_etc = st.number_input("기타 마켓 수수료 (%)", value=5.0)
-            # 🔴 화면의 고정 택배비 입력칸은 이제 불필요하므로 삭제했습니다.
 
     if not df_all.empty:
         df_cost, _ = load_data("옵션관리") 
@@ -1469,17 +1519,14 @@ elif menu == "마진/정산 분석":
                 item_name = str(row['상품명']).strip()
                 item_clean = item_name.replace(" ", "").lower()
                 
-                # 1. 결제금액 (매출)
                 raw_paid = str(row.get('결제금액', '0')).replace(',', '').replace('원', '').strip()
                 actual_paid = pd.to_numeric(raw_paid, errors='coerce')
                 if pd.isna(actual_paid): actual_paid = 0
                 
-                # 🔴 2. 시트1에 기록된 해당 주문의 실제 택배비 가져오기
                 raw_ship = str(row.get('택배비', '0')).replace(',', '').replace('원', '').strip()
                 actual_ship_cost = pd.to_numeric(raw_ship, errors='coerce')
                 if pd.isna(actual_ship_cost): actual_ship_cost = 0
                 
-                # 3. 수수료율 결정
                 if '스마트스토어' in market: fee_rate = fee_smart / 100
                 elif '쿠팡' in market: fee_rate = fee_coupang / 100
                 elif '자사몰' in market: fee_rate = fee_own / 100
@@ -1489,7 +1536,6 @@ elif menu == "마진/정산 분석":
                 unit_cost = 0
                 unit_price = 0
                 
-                # 4. 옵션관리 시트에서 원가/정가 매칭
                 if not df_cost.empty:
                     for _, opt in df_cost.iterrows():
                         std_name = str(opt.get('상품명', '')).strip()
@@ -1508,18 +1554,15 @@ elif menu == "마진/정산 분석":
                                 if pd.isna(unit_cost): unit_cost = 0
                                 break 
                 
-                # 5. 최종 계산
                 total_revenue = actual_paid if actual_paid > 0 else (unit_price * qty)
                 total_cost = unit_cost * qty
                 commission_fee = total_revenue * fee_rate
                 
-                # 🔴 순이익 = 매출액 - 원가 - 수수료 - (시트에 입력된 개별 택배비)
                 net_profit = total_revenue - total_cost - commission_fee - actual_ship_cost
                 margin_rate = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
                 
                 return pd.Series([total_revenue, commission_fee, total_cost, actual_ship_cost, net_profit, margin_rate])
 
-            # 화면 표시에 택배비 항목도 노출되도록 추가
             df_calc[['예상결제금액', '마켓수수료', '총매입원가', '적용택배비', '예상순이익', '마진율(%)']] = df_calc.apply(calculate_profit, axis=1)
 
             tab_sum, tab_month, tab_cal, tab_detail = st.tabs([
@@ -1546,7 +1589,7 @@ elif menu == "마진/정산 분석":
                     매출액=('예상결제금액', 'sum'),
                     마켓수수료=('마켓수수료', 'sum'),
                     총매입원가=('총매입원가', 'sum'),
-                    택배비총합=('적용택배비', 'sum'), # 🔴 월별 택배비 지출 총합 확인용 추가
+                    택배비총합=('적용택배비', 'sum'), 
                     순이익=('예상순이익', 'sum')
                 ).reset_index().sort_values('월', ascending=False)
                 
