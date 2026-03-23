@@ -871,7 +871,7 @@ elif menu == "주문/생산 관리":
         "1. 주문 등록", "2. 시안 & 장부", "3. 발주 및 지시서 생성", "4. 송장 등록"
     ])
 
-    # ---------------------------------------------------------
+# ---------------------------------------------------------
     # 1. 주문 등록 탭
     # ---------------------------------------------------------
     with op_tab1:
@@ -899,14 +899,17 @@ elif menu == "주문/생산 관리":
                         try: price = int(pd.to_numeric(raw_price, errors='coerce')) if raw_price else 0
                         except: price = 0
 
+                        # 🔴 컬러 추가: 엑셀에 '컬러' 열이 있으면 쓰고, 없으면 네이버 '옵션정보' 열을 가져옵니다.
+                        excel_color = str(row.get('컬러', row.get('옵션정보', ''))).strip()
+
                         # 15개 열(A~O)에 맞춘 엑셀 배열
                         rows_add.append([
-                            str(row.get('주문일시','')),     # A: 주문일시
+                            str(row.get('주문일시','')),     # A: 날짜
                             str(row.get('수취인명','')),     # B: 구매자명
                             str(row.get('수취인연락처1','')),# C: 연락처
                             str(row.get('배송지','')),       # D: 주소
                             p_name,                          # E: 상품명
-                            "",                              # F: 컬러
+                            excel_color,                     # 🔴 F: 컬러 (정확히 입력됨!)
                             "",                              # G: 희망수령일
                             "",                              # H: 디자인파일
                             str(qty),                        # I: 수량
@@ -937,6 +940,8 @@ elif menu == "주문/생산 관리":
                     m_addr = st.text_input("주소")
                 with col2:
                     m_prod = st.text_input("상품명 (옵션매핑명)")
+                    # 🔴 컬러 입력 칸 추가!
+                    m_color = st.text_input("컬러 (예: 웜그레이)") 
                     m_qty = st.number_input("수량", 1, 1000, 1)
                     m_price = st.number_input("금액", 0)
                     m_file = st.text_input("디자인링크")
@@ -953,7 +958,7 @@ elif menu == "주문/생산 관리":
                             m_phone,      # C: 연락처
                             m_addr,       # D: 주소
                             m_prod,       # E: 상품명
-                            "",           # F: 컬러
+                            m_color,      # 🔴 F: 컬러 (이제 시트에 입력됩니다!)
                             "",           # G: 희망수령일
                             m_file,       # H: 디자인파일
                             str(m_qty),   # I: 수량
