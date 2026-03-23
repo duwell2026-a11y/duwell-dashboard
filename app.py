@@ -1228,11 +1228,17 @@ elif menu == "마케팅 & CRM":
                                 st.success("저장됨")
                 except: st.info("히스토리 연동 대기중")
 
-    # 2. ROAS 분석 탭
+# 2. ROAS 분석 탭
     with m_tab2:
         st.markdown("#### 일일 광고비 입력 및 ROAS 측정")
         today_str = datetime.now().strftime("%Y-%m-%d")
-        today_sales = df_all[df_all['날짜_str'] == today_str]['결제금액'].sum() if '결제금액' in df_all.columns else 0 # 간략화
+        
+        # 🔴 에러 해결: 결제금액 안의 콤마나 문자를 모두 제거하고 순수 숫자로 바꿔서 더합니다.
+        today_sales = 0
+        if '결제금액' in df_all.columns:
+            sales_today = df_all[df_all['날짜_str'] == today_str]['결제금액'].astype(str)
+            sales_today = sales_today.str.replace(r'[^\d]', '', regex=True) # 숫자 이외의 문자 모두 제거
+            today_sales = pd.to_numeric(sales_today, errors='coerce').fillna(0).sum()
         
         with st.form("roas_form"):
             r_col1, r_col2 = st.columns(2)
