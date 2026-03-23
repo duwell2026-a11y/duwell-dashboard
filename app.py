@@ -863,12 +863,11 @@ if menu == "통합 모니터링":
 elif menu == "주문/생산 관리":
     render_page_header("주문부터 생산까지 One-Stop", "주문 등록, 시안 확인, 공장 발주, 지시서 출력, 송장 입력을 순서대로 처리하세요.")
     
-    # 탭 네이밍 정리 (4개로 통합)
     op_tab1, op_tab2, op_tab3, op_tab4 = st.tabs([
         "1. 주문 등록", "2. 시안 & 장부", "3. 발주 및 지시서 생성", "4. 송장 등록"
     ])
 
-# ---------------------------------------------------------
+    # ---------------------------------------------------------
     # 1. 주문 등록 탭
     # ---------------------------------------------------------
     with op_tab1:
@@ -885,7 +884,6 @@ elif menu == "주문/생산 관리":
                     
                     df_new = df_new.dropna(subset=['수취인명', '상품명'])
                     rows_add = []
-                    log_msg = []
                     
                     for _, row in df_new.iterrows():
                         p_name = str(row.get('상품명','')).strip()
@@ -896,14 +894,13 @@ elif menu == "주문/생산 관리":
                         try: price = int(pd.to_numeric(raw_price, errors='coerce')) if raw_price else 0
                         except: price = 0
                             
-                        # 🔴 네이버 엑셀의 '배송비' 열을 읽어옵니다.
                         raw_ship = str(row.get('배송비', '0')).replace(',', '').replace('원', '').strip()
                         try: ship_fee = int(pd.to_numeric(raw_ship, errors='coerce')) if raw_ship else 0
                         except: ship_fee = 0
 
                         excel_color = str(row.get('컬러', row.get('옵션정보', ''))).strip()
 
-                        # 🔴 16개 열(A~P)에 맞춘 엑셀 배열
+                        # 16개 열(A~P) 엑셀 배열
                         rows_add.append([
                             str(row.get('주문일시','')),     # A: 날짜
                             str(row.get('수취인명','')),     # B: 구매자명
@@ -920,7 +917,7 @@ elif menu == "주문/생산 관리":
                             "엑셀일괄",                      # M: 주문처(판매채널)
                             str(row.get('배송메세지','')),   # N: 요청사항
                             "",                              # O: 송장번호
-                            str(ship_fee)                    # 🔴 P: 택배비
+                            str(ship_fee)                    # P: 택배비
                         ])
                         
                     if sheet_main:
@@ -932,14 +929,13 @@ elif menu == "주문/생산 관리":
                 except Exception as e:
                     st.error(f"오류: {e}")
 
-with sub2:
+        with sub2:
             with st.form("manual"):
                 st.markdown("##### 📝 수동 주문 입력")
                 
-                # 화면을 좌우 딱 절반으로 나눕니다.
+                # 화면 좌우 정렬
                 col1, col2 = st.columns(2)
                 
-                # 왼쪽 칸: 고객 및 기본 주문 정보 (5개)
                 with col1:
                     m_date = st.date_input("날짜", datetime.now())
                     m_market = st.selectbox("판매 채널 (수수료 계산용)", ["개인판매(수수료 0%)", "스마트스토어", "쿠팡", "자사몰", "기타"])
@@ -947,7 +943,6 @@ with sub2:
                     m_phone = st.text_input("연락처")
                     m_addr = st.text_input("주소")
                     
-                # 오른쪽 칸: 상품 및 결제 정보 (6개)
                 with col2:
                     m_prod = st.text_input("상품명 (옵션매핑명)")
                     m_color = st.text_input("컬러 (예: 웜그레이)") 
@@ -956,12 +951,11 @@ with sub2:
                     m_shipping = st.number_input("택배비 (무배면 0, 유배면 3000 등)", value=0, step=500)
                     m_file = st.text_input("디자인링크")
                 
-                # 가로 전체를 쓰는 넓은 칸
                 m_req = st.text_area("요청사항(자수)")
                 
                 if st.form_submit_button("등록 및 재고차감", type="primary"):
                     if sheet_main:
-                        # 🔴 16개 열(A~P)에 맞춘 수동 배열
+                        # 16개 열(A~P) 수동 배열
                         new_row_data = [
                             str(m_date),  # A: 날짜
                             m_name,       # B: 구매자명
@@ -989,6 +983,7 @@ with sub2:
                         
                         st.cache_data.clear()
                         time.sleep(1); st.rerun()
+
     # ---------------------------------------------------------
     # 2. 시안 및 장부 탭
     # ---------------------------------------------------------
@@ -1052,14 +1047,10 @@ with sub2:
                                         
                                     p_name = target_row.get('상품명', '')
                                     ok, stock_msg = add_stock_smart(p_name, qty_to_restore, df_opt, sheet_stock)
-                                    try: add_log("주문" + cr_status, f"{search_buyer} 고객 - {p_name} {qty_to_restore}개 재고 복구됨")
-                                    except: pass
                                     
                                     st.success(f"{msg} / {stock_msg}")
                                 else:
                                     st.success(f"{msg} (교환은 재고가 복구되지 않습니다)")
-                                    try: add_log("주문교환", f"{search_buyer} 고객 주문 상태 교환 변경")
-                                    except: pass
                                 
                                 st.cache_data.clear()
                                 time.sleep(2); st.rerun()
