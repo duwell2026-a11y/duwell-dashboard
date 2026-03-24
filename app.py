@@ -867,12 +867,12 @@ elif menu == "주문/생산 관리":
         "1. 주문 등록", "2. 시안 & 장부", "3. 발주 및 지시서 생성", "4. 송장 등록"
     ])
 
-    # 🔴 컬러 헥사코드 자동 번역기 함수
+# 🔴 컬러 헥사코드 자동 번역기 함수
     def get_color_name(raw_color):
         raw_color = str(raw_color).strip()
         color_lower = raw_color.lower()
         
-        # 💡 자주 들어오는 헥사코드와 변환할 이름 사전입니다. (여기에 계속 추가하시면 됩니다!)
+        # 💡 DUWELL 맞춤형 컬러 사전입니다.
         color_map = {
             "#ffffff": "화이트",
             "#fae7a3": "베이지",
@@ -890,9 +890,8 @@ elif menu == "주문/생산 관리":
             "#0c6b59": "그린",
             "#ffff00": "옐로우"
         }
-        # 사전에 코드가 있으면 번역된 이름을, 없으면 원래 입력된 글자를 그대로 냅둡니다.
+        
         return color_map.get(color_lower, raw_color)
-
     # ---------------------------------------------------------
     # 1. 주문 등록 탭
     # ---------------------------------------------------------
@@ -907,7 +906,6 @@ elif menu == "주문/생산 관리":
                     df_new = pd.read_excel(uploaded_file, header=1)
                     df_opt, _ = load_data("옵션관리")
                     _, sheet_stock = load_data("재고관리")
-                    
                     df_new = df_new.dropna(subset=['수취인명', '상품명'])
                     rows_add = []
                     
@@ -915,60 +913,40 @@ elif menu == "주문/생산 관리":
                         p_name = str(row.get('상품명','')).strip()
                         try: qty = int(pd.to_numeric(row.get('수량', 1), errors='coerce'))
                         except: qty = 1
-                            
-                        raw_price = str(row.get('총 주문금액', '0')).replace(',', '').replace('원', '').strip()
-                        try: price = int(pd.to_numeric(raw_price, errors='coerce')) if raw_price else 0
+                        try: price = int(pd.to_numeric(str(row.get('총 주문금액', '0')).replace(',', '').replace('원', '').strip(), errors='coerce'))
                         except: price = 0
-                            
-                        raw_ship = str(row.get('배송비', '0')).replace(',', '').replace('원', '').strip()
-                        try: ship_fee = int(pd.to_numeric(raw_ship, errors='coerce')) if raw_ship else 0
+                        try: ship_fee = int(pd.to_numeric(str(row.get('배송비', '0')).replace(',', '').replace('원', '').strip(), errors='coerce'))
                         except: ship_fee = 0
 
-                        # 🔴 엑셀에서 가져온 컬러값에 자동 번역기 작동!
-                        raw_excel_color = str(row.get('컬러', row.get('옵션정보', ''))).strip()
-                        final_color = get_color_name(raw_excel_color)
+                        final_color = get_color_name(str(row.get('컬러', row.get('옵션정보', ''))))
 
                         # 16개 열(A~P) 엑셀 배열
                         rows_add.append([
-                            str(row.get('주문일시','')),     # A
-                            str(row.get('수취인명','')),     # B
-                            str(row.get('수취인연락처1','')),# C
-                            str(row.get('배송지','')),       # D
-                            p_name,                          # E
-                            final_color,                     # 🔴 F: 번역된 컬러가 들어갑니다!
-                            "",                              # G
-                            "",                              # H
-                            str(qty),                        # I
-                            str(price),                      # J
-                            "",                              # K
-                            "신규",                          # L
-                            "엑셀일괄",                      # M
-                            str(row.get('배송메세지','')),   # N
-                            "",                              # O
-                            str(ship_fee)                    # P
+                            str(row.get('주문일시','')), str(row.get('수취인명','')), str(row.get('수취인연락처1','')), str(row.get('배송지','')), 
+                            p_name, final_color, 
+                            "일반(무지)", # 🔴 G열(작업유형): 엑셀은 일단 일반으로 기본값
+                            "", str(qty), str(price), 
+                            "기본(폴리백)", # 🔴 K열(케이스): 엑셀은 기본 폴리백으로 기본값
+                            "신규", "엑셀일괄", str(row.get('배송메세지','')), "", str(ship_fee)
                         ])
                         
                     if sheet_main:
                         sheet_main.append_rows(rows_add, value_input_option='USER_ENTERED', table_range='A1')
-                        st.success(f"{len(rows_add)}건 처리 완료")
-                        st.cache_data.clear()
-                        time.sleep(1); st.rerun()
-                        
-                except Exception as e:
-                    st.error(f"오류: {e}")
+                        st.success(f"{len(rows_add)}건 처리 완료"); st.cache_data.clear(); time.sleep(1); st.rerun()
+                except Exception as e: st.error(f"오류: {e}")
 
         with sub2:
             with st.form("manual"):
                 st.markdown("##### 📝 수동 주문 입력")
-                
                 col1, col2 = st.columns(2)
-                
                 with col1:
                     m_date = st.date_input("날짜", datetime.now())
-                    m_market = st.selectbox("판매 채널 (수수료 계산용)", ["개인판매(수수료 0%)", "스마트스토어", "쿠팡", "자사몰", "기타"])
+                    m_market = st.selectbox("판매 채널", ["개인판매(수수료 0%)", "스마트스토어", "쿠팡", "자사몰", "기타"])
                     m_name = st.text_input("구매자명")
                     m_phone = st.text_input("연락처")
                     m_addr = st.text_input("주소")
+                    # 🔴 작업유형 선택 추가
+                    m_work = st.selectbox("작업 유형", ["일반(무지)", "자수", "전사", "나염", "기타"]) 
                     
                 with col2:
                     m_prod = st.text_input("상품명 (옵션매핑명)")
@@ -976,31 +954,28 @@ elif menu == "주문/생산 관리":
                     m_qty = st.number_input("수량", min_value=1, value=1)
                     m_price = st.number_input("결제금액 (제품가만)", value=0, step=1000)
                     m_shipping = st.number_input("택배비 (무배면 0, 유배면 3000 등)", value=0, step=500)
-                    m_file = st.text_input("디자인링크")
+                    # 🔴 케이스 선택 추가
+                    m_case = st.selectbox("포장(케이스)", ["기본(폴리백)", "1매입 박스", "2매입 박스", "3매입 박스", "띠지 포장", "기타"])
                 
-                m_req = st.text_area("요청사항(자수)")
+                m_file = st.text_input("디자인링크 (자수/전사 도안이 있는 경우)")
+                m_req = st.text_area("요청사항 (자수 문구 등 상세기재)")
                 
                 if st.form_submit_button("등록 및 재고차감", type="primary"):
                     if sheet_main:
-                        # 🔴 수동 입력된 컬러값에도 자동 번역기 작동!
                         final_m_color = get_color_name(m_color)
-
                         # 16개 열(A~P) 수동 배열
                         new_row_data = [
-                            str(m_date),  m_name, m_phone, m_addr, m_prod, 
-                            final_m_color, # 🔴 F: 번역된 컬러가 들어갑니다!
-                            "", m_file, str(m_qty), str(m_price), 
-                            "", "신규", m_market, m_req, "", str(m_shipping)
+                            str(m_date), m_name, m_phone, m_addr, m_prod, final_m_color, 
+                            m_work, # 🔴 G열: 작업유형
+                            m_file, str(m_qty), str(m_price), 
+                            m_case, # 🔴 K열: 케이스
+                            "신규", m_market, m_req, "", str(m_shipping)
                         ]
-                        
                         sheet_main.insert_row(new_row_data, index=2, value_input_option='USER_ENTERED')
                         df_opt, _ = load_data("옵션관리")
                         _, sheet_stock = load_data("재고관리")
                         ok, msg = deduct_stock_smart(m_prod, m_qty, df_opt, sheet_stock)
-                        st.success(msg)
-                        
-                        st.cache_data.clear()
-                        time.sleep(1); st.rerun()
+                        st.success(msg); st.cache_data.clear(); time.sleep(1); st.rerun()
 
     # ---------------------------------------------------------
     # 2. 시안 및 장부 탭
@@ -1008,7 +983,6 @@ elif menu == "주문/생산 관리":
     with op_tab2:
         st.markdown("#### 디자인 시안 확인 및 전체 장부")
         c_tab1, c_tab2 = st.tabs([" 디자인 작업 대기중 (시안실)", "전체 주문 장부"])
-        
         with c_tab1:
             if df_all.empty: st.warning("데이터가 없습니다.")
             else:
@@ -1025,57 +999,39 @@ elif menu == "주문/생산 관리":
                             st.write(f"요청사항: {r.get('요청사항', '-')}")
                             if st.button("시안 확정 (완료 처리)", key=f"btn_sian_{i}"):
                                 success, msg = update_status_in_sheet(sheet_main, r, "완료")
-                                if success: 
-                                    st.success(msg)
-                                    st.cache_data.clear()
-                                    time.sleep(1); st.rerun()
-        
+                                if success: st.success(msg); st.cache_data.clear(); time.sleep(1); st.rerun()
         with c_tab2:
             st.markdown("#### 전체 주문 장부 및 취소/반품 처리")
             st.dataframe(df_all, use_container_width=True)
             csv = df_all.to_csv(index=False).encode('utf-8-sig')
             st.download_button("장부 엑셀 다운로드", csv, "order_list.csv", "text/csv")
-            
             st.divider()
             st.markdown("##### 주문 취소 및 반품 (재고 자동 복구)")
             with st.form("cancel_return_form"):
                 cr_col1, cr_col2 = st.columns(2)
-                with cr_col1:
-                    search_buyer = st.text_input("취소/반품 처리할 구매자명 입력 (정확히 입력)")
-                with cr_col2:
-                    cr_status = st.selectbox("변경할 상태", ["취소", "반품", "교환"])
-                
+                with cr_col1: search_buyer = st.text_input("취소/반품 처리할 구매자명 입력")
+                with cr_col2: cr_status = st.selectbox("변경할 상태", ["취소", "반품", "교환"])
                 if st.form_submit_button("상태 변경 및 재고 복구", type="primary"):
-                    if not search_buyer:
-                        st.warning("구매자명을 입력해주세요.")
+                    if not search_buyer: st.warning("구매자명을 입력해주세요.")
                     else:
                         target_orders = df_all[df_all['구매자명'].astype(str) == search_buyer]
-                        if target_orders.empty:
-                            st.error("해당 구매자의 주문을 찾을 수 없습니다.")
+                        if target_orders.empty: st.error("해당 구매자의 주문을 찾을 수 없습니다.")
                         else:
                             target_row = target_orders.iloc[0] 
                             success, msg = update_status_in_sheet(sheet_main, target_row, cr_status)
-                            
                             if success:
                                 if cr_status in ["취소", "반품"]:
                                     df_opt, _ = load_data("옵션관리")
                                     _, sheet_stock = load_data("재고관리")
                                     try: qty_to_restore = int(pd.to_numeric(target_row.get('수량', 1), errors='coerce'))
                                     except: qty_to_restore = 1
-                                        
-                                    p_name = target_row.get('상품명', '')
-                                    ok, stock_msg = add_stock_smart(p_name, qty_to_restore, df_opt, sheet_stock)
-                                    
+                                    ok, stock_msg = add_stock_smart(target_row.get('상품명', ''), qty_to_restore, df_opt, sheet_stock)
                                     st.success(f"{msg} / {stock_msg}")
-                                else:
-                                    st.success(f"{msg} (교환은 재고가 복구되지 않습니다)")
-                                
-                                st.cache_data.clear()
-                                time.sleep(2); st.rerun()
-                            else:
-                                st.error(msg)
+                                else: st.success(f"{msg} (교환은 재고가 복구되지 않습니다)")
+                                st.cache_data.clear(); time.sleep(2); st.rerun()
+                            else: st.error(msg)
 
-  # ---------------------------------------------------------
+    # ---------------------------------------------------------
     # 3. 통합 발주 및 지시서 생성 탭
     # ---------------------------------------------------------
     with op_tab3:
@@ -1085,30 +1041,41 @@ elif menu == "주문/생산 관리":
             if pending_orders.empty: st.success("현재 새로 공장에 넘길 발주 대기 건이 없습니다.")
             else:
                 if "선택" not in pending_orders.columns: pending_orders.insert(0, "선택", False)
+                
+                # 데이터가 없을 때를 대비한 방어 코드
+                if '작업유형' not in pending_orders.columns: pending_orders['작업유형'] = '일반(무지)'
+                if '케이스' not in pending_orders.columns: pending_orders['케이스'] = '기본(폴리백)'
+
                 st.markdown("##### 1️⃣ 발주 대상 선택")
-                # 🔴 컬러 열 포함
+                # 🔴 편집창에 작업유형, 케이스 노출!
                 edited_orders = st.data_editor(
                     pending_orders, column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-                    column_order=['선택', '날짜_str', '구매자명', '상품명', '컬러', '수량', '요청사항'], hide_index=True, use_container_width=True
+                    column_order=['선택', '날짜_str', '구매자명', '상품명', '컬러', '작업유형', '케이스', '수량', '요청사항'], hide_index=True, use_container_width=True
                 )
                 selected_data = edited_orders[edited_orders['선택'] == True]
+                
                 if not selected_data.empty:
                     st.divider()
                     if st.button("발주 확정 및 파일 생성", type="primary", use_container_width=True):
                         for _, row in selected_data.iterrows(): update_status_in_sheet(sheet_main, row, "발주완료")
                         
+                        # 🔴 엑셀 다운로드에 작업유형, 케이스 추가
                         excel_out = io.BytesIO()
                         with pd.ExcelWriter(excel_out, engine='xlsxwriter') as writer:
-                            selected_data[['구매자명', '연락처', '주소', '상품명', '컬러', '수량', '요청사항']].to_excel(writer, index=False)
+                            selected_data[['구매자명', '연락처', '주소', '상품명', '컬러', '작업유형', '케이스', '수량', '요청사항']].to_excel(writer, index=False)
                         
+                        # 🔴 HTML 지시서에 작업유형, 케이스 표 추가!
                         all_html = "<html><body style='font-family:sans-serif;'>"
                         for _, row in selected_data.iterrows():
                             b_name = str(row['구매자명']).strip()
                             color_val = str(row.get('컬러', '-')).strip()
+                            work_val = str(row.get('작업유형', '-')).strip()
+                            case_val = str(row.get('케이스', '-')).strip()
+                            
                             drive_id = get_drive_id(str(row.get('디자인파일', '')))
                             img_tag = f"<img src='https://drive.google.com/thumbnail?id={drive_id}&sz=w500' style='max-width:100%;'>" if drive_id else "<p>[이미지 없음]</p>"
                             
-                            all_html += f"<div style='page-break-after:always; border:2px solid #2B3A55; padding:20px; margin-bottom:40px; border-radius:10px;'><h2 style='color:#2B3A55;'>제작 지시서 ({b_name}님)</h2><table border='1' style='width:100%; border-collapse:collapse; margin-bottom:20px;'><tr style='background:#f4f4f4;'><th>상품명</th><th>컬러</th><th>수량</th><th>요청사항(자수)</th></tr><tr><td align='center'>{row['상품명']}</td><td align='center'><b>{color_val}</b></td><td align='center'>{row['수량']}</td><td>{row['요청사항']}</td></tr></table><div style='text-align:center;'><p><b>[확정 디자인 시안]</b></p>{img_tag}</div></div>"
+                            all_html += f"<div style='page-break-after:always; border:2px solid #2B3A55; padding:20px; margin-bottom:40px; border-radius:10px;'><h2 style='color:#2B3A55;'>제작 지시서 ({b_name}님)</h2><table border='1' style='width:100%; border-collapse:collapse; margin-bottom:20px; text-align:center;'><tr style='background:#f4f4f4;'><th>상품명</th><th>컬러</th><th>작업유형</th><th>포장(케이스)</th><th>수량</th><th>요청사항(자수)</th></tr><tr><td>{row['상품명']}</td><td><b>{color_val}</b></td><td style='color:#D32F2F;'><b>{work_val}</b></td><td><b>{case_val}</b></td><td>{row['수량']}</td><td>{row['요청사항']}</td></tr></table><div style='text-align:center;'><p><b>[확정 디자인 시안]</b></p>{img_tag}</div></div>"
                         all_html += "</body></html>"
                         
                         st.session_state['ready_excel'] = excel_out.getvalue()
@@ -1142,8 +1109,7 @@ elif menu == "주문/생산 관리":
                             if t_num and t_num != "nan":
                                 ok, _ = update_tracking_in_sheet(sheet_main, row, t_num)
                                 if ok: cnt += 1
-                        st.success(f"{cnt}건 저장 완료!")
-                        st.cache_data.clear(); time.sleep(1); st.rerun()
+                        st.success(f"{cnt}건 저장 완료!"); st.cache_data.clear(); time.sleep(1); st.rerun()
             with sc2:
                 st.markdown("##### 엑셀 일괄 등록")
                 up_f = st.file_uploader("공장 송장 엑셀 파일 (.xlsx)", type=['xlsx'])
