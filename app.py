@@ -867,6 +867,32 @@ elif menu == "주문/생산 관리":
         "1. 주문 등록", "2. 시안 & 장부", "3. 발주 및 지시서 생성", "4. 송장 등록"
     ])
 
+    # 🔴 컬러 헥사코드 자동 번역기 함수
+    def get_color_name(raw_color):
+        raw_color = str(raw_color).strip()
+        color_lower = raw_color.lower()
+        
+        # 💡 자주 들어오는 헥사코드와 변환할 이름 사전입니다. (여기에 계속 추가하시면 됩니다!)
+        color_map = {
+            "#ffffff": "화이",
+            "#fae7a3": "베이",
+            "#624138": "브라운",
+            "#d9d9d9": "라이트 그레이", 
+            "#838f95": "다크 그레이",
+            "#333131": "딥 그레이",
+            "#9ed3ef": "라이트 블",
+            "#14529e": "로얄 블",
+            "#fce5cd": "라이트 핑크",
+            "#e6b8af": "핑크",
+            "#f6a147": "라이트 오렌지",
+            "#ed6d03": "오렌지",
+            "#660000": "와",
+            "#0c6b59": "그린",
+            "#ffff00": "옐로우"
+        }
+        # 사전에 코드가 있으면 번역된 이름을, 없으면 원래 입력된 글자를 그대로 냅둡니다.
+        return color_map.get(color_lower, raw_color)
+
     # ---------------------------------------------------------
     # 1. 주문 등록 탭
     # ---------------------------------------------------------
@@ -898,26 +924,28 @@ elif menu == "주문/생산 관리":
                         try: ship_fee = int(pd.to_numeric(raw_ship, errors='coerce')) if raw_ship else 0
                         except: ship_fee = 0
 
-                        excel_color = str(row.get('컬러', row.get('옵션정보', ''))).strip()
+                        # 🔴 엑셀에서 가져온 컬러값에 자동 번역기 작동!
+                        raw_excel_color = str(row.get('컬러', row.get('옵션정보', ''))).strip()
+                        final_color = get_color_name(raw_excel_color)
 
                         # 16개 열(A~P) 엑셀 배열
                         rows_add.append([
-                            str(row.get('주문일시','')),     # A: 날짜
-                            str(row.get('수취인명','')),     # B: 구매자명
-                            str(row.get('수취인연락처1','')),# C: 연락처
-                            str(row.get('배송지','')),       # D: 주소
-                            p_name,                          # E: 상품명
-                            excel_color,                     # F: 컬러 
-                            "",                              # G: 희망수령일
-                            "",                              # H: 디자인파일
-                            str(qty),                        # I: 수량
-                            str(price),                      # J: 결제금액
-                            "",                              # K: 포장옵션
-                            "신규",                          # L: 상태
-                            "엑셀일괄",                      # M: 주문처(판매채널)
-                            str(row.get('배송메세지','')),   # N: 요청사항
-                            "",                              # O: 송장번호
-                            str(ship_fee)                    # P: 택배비
+                            str(row.get('주문일시','')),     # A
+                            str(row.get('수취인명','')),     # B
+                            str(row.get('수취인연락처1','')),# C
+                            str(row.get('배송지','')),       # D
+                            p_name,                          # E
+                            final_color,                     # 🔴 F: 번역된 컬러가 들어갑니다!
+                            "",                              # G
+                            "",                              # H
+                            str(qty),                        # I
+                            str(price),                      # J
+                            "",                              # K
+                            "신규",                          # L
+                            "엑셀일괄",                      # M
+                            str(row.get('배송메세지','')),   # N
+                            "",                              # O
+                            str(ship_fee)                    # P
                         ])
                         
                     if sheet_main:
@@ -933,7 +961,6 @@ elif menu == "주문/생산 관리":
             with st.form("manual"):
                 st.markdown("##### 📝 수동 주문 입력")
                 
-                # 화면 좌우 정렬
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -945,7 +972,7 @@ elif menu == "주문/생산 관리":
                     
                 with col2:
                     m_prod = st.text_input("상품명 (옵션매핑명)")
-                    m_color = st.text_input("컬러 (예: 웜그레이)") 
+                    m_color = st.text_input("컬러 (예: 웜그레이, 또는 #333131)") 
                     m_qty = st.number_input("수량", min_value=1, value=1)
                     m_price = st.number_input("결제금액 (제품가만)", value=0, step=1000)
                     m_shipping = st.number_input("택배비 (무배면 0, 유배면 3000 등)", value=0, step=500)
@@ -955,24 +982,15 @@ elif menu == "주문/생산 관리":
                 
                 if st.form_submit_button("등록 및 재고차감", type="primary"):
                     if sheet_main:
+                        # 🔴 수동 입력된 컬러값에도 자동 번역기 작동!
+                        final_m_color = get_color_name(m_color)
+
                         # 16개 열(A~P) 수동 배열
                         new_row_data = [
-                            str(m_date),  # A: 날짜
-                            m_name,       # B: 구매자명
-                            m_phone,      # C: 연락처
-                            m_addr,       # D: 주소
-                            m_prod,       # E: 상품명
-                            m_color,      # F: 컬러 
-                            "",           # G: 희망수령일
-                            m_file,       # H: 디자인파일
-                            str(m_qty),   # I: 수량
-                            str(m_price), # J: 결제금액
-                            "",           # K: 포장옵션
-                            "신규",       # L: 상태
-                            m_market,     # M: 판매채널
-                            m_req,        # N: 요청사항
-                            "",           # O: 송장번호
-                            str(m_shipping) # P: 택배비
+                            str(m_date),  m_name, m_phone, m_addr, m_prod, 
+                            final_m_color, # 🔴 F: 번역된 컬러가 들어갑니다!
+                            "", m_file, str(m_qty), str(m_price), 
+                            "", "신규", m_market, m_req, "", str(m_shipping)
                         ]
                         
                         sheet_main.insert_row(new_row_data, index=2, value_input_option='USER_ENTERED')
