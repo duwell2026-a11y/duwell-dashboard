@@ -1118,12 +1118,10 @@ def get_color_name(raw_color):
 elif menu == "마케팅 & CRM":
     render_page_header("마케팅 & CRM 통합 센터", "고객 관리부터 광고 성과 측정, AI 카피라이팅까지 한곳에서 관리하세요.")
     
-    # 🔴 5번 탭(SNS 콘텐츠 생성)이 추가되었습니다.
     m_tab1, m_tab2, m_tab3, m_tab4, m_tab5 = st.tabs([
         "1. 고객 CRM 프로필", "2. 광고 효율(ROAS)", "3. AI 카피/네이밍", "4. 리뷰/CS 응대", "5. SNS 콘텐츠 생성"
     ])
 
-    # 1. 고객 CRM 탭
     with m_tab1:
         st.markdown("#### 고객 통합 프로필 및 상담")
         if not df_all.empty:
@@ -1150,7 +1148,7 @@ elif menu == "마케팅 & CRM":
                 st.write(f"**등급:** {sel_data['등급']} | **누적금액:** {sel_data['누적금액']:,.0f}원")
                 
                 try:
-                    client = get_client(); target_sh = client.open("주문데이터").worksheet("시트1") # 시트명 확인 필요
+                    client = get_client(); target_sh = client.open("주문데이터").worksheet("시트1")
                     h = target_sh.row_values(1)
                     if '비고' in h:
                         cell = target_sh.find(search_nm)
@@ -1165,16 +1163,13 @@ elif menu == "마케팅 & CRM":
                                 st.success("저장됨")
                 except: st.info("히스토리 연동 대기중")
 
-# 2. ROAS 분석 탭
     with m_tab2:
         st.markdown("#### 일일 광고비 입력 및 ROAS 측정")
         today_str = datetime.now().strftime("%Y-%m-%d")
-        
-        # 🔴 에러 해결: 결제금액 안의 콤마나 문자를 모두 제거하고 순수 숫자로 바꿔서 더합니다.
         today_sales = 0
         if '결제금액' in df_all.columns:
             sales_today = df_all[df_all['날짜_str'] == today_str]['결제금액'].astype(str)
-            sales_today = sales_today.str.replace(r'[^\d]', '', regex=True) # 숫자 이외의 문자 모두 제거
+            sales_today = sales_today.str.replace(r'[^\d]', '', regex=True)
             today_sales = pd.to_numeric(sales_today, errors='coerce').fillna(0).sum()
         
         with st.form("roas_form"):
@@ -1192,7 +1187,6 @@ elif menu == "마케팅 & CRM":
                     roas_icon = "대박!" if roas >= 400 else ("양호" if roas >= 250 else "점검 필요")
                     c_roas3.metric("오늘의 ROAS", f"{roas:,.1f}% {roas_icon}")
 
-    # 3. AI 카피라이팅 탭
     with m_tab3:
         st.markdown("#### 매체 최적화 광고 문구 / 네이밍 생성")
         col_c1, col_c2 = st.columns(2)
@@ -1206,9 +1200,11 @@ elif menu == "마케팅 & CRM":
         if st.button("광고 소재 및 네이밍 생성", type="primary"):
             with st.spinner("AI가 소재를 작성 중입니다..."):
                 prompt = f"상품: {product_name}, 타겟: {target_audience}, 채널: {channel}, 톤: {tone}. 이 매체에 완벽하게 맞는 광고 카피 3가지와 매력적인 캠페인 네이밍 2가지를 제안해줘."
-                st.markdown(f"<div style='background-color:#fff; padding:20px; border-radius:12px; border:1px solid #E9ECEF;'>{ask_ai(prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+                try:
+                    st.markdown(f"<div style='background-color:#fff; padding:20px; border-radius:12px; border:1px solid #E9ECEF;'>{ask_ai(prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
+                except:
+                    st.error("AI 연결이 필요합니다.")
 
-    # 4. 리뷰 및 CS 탭
     with m_tab4:
         st.markdown("#### 스마트 고객 응대 (리뷰 & CS)")
         sub_tab1, sub_tab2 = st.tabs(["엑셀 리뷰 일괄 답글", "CS 답변 스크립트"])
@@ -1219,48 +1215,43 @@ elif menu == "마케팅 & CRM":
                 review_col = st.selectbox("고객 리뷰 내용 열", df_rev.columns.tolist())
                 if st.button("AI 답글 생성"):
                     with st.spinner("답글 작성 중..."):
-                        replies = [ask_ai(f"고객 리뷰: '{row[review_col]}'. 감사와 공감이 담긴 정중한 답글 2문장 작성.") for _, row in df_rev.iterrows()]
-                        df_rev['AI_자동답글'] = replies
-                        output = io.BytesIO()
-                        with pd.ExcelWriter(output, engine='xlsxwriter') as writer: df_rev.to_excel(writer, index=False)
-                        st.download_button("결과 다운로드", output.getvalue(), "리뷰답글완료.xlsx")
+                        try:
+                            replies = [ask_ai(f"고객 리뷰: '{row[review_col]}'. 감사와 공감이 담긴 정중한 답글 2문장 작성.") for _, row in df_rev.iterrows()]
+                            df_rev['AI_자동답글'] = replies
+                            output = io.BytesIO()
+                            with pd.ExcelWriter(output, engine='xlsxwriter') as writer: df_rev.to_excel(writer, index=False)
+                            st.download_button("결과 다운로드", output.getvalue(), "리뷰답글완료.xlsx")
+                        except:
+                            st.error("AI 연결이 필요합니다.")
         with sub_tab2:
             cs_type = st.radio("문의 유형", ["배송 지연", "제품 교환", "불만", "기타"], horizontal=True)
             cs_detail = st.text_area("고객 문의 내용")
             if st.button("방어 답변 생성") and cs_detail:
-                st.info(ask_ai(f"유형: {cs_type}, 내용: {cs_detail}\n프리미엄 브랜드에 맞는 정중한 사과와 해결책이 담긴 답변 작성."))
+                try:
+                    st.info(ask_ai(f"유형: {cs_type}, 내용: {cs_detail}\n프리미엄 브랜드에 맞는 정중한 사과와 해결책이 담긴 답변 작성."))
+                except:
+                    st.error("AI 연결이 필요합니다.")
 
-    # 🔴 5. SNS 콘텐츠 자동 생성 탭 (신규 추가!)
     with m_tab5:
         st.markdown("#### 📸 AI 블로그/인스타 콘텐츠 및 이미지 생성")
         st.info("주제, 컨셉, 또는 참고 URL을 입력하면 AI가 블로그/인스타그램용 글과 추천 이미지를 생성해 줍니다.")
-        
         sns_type = st.radio("어떤 플랫폼에 올리실 건가요?", ["📸 인스타그램", "📝 네이버 블로그", "💬 스레드 / X"], horizontal=True)
-        
         with st.form("ai_sns_form"):
             col_m1, col_m2 = st.columns(2)
             with col_m1:
                 mkt_topic = st.text_input("콘텐츠 주제 또는 제품명", placeholder="예: 봄맞이 프리미엄 호텔 수건 세트")
                 mkt_url = st.text_input("참고 URL (선택)", placeholder="예: 상세페이지 또는 참고할 타사 링크")
             with col_m2:
-                mkt_tone = st.selectbox("글의 톤앤매너", [
-                    "친근하고 발랄하게 (이모지 듬뿍 😊)", 
-                    "전문적이고 신뢰감 있게 (호텔 납품 퀄리티 강조 🏨)", 
-                    "감성적이고 따뜻하게 (집들이 선물 추천 🎁)", 
-                    "유머러스하고 재치있게 (시선 강탈 👀)"
-                ])
+                mkt_tone = st.selectbox("글의 톤앤매너", ["친근하고 발랄하게", "전문적이고 신뢰감 있게", "감성적이고 따뜻하게", "유머러스하고 재치있게"])
                 mkt_concept = st.text_input("이미지 컨셉 (선택)", placeholder="예: 따뜻한 햇살이 비치는 화이트 욕실에 놓인 수건")
-                
-            mkt_detail = st.text_area("핵심 내용 및 강조할 포인트 (할인 행사, 특장점 등)", placeholder="예: 40수 코마사 면 100%, 먼지 없는 수건, 이번 주말까지 20% 할인!")
-            
+            mkt_detail = st.text_area("핵심 내용 및 강조할 포인트 (할인 행사, 특장점 등)")
             submit_btn = st.form_submit_button("✨ AI 콘텐츠 및 사진 생성하기", type="primary")
 
         if submit_btn:
             if not mkt_topic and not mkt_detail:
                 st.warning("주제나 핵심 내용을 최소한 하나는 입력해 주세요!")
             else:
-                with st.spinner("AI가 열심히 글을 작성하고 사진을 기획하고 있습니다... (약 10~20초 소요)"):
-                    # 기존에 구현해두신 ask_ai 함수를 그대로 활용하여 텍스트를 뽑아냅니다!
+                with st.spinner("AI가 열심히 글을 작성하고 사진을 기획하고 있습니다..."):
                     prompt = f"플랫폼: {sns_type}\n주제: {mkt_topic}\n참고URL: {mkt_url}\n톤앤매너: {mkt_tone}\n핵심내용: {mkt_detail}\n\n위 내용을 바탕으로 {sns_type}에 바로 올릴 수 있는 매력적인 홍보 글을 작성해줘. 해시태그도 5개 이상 넉넉히 포함해줘."
                     try:
                         generated_text = ask_ai(prompt)
@@ -1268,16 +1259,12 @@ elif menu == "마케팅 & CRM":
                         generated_text = "AI 서버와 연결할 수 없습니다. ask_ai 설정을 확인해주세요."
                     
                     st.success("🎉 마케팅 콘텐츠가 성공적으로 생성되었습니다!")
-                    
                     tab_text, tab_img = st.tabs(["📝 생성된 텍스트", "🎨 생성된 이미지"])
-                    
                     with tab_text:
                         st.markdown(f"**[{sns_type} 맞춤형 텍스트]**")
                         st.text_area("복사해서 바로 SNS에 올려보세요!", generated_text.strip(), height=300)
-                        
                     with tab_img:
-                        st.markdown(f"****")
-                        st.info("💡 현재 이미지는 샘플용입니다. 실제 AI(DALL-E)가 그림을 그리게 하려면 OpenAI 이미지 API 코드를 추가 연동해야 합니다!")
+                        st.markdown(f"**[요청하신 '{mkt_concept}' 컨셉의 추천 이미지]**")
                         st.image("https://images.unsplash.com/photo-1584947937402-28e4e9fbdba8?q=80&w=800&auto=format&fit=crop", caption="AI 생성 이미지 미리보기 (샘플)")
 
 # === 재고 관리 ===
@@ -1289,7 +1276,7 @@ elif menu == "재고 관리":
     
     with tab1:
         if not df_stock.empty and not df_all.empty:
-            st.dataframe(df_stock, use_container_width=True) # 요약 코드 분량상 원본 df 출력
+            st.dataframe(df_stock, use_container_width=True)
             
     with tab2:
         st.markdown("### 엑셀로 재고 일괄 등록")
@@ -1307,7 +1294,6 @@ elif menu == "재고 관리":
                 with col3: qty = st.number_input("수량", min_value=1, value=1)
                 
                 if st.form_submit_button("반영"):
-                    # 동시성 문제 방지: 반영 버튼 누른 순간 최신 데이터를 한 번 더 불러옵니다.
                     client = get_client()
                     fresh_stock_sheet = client.open_by_key(SHEET_ID).worksheet("재고관리")
                     cell = fresh_stock_sheet.find(target_prod)
@@ -1318,13 +1304,9 @@ elif menu == "재고 관리":
                         if col_idx != -1:
                             curr_val = int(pd.to_numeric(fresh_stock_sheet.cell(cell.row, col_idx).value, errors='coerce') or 0)
                             final_qty = curr_val + qty if "입고" in action else curr_val - qty
-                            
                             fresh_stock_sheet.update_cell(cell.row, col_idx, final_qty)
-                            
-                            # 블랙박스에 기록 남기기!
                             log_msg = f"{target_prod} {qty}개 {action.split()[0]} 처리 (변경 전: {curr_val} -> 변경 후: {final_qty})"
                             add_log("재고수동조정", log_msg)
-                            
                             st.success(f"✅ {target_prod}: {final_qty}개로 변경 및 로그 기록 완료!"); time.sleep(1); st.rerun()
 
 # === 옵션 관리 ===
@@ -1335,92 +1317,53 @@ elif menu == "옵션 관리":
         edited_df = st.data_editor(df_opt, num_rows="dynamic", use_container_width=True)
         if st.button("저장"):
             sheet_opt.clear()
-            
-            # 최신 gspread 버전에 맞춘 업데이트 문법 (A1 셀부터 데이터 채우기)
             new_data = [edited_df.columns.values.tolist()] + edited_df.values.tolist()
             sheet_opt.update(values=new_data, range_name="A1")
-            
             st.success("저장됨"); st.rerun()
 
 # === 일정 관리 ===
 elif menu == "일정 관리":
     render_page_header("일정 관리", "사내 스케줄 및 주요 일정을 등록하고 관리하세요.")
     df_sch, sheet_sch = load_data("일정관리")
-    
-    # 달력 보기와 수정 화면을 탭으로 분리하여 화면을 넓게 씁니다.
     tab_cal, tab_edit = st.tabs(["캘린더 뷰", "일정 등록 및 수정 (수동 편집)"])
     
-    # ---------------------------------------------------------
-    # 1. 캘린더 뷰 탭
-    # ---------------------------------------------------------
     with tab_cal:
         if not df_sch.empty:
             events = []
             for _, r in df_sch.iterrows():
                 title = str(r.get('일정명', ''))
                 time_str = str(r.get('시간', ''))
-                # 시간이 있으면 제목 앞에 표시되도록 처리
                 if time_str and time_str != 'nan':
                     title = f"[{time_str}] {title}"
-                    
-                events.append({
-                    "title": title, 
-                    "start": str(r.get('시작일', '')),
-                    "color": "#2B3A55" # DUWELL 네이비 컬러로 통일
-                })
-            
-            # 달력 출력
+                events.append({"title": title, "start": str(r.get('시작일', '')), "color": "#2B3A55"})
             calendar(events=events, options={"height": 650})
         else:
             st.info("💡 아직 등록된 일정이 없습니다.")
 
-    # ---------------------------------------------------------
-    # 2. 일정 등록 및 수정 탭 (엑셀 에디터)
-    # ---------------------------------------------------------
     with tab_edit:
         col1, col2 = st.columns([1, 2.5])
-        
         with col1:
             st.markdown("##### ➕ 새 일정 추가")
             with st.form("add_schedule"):
                 d_date = st.date_input("날짜", datetime.now())
                 d_time = st.time_input("시간")
-                d_title = st.text_input("일정명", placeholder="예: 원단 공장 미팅")
-                d_desc = st.text_area("상세내용", placeholder="세부 메모를 적어주세요.")
-                
+                d_title = st.text_input("일정명")
+                d_desc = st.text_area("상세내용")
                 if st.form_submit_button("일정 저장", type="primary"):
                     if sheet_sch: 
-                        # 구글 시트에 A~E열 순서로 저장 (시작일, 종료일, 시간, 일정명, 상세내용)
                         sheet_sch.append_row([str(d_date), str(d_date), str(d_time), d_title, d_desc])
-                        st.success("✅ 새 일정이 저장되었습니다!")
-                        time.sleep(1); st.rerun()
-        
+                        st.success("✅ 새 일정이 저장되었습니다!"); time.sleep(1); st.rerun()
         with col2:
             st.markdown("##### 기존 일정 수정 및 삭제")
-            st.caption("💡 엑셀처럼 칸을 더블클릭하여 내용을 고치거나, 맨 왼쪽 체크박스를 눌러 일정을 삭제할 수 있습니다.")
-            
             if not df_sch.empty:
-                # 데이터 에디터 생성 (num_rows="dynamic"으로 행 추가/삭제 허용)
-                edited_df = st.data_editor(
-                    df_sch,
-                    num_rows="dynamic", 
-                    use_container_width=True,
-                    key="schedule_editor"
-                )
-                
-                # 수정된 데이터를 시트에 반영하는 버튼
+                edited_df = st.data_editor(df_sch, num_rows="dynamic", use_container_width=True, key="schedule_editor")
                 if st.button("변경된 일정 내용 시트에 반영하기", type="secondary"):
                     with st.spinner("구글 시트에 업데이트 중입니다..."):
                         if sheet_sch:
-                            # 1. 시트의 기존 내용 모두 지우기
                             sheet_sch.clear()
-                            
-                            # 2. 에디터에 있는(수정/삭제가 반영된) 새로운 데이터 덮어쓰기
                             new_data = [edited_df.columns.values.tolist()] + edited_df.values.tolist()
                             sheet_sch.update(values=new_data, range_name="A1")
-                            
-                            st.success(" 일정이 성공적으로 수정/삭제되었습니다!")
-                            time.sleep(1); st.rerun()
+                            st.success(" 일정이 성공적으로 수정/삭제되었습니다!"); time.sleep(1); st.rerun()
             else:
                 st.write("등록된 일정이 없습니다.")
 
@@ -1440,24 +1383,16 @@ elif menu == "마진/정산 분석":
 
     if not df_all.empty:
         df_cost, _ = load_data("옵션관리") 
-        if df_cost.empty or '가격' not in df_cost.columns:
-            st.warning("[옵션관리] 탭에 '가격' 열이 없습니다.")
-        if '원가' not in df_cost.columns:
-            st.error("[중요] 옵션관리 시트에 '원가' 열이 없습니다.")
-
         df_calc = df_all[~df_all['상태'].isin(['취소', '반품', '교환'])].copy()
 
         if df_calc.empty:
             st.warning("현재 정산 가능한 유효 판매 데이터가 없습니다.")
         else:
             df_calc['수량'] = pd.to_numeric(df_calc['수량'], errors='coerce').fillna(1)
-            
-            # 🔴 빈칸일 때 자사몰로 강제 지정하던 코드를 삭제(빈칸 유지)했습니다.
             if '주문처' not in df_calc.columns: df_calc['주문처'] = ''
 
             def calculate_profit(row):
                 market = str(row.get('주문처', '')).strip()
-                
                 qty = row['수량']
                 item_name = str(row['상품명']).strip()
                 item_clean = item_name.replace(" ", "").lower()
@@ -1470,7 +1405,6 @@ elif menu == "마진/정산 분석":
                 actual_ship_cost = pd.to_numeric(raw_ship, errors='coerce')
                 if pd.isna(actual_ship_cost): actual_ship_cost = 0
                 
-                # 🔴 마켓명(주문처)이 비어있으면 수수료율을 0.0(0%)으로 적용합니다!
                 if market == "" or market == "nan": fee_rate = 0.0
                 elif '스마트스토어' in market: fee_rate = fee_smart / 100
                 elif '쿠팡' in market: fee_rate = fee_coupang / 100
@@ -1562,14 +1496,6 @@ elif menu == "마진/정산 분석":
                 try: styled_df = styled_df.background_gradient(subset=['마진율(%)'], cmap='RdYlGn')
                 except: pass
                 st.dataframe(styled_df, use_container_width=True, hide_index=True)
-                
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer: df_calc[display_cols].to_excel(writer, index=False)
-                st.download_button("전체 정산 내역 엑셀 다운로드", output.getvalue(), f"예상정산리포트_{datetime.now().strftime('%Y%m%d')}.xlsx")
-
-    else:
-        st.warning("분석할 주문 데이터가 없습니다.")
-
 # ===AI 비즈니스 센터 ===
 elif menu == "AI 비즈니스 센터":
     render_page_header("DUWELL AI 비즈니스 센터", "10년 노하우를 학습한 AI 에이전트 팀이 대표님의 업무를 지원합니다.")
