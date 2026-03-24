@@ -258,14 +258,18 @@ def load_data(sheet_name):
         '디자인파일': '디자인파일', '첨부파일': '디자인파일', '시안': '디자인파일',
         '상태': '상태', '진행상태': '상태',
         '배송메세지': '요청사항', '비고': '요청사항', '메모': '요청사항',
-        '포장옵션': '포장옵션', '컬러': '컬러',
-        '택배비': '택배비'  # 🔴 파이썬이 시트의 택배비를 읽을 수 있도록 추가!
+        '포장옵션': '케이스', '컬러': '컬러', '옵션정보': '컬러',
+        '택배비': '택배비', '희망수령일': '작업유형'
     }
     
     df.rename(columns=rename_map, inplace=True)
     df = df.loc[:, ~df.columns.duplicated()]
     
-    required_cols = ['날짜', '구매자명', '연락처', '주소', '상품명', '수량', '결제금액', '요청사항', '디자인파일', '상태', '포장옵션', '택배비']
+    # 🔴 핵심 해결 포인트: 시트에서 '컬러' 열을 읽자마자 싹 다 번역기를 돌립니다!
+    if '컬러' in df.columns:
+        df['컬러'] = df['컬러'].apply(get_color_name)
+
+    required_cols = ['날짜', '구매자명', '연락처', '주소', '상품명', '수량', '결제금액', '요청사항', '디자인파일', '상태', '케이스', '작업유형', '택배비', '컬러']
     for col in required_cols:
         if col not in df.columns: df[col] = "" 
     
@@ -868,30 +872,22 @@ elif menu == "주문/생산 관리":
     ])
 
 # 🔴 컬러 헥사코드 자동 번역기 함수
-    def get_color_name(raw_color):
-        raw_color = str(raw_color).strip()
-        color_lower = raw_color.lower()
+def get_color_name(raw_color):
+    raw_color = str(raw_color).strip()
+    color_lower = raw_color.lower()
+    
+    # 혹시 '#'이 빠져서 들어와도 알아서 붙여줌
+    if len(color_lower) == 6 and not color_lower.startswith('#'):
+        color_lower = '#' + color_lower
         
-        # 💡 DUWELL 맞춤형 컬러 사전입니다.
-        color_map = {
-            "#ffffff": "화이트",
-            "#fae7a3": "베이지",
-            "#624138": "브라운",
-            "#d9d9d9": "라이트 그레이", 
-            "#838f95": "다크 그레이",
-            "#333131": "딥 그레이",
-            "#9ed3ef": "라이트 블루",
-            "#14529e": "로얄 블루",
-            "#fce5cd": "라이트 핑크",
-            "#e6b8af": "핑크",
-            "#f6a147": "라이트 오렌지",
-            "#ed6d03": "오렌지",
-            "#660000": "와인",
-            "#0c6b59": "그린",
-            "#ffff00": "옐로우"
-        }
-        
-        return color_map.get(color_lower, raw_color)
+    color_map = {
+        "#ffffff": "화이트", "#fae7a3": "베이지", "#624138": "브라운",
+        "#d9d9d9": "라이트 그레이", "#838f95": "다크 그레이", "#333131": "딥 그레이",
+        "#9ed3ef": "라이트 블루", "#14529e": "로얄 블루", "#fce5cd": "라이트 핑크",
+        "#e6b8af": "핑크", "#f6a147": "라이트 오렌지", "#ed6d03": "오렌지",
+        "#660000": "와인", "#0c6b59": "그린", "#ffff00": "옐로우"
+    }
+    return color_map.get(color_lower, raw_color)
     # ---------------------------------------------------------
     # 1. 주문 등록 탭
     # ---------------------------------------------------------
