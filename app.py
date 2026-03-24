@@ -1057,10 +1057,10 @@ elif menu == "주문/생산 관리":
                             else:
                                 st.error(msg)
 
-    # ---------------------------------------------------------
+  # ---------------------------------------------------------
     # 3. 통합 발주 및 지시서 생성 탭
     # ---------------------------------------------------------
-with op_tab3:
+    with op_tab3:
         st.markdown("#### 통합 발주 및 지시서 생성")
         if not df_all.empty:
             pending_orders = df_all[~df_all['상태'].isin(['발주완료', '배송중', '배송완료', '취소', '반품'])].copy()
@@ -1068,7 +1068,7 @@ with op_tab3:
             else:
                 if "선택" not in pending_orders.columns: pending_orders.insert(0, "선택", False)
                 st.markdown("##### 1️⃣ 발주 대상 선택")
-                # 🔴 화면 표시에 '컬러' 열 추가
+                # 🔴 컬러 열 포함
                 edited_orders = st.data_editor(
                     pending_orders, column_config={"선택": st.column_config.CheckboxColumn(required=True)},
                     column_order=['선택', '날짜_str', '구매자명', '상품명', '컬러', '수량', '요청사항'], hide_index=True, use_container_width=True
@@ -1079,12 +1079,10 @@ with op_tab3:
                     if st.button("발주 확정 및 파일 생성", type="primary", use_container_width=True):
                         for _, row in selected_data.iterrows(): update_status_in_sheet(sheet_main, row, "발주완료")
                         
-                        # 🔴 엑셀 다운로드 파일에 '컬러' 열 추가
                         excel_out = io.BytesIO()
                         with pd.ExcelWriter(excel_out, engine='xlsxwriter') as writer:
                             selected_data[['구매자명', '연락처', '주소', '상품명', '컬러', '수량', '요청사항']].to_excel(writer, index=False)
                         
-                        # 🔴 작업지시서(HTML) 표에 '컬러' 칸 추가
                         all_html = "<html><body style='font-family:sans-serif;'>"
                         for _, row in selected_data.iterrows():
                             b_name = str(row['구매자명']).strip()
@@ -1104,6 +1102,7 @@ with op_tab3:
                         c1, c2 = st.columns(2)
                         with c1: st.download_button("발주 리스트 다운로드 (Excel)", st.session_state['ready_excel'], f"발주리스트_{datetime.now().strftime('%m%d')}.xlsx")
                         with c2: st.download_button("상세 작업지시서 다운로드 (HTML)", st.session_state['ready_html'], f"작업지시서_{datetime.now().strftime('%m%d')}.html", "text/html")
+
     # ---------------------------------------------------------
     # 4. 송장 등록 탭
     # ---------------------------------------------------------
@@ -1112,14 +1111,12 @@ with op_tab3:
         if not df_all.empty:
             completed_orders = df_all[df_all['상태'] == '발주완료'].copy()
             sc1, sc2 = st.columns(2)
-            
             with sc1:
                 st.markdown("##### 수동 입력 (건별)")
-                if completed_orders.empty: 
-                    st.write("발주 완료된 대기 내역이 없습니다.")
+                if completed_orders.empty: st.write("발주 완료된 대기 내역이 없습니다.")
                 else:
                     if '송장번호' not in completed_orders.columns: completed_orders['송장번호'] = ""
-                    tr_edited = st.data_editor(completed_orders, column_order=['구매자명', '상품명', '송장번호'], hide_index=True, key="man_track")
+                    tr_edited = st.data_editor(completed_orders, column_order=['구매자명', '상품명', '송장번호'], hide_index=True)
                     if st.button("수동 송장 저장"):
                         cnt = 0
                         for _, row in tr_edited.iterrows():
@@ -1128,21 +1125,15 @@ with op_tab3:
                                 ok, _ = update_tracking_in_sheet(sheet_main, row, t_num)
                                 if ok: cnt += 1
                         st.success(f"{cnt}건 저장 완료!")
-                        st.cache_data.clear()
-                        time.sleep(1); st.rerun()
-            
+                        st.cache_data.clear(); time.sleep(1); st.rerun()
             with sc2:
                 st.markdown("##### 엑셀 일괄 등록")
-                up_f = st.file_uploader("공장 송장 엑셀 파일 (.xlsx)", type=['xlsx'], key="track_up")
+                up_f = st.file_uploader("공장 송장 엑셀 파일 (.xlsx)", type=['xlsx'])
                 if up_f and st.button("엑셀 데이터 시트 반영"):
                     df_up = pd.read_excel(up_f)
                     ok, msg = bulk_update_tracking_excel(sheet_main, df_up)
-                    if ok: 
-                        st.success(msg)
-                        st.cache_data.clear()
-                        time.sleep(1); st.rerun()
-                    else: 
-                        st.error(msg)
+                    if ok: st.success(msg); st.cache_data.clear(); time.sleep(1); st.rerun()
+                    else: st.error(msg)
 # === 마케팅 & CRM ===
 elif menu == "마케팅 & CRM":
     render_page_header("마케팅 & CRM 통합 센터", "고객 관리부터 광고 성과 측정, AI 카피라이팅까지 한곳에서 관리하세요.")
