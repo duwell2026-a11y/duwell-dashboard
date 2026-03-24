@@ -1060,84 +1060,50 @@ elif menu == "주문/생산 관리":
     # ---------------------------------------------------------
     # 3. 통합 발주 및 지시서 생성 탭
     # ---------------------------------------------------------
-    with op_tab3:
+with op_tab3:
         st.markdown("#### 통합 발주 및 지시서 생성")
-        st.info("발주 확정 시 수량 리스트(Excel)와 상세 제작 지시서(HTML)가 함께 준비됩니다.")
-        
         if not df_all.empty:
             pending_orders = df_all[~df_all['상태'].isin(['발주완료', '배송중', '배송완료', '취소', '반품'])].copy()
-            
-            if pending_orders.empty:
-                st.success("현재 새로 공장에 넘길 발주 대기 건이 없습니다.")
+            if pending_orders.empty: st.success("현재 새로 공장에 넘길 발주 대기 건이 없습니다.")
             else:
-                if "선택" not in pending_orders.columns: 
-                    pending_orders.insert(0, "선택", False)
-                
+                if "선택" not in pending_orders.columns: pending_orders.insert(0, "선택", False)
                 st.markdown("##### 1️⃣ 발주 대상 선택")
+                # 🔴 화면 표시에 '컬러' 열 추가
                 edited_orders = st.data_editor(
-                    pending_orders,
-                    column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-                    column_order=['선택', '날짜_str', '구매자명', '상품명', '수량', '요청사항'],
-                    hide_index=True, use_container_width=True, key="integrated_order_final"
+                    pending_orders, column_config={"선택": st.column_config.CheckboxColumn(required=True)},
+                    column_order=['선택', '날짜_str', '구매자명', '상품명', '컬러', '수량', '요청사항'], hide_index=True, use_container_width=True
                 )
-                
                 selected_data = edited_orders[edited_orders['선택'] == True]
-                
                 if not selected_data.empty:
                     st.divider()
                     if st.button("발주 확정 및 파일 생성", type="primary", use_container_width=True):
-                        for _, row in selected_data.iterrows():
-                            update_status_in_sheet(sheet_main, row, "발주완료")
+                        for _, row in selected_data.iterrows(): update_status_in_sheet(sheet_main, row, "발주완료")
                         
+                        # 🔴 엑셀 다운로드 파일에 '컬러' 열 추가
                         excel_out = io.BytesIO()
                         with pd.ExcelWriter(excel_out, engine='xlsxwriter') as writer:
-                            selected_data[['구매자명', '연락처', '주소', '상품명', '수량', '요청사항']].to_excel(writer, index=False)
+                            selected_data[['구매자명', '연락처', '주소', '상품명', '컬러', '수량', '요청사항']].to_excel(writer, index=False)
                         
+                        # 🔴 작업지시서(HTML) 표에 '컬러' 칸 추가
                         all_html = "<html><body style='font-family:sans-serif;'>"
                         for _, row in selected_data.iterrows():
                             b_name = str(row['구매자명']).strip()
+                            color_val = str(row.get('컬러', '-')).strip()
                             drive_id = get_drive_id(str(row.get('디자인파일', '')))
                             img_tag = f"<img src='https://drive.google.com/thumbnail?id={drive_id}&sz=w500' style='max-width:100%;'>" if drive_id else "<p>[이미지 없음]</p>"
                             
-                            all_html += f"""
-                                <div style='page-break-after:always; border:2px solid #2B3A55; padding:20px; margin-bottom:40px; border-radius:10px;'>
-                                    <h2 style='color:#2B3A55;'>제작 지시서 ({b_name}님)</h2>
-                                    <table border='1' style='width:100%; border-collapse:collapse; margin-bottom:20px;'>
-                                        <tr style='background:#f4f4f4;'><th>상품명</th><th>수량</th><th>요청사항(자수)</th></tr>
-                                        <tr><td align='center'>{row['상품명']}</td><td align='center'>{row['수량']}</td><td>{row['요청사항']}</td></tr>
-                                    </table>
-                                    <div style='text-align:center;'>
-                                        <p><b>[확정 디자인 시안]</b></p>
-                                        {img_tag}
-                                    </div>
-                                </div>
-                            """
+                            all_html += f"<div style='page-break-after:always; border:2px solid #2B3A55; padding:20px; margin-bottom:40px; border-radius:10px;'><h2 style='color:#2B3A55;'>제작 지시서 ({b_name}님)</h2><table border='1' style='width:100%; border-collapse:collapse; margin-bottom:20px;'><tr style='background:#f4f4f4;'><th>상품명</th><th>컬러</th><th>수량</th><th>요청사항(자수)</th></tr><tr><td align='center'>{row['상품명']}</td><td align='center'><b>{color_val}</b></td><td align='center'>{row['수량']}</td><td>{row['요청사항']}</td></tr></table><div style='text-align:center;'><p><b>[확정 디자인 시안]</b></p>{img_tag}</div></div>"
                         all_html += "</body></html>"
                         
                         st.session_state['ready_excel'] = excel_out.getvalue()
                         st.session_state['ready_html'] = all_html.encode('utf-8-sig')
-                        st.success("발주 처리가 완료되었습니다. 아래 버튼으로 파일을 받아 검토 후 수동 발송하세요.")
+                        st.success("발주 처리가 완료되었습니다.")
                         st.cache_data.clear()
                     
                     if 'ready_excel' in st.session_state:
                         c1, c2 = st.columns(2)
-                        with c1:
-                            st.download_button(
-                                "발주 리스트 다운로드 (Excel)",
-                                data=st.session_state['ready_excel'],
-                                file_name=f"DUWELL_발주리스트_{datetime.now().strftime('%m%d')}.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                use_container_width=True
-                            )
-                        with c2:
-                            st.download_button(
-                                "상세 작업지시서 다운로드 (HTML)",
-                                data=st.session_state['ready_html'],
-                                file_name=f"DUWELL_작업지시서_{datetime.now().strftime('%m%d')}.html",
-                                mime="text/html",
-                                use_container_width=True
-                            )
-
+                        with c1: st.download_button("발주 리스트 다운로드 (Excel)", st.session_state['ready_excel'], f"발주리스트_{datetime.now().strftime('%m%d')}.xlsx")
+                        with c2: st.download_button("상세 작업지시서 다운로드 (HTML)", st.session_state['ready_html'], f"작업지시서_{datetime.now().strftime('%m%d')}.html", "text/html")
     # ---------------------------------------------------------
     # 4. 송장 등록 탭
     # ---------------------------------------------------------
