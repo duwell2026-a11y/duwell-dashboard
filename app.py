@@ -1115,7 +1115,7 @@ def get_color_name(raw_color):
                     if ok: st.success(msg); st.cache_data.clear(); time.sleep(1); st.rerun()
                     else: st.error(msg)
 # === 마케팅 & CRM ===
-elif menu=="마케팅&CRM"
+elif menu == "마케팅 & CRM"
     render_page_header("마케팅 & CRM 통합 센터", "고객 관리부터 광고 성과 측정, AI 카피라이팅까지 한곳에서 관리하세요.")
     
     m_tab1, m_tab2, m_tab3, m_tab4, m_tab5 = st.tabs([
