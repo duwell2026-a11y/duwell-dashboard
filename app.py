@@ -21,7 +21,7 @@ import platform
 import io
 
 # --------------------------------------------------------------------------
-# 0. 페이지 설정 및 디자인 (CSS) - 최상단 배치
+# 0. 페이지 설정 및 디자인 (CSS)
 # --------------------------------------------------------------------------
 st.set_page_config(page_title="DUWELL 스마트 ERP", layout="wide", initial_sidebar_state="expanded")
 
@@ -69,14 +69,14 @@ st.markdown("""
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04); border: 1px solid #E9ECEF;
         }
         @page { 
-    size: A4 landscape; 
-    margin: 10mm; 
-}
+            size: A4 landscape; 
+            margin: 10mm; 
+        }
     </style>
 """, unsafe_allow_html=True)
 
 # --------------------------------------------------------------------------
-# 1. 보안 및 로그인 (기존 로직 유지)
+# 1. 보안 및 로그인
 # --------------------------------------------------------------------------
 if 'logged_in' not in st.session_state:
     st.session_state['logged_in'] = False
@@ -97,7 +97,6 @@ if not st.session_state['logged_in']:
 # --------------------------------------------------------------------------
 # 2. 키 파일 및 권한 설정
 # --------------------------------------------------------------------------
-
 local_key_path = r"D:\비서\google_key.json"
 is_local = os.path.exists(local_key_path)
 
@@ -109,24 +108,17 @@ GOOGLE_CREDENTIALS = None
 
 try:
     if is_local:
-        # 💻 1. 내 컴퓨터(로컬)에서 테스트할 때의 세팅
         SHEET_ID = "1xqcbuzRzzp4i_Qsy4CKRjIIvGOTthT88bXxxY5RjEjQ"
         SENDER_EMAIL = "duwell2026@gmail.com"
-        # API 키와 이메일 비밀번호는 비밀금고(secrets.toml)에서 가져옵니다!
         GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
         SENDER_PASSWORD = st.secrets["SENDER_PASSWORD"]
-        
         with open(local_key_path, "r", encoding="utf-8") as f:
             GOOGLE_CREDENTIALS = json.load(f)
-            
     else:
-        # 🌐 2. 깃허브 연동 후 웹(Streamlit Cloud)에서 실행될 때의 세팅
         SHEET_ID = st.secrets["SHEET_ID"]
         SENDER_EMAIL = st.secrets["SENDER_EMAIL"]
         GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
         SENDER_PASSWORD = st.secrets["SENDER_PASSWORD"]
-        
-        # 구글 시트 인증서(JSON) 내용도 웹의 비밀금고에서 불러옵니다.
         if "GOOGLE_JSON_KEY" in st.secrets:
             GOOGLE_CREDENTIALS = json.loads(st.secrets["GOOGLE_JSON_KEY"])
         else:
@@ -139,9 +131,8 @@ except Exception as e:
     st.error(f"❌ 설정 로드 실패: {e}")
     st.stop()
 
-
 # --------------------------------------------------------------------------
-# 2. 함수 모음 (render_page_header 포함)
+# 3. 핵심 함수 모음 (중복 제거 및 완벽 정리)
 # --------------------------------------------------------------------------
 def render_page_header(title, subtitle):
     st.markdown(f"""
@@ -153,10 +144,7 @@ def render_page_header(title, subtitle):
         </div>
     """, unsafe_allow_html=True)
 
-# ==========================================================
-# 1. 구글 연결 최적화 (API 호출 제한 에러 완벽 방어 🛡️)
-# ==========================================================
-@st.cache_resource(ttl=3600) # 🔴 핵심: 구글 시트와의 '연결 통로'를 1시간 동안 기억해둡니다.
+@st.cache_resource(ttl=3600)
 def get_client():
     try:
         creds_dict = dict(GOOGLE_CREDENTIALS)
@@ -165,12 +153,15 @@ def get_client():
         st.error(f"인증 에러: {e}")
         return None
 
-@st.cache_resource(ttl=3600) # 🔴 핵심: 시트 객체도 기억해둬서 매번 구글에 문을 두드리지 않습니다.
-def get_sheet_object(sheet_name):
+@st.cache_data(ttl=300) 
+def fetch_raw_data(sheet_name):
     client = get_client()
-    if client:
-        return client.open_by_key(SHEET_ID).worksheet(sheet_name)
-    return None
+    if not client: return []
+    try:
+        sheet = client.open_by_key(SHEET_ID).worksheet(sheet_name)
+        return sheet.get_all_records()
+    except Exception:
+        return []
 
 def clean_date_str(date_val):
     s = str(date_val).strip()
@@ -182,59 +173,23 @@ def clean_date_str(date_val):
         return f"{y}-{int(m):02d}-{int(d):02d}"
     return s
 
-@st.cache_data(ttl=300) 
-def fetch_raw_data(sheet_name):
-    sheet = get_sheet_object(sheet_name)
-    if not sheet: return []
-    try:
-        return sheet.get_all_records()
-    except Exception:
-        return []
-
-def load_data(sheet_name):
-    raw_data = fetch_raw_data(sheet_name)
-    df = pd.DataFrame(raw_data)
+# 🔴 컬러 헥사코드 자동 번역기 (이 위치에 있어야 전체 시스템이 안전합니다!)
+def get_color_name(raw_color):
+    raw_color = str(raw_color).strip()
+    color_lower = raw_color.lower()
     
-    # 매번 연결하지 않고 기억해둔 시트 객체를 바로 가져옵니다. (에러 멈춤!)
-    sheet = get_sheet_object(sheet_name)
-    
-    if df.empty: return df, sheet
-    
-    # --- 대표님의 기존 전처리 코드 완벽하게 동일 ---
-    df.columns = [str(c).strip() for c in df.columns]
-    for col in ['날짜', '시작일', '종료일', '주문일시', '주문일']:
-        if col in df.columns: df[col] = df[col].apply(clean_date_str)
+    if len(color_lower) == 6 and not color_lower.startswith('#'):
+        color_lower = '#' + color_lower
+        
+    color_map = {
+        "#ffffff": "화이트", "#fae7a3": "베이지", "#624138": "브라운",
+        "#d9d9d9": "라이트 그레이", "#838f95": "다크 그레이", "#333131": "딥 그레이",
+        "#9ed3ef": "라이트 블루", "#14529e": "로얄 블루", "#fce5cd": "라이트 핑크",
+        "#e6b8af": "핑크", "#f6a147": "라이트 오렌지", "#ed6d03": "오렌지",
+        "#660000": "와인", "#0c6b59": "그린", "#ffff00": "옐로우"
+    }
+    return color_map.get(color_lower, raw_color)
 
-
-
-def render_page_header(title, subtitle):
-    """모든 탭에서 공통으로 사용하는 프리미엄 헤더 디자인"""
-    st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #2B3A55 0%, #1A2235 100%); 
-                    padding: 25px 30px; border-radius: 12px; color: white; margin-bottom: 25px;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-left: 6px solid #800020;">
-            <h2 style="margin:0; font-size:1.6rem; font-weight:800; color:white; letter-spacing:-0.5px;">{title}</h2>
-            <p style="margin:8px 0 0 0; font-size:0.95rem; opacity:0.85; color:white;">{subtitle}</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-
-# ==========================================================
-# 2. 캐시 분리 (데이터가 안 뜨는 '텅 빈 화면' 문제 해결)
-# ==========================================================
-@st.cache_data(ttl=300) 
-def fetch_raw_data(sheet_name):
-    client = get_client()
-    if not client: return []
-    try:
-        sheet = client.open_by_key(SHEET_ID).worksheet(sheet_name)
-        return sheet.get_all_records()
-    except Exception:
-        return []
-
-# ==========================================================
-# 3. 대표님의 기존 데이터 로직 100% 복구 + 시트 객체 연결
-# ==========================================================
 def load_data(sheet_name):
     raw_data = fetch_raw_data(sheet_name)
     df = pd.DataFrame(raw_data)
@@ -265,7 +220,6 @@ def load_data(sheet_name):
     df.rename(columns=rename_map, inplace=True)
     df = df.loc[:, ~df.columns.duplicated()]
     
-    # 🔴 핵심 해결 포인트: 시트에서 '컬러' 열을 읽자마자 싹 다 번역기를 돌립니다!
     if '컬러' in df.columns:
         df['컬러'] = df['컬러'].apply(get_color_name)
 
@@ -279,114 +233,72 @@ def load_data(sheet_name):
 
 def update_status_in_sheet(sheet, row_data, new_status="발주완료"):
     try:
-        # 1. 전체 데이터 로드
         records = sheet.get_all_records()
         header = sheet.row_values(1)
         
-        # 2. '상태' 컬럼 인덱스 찾기 (다양한 표현 대응)
         col_idx = -1
         status_names = ['상태', '진행상태', '배송상태', '주문상태']
         for i, h in enumerate(header):
             if any(name in h.strip() for name in status_names):
                 col_idx = i + 1
                 break
-        
-        if col_idx == -1:
-            return False, "❌ 시트에서 '진행상태' 열을 찾을 수 없습니다."
+        if col_idx == -1: return False, "❌ 시트에서 '진행상태' 열을 찾을 수 없습니다."
 
-        # 3. 대상 행(Row) 찾기
         target_row_idx = -1
-        # 비교를 위해 입력 데이터 정리
         t_name = str(row_data.get('구매자명', '')).strip()
         t_item = str(row_data.get('상품명', '')).strip()
 
         for idx, record in enumerate(records):
-            # 시트 데이터 정리 (여러 컬럼명 대응)
             r_name = str(record.get('구매자명') or record.get('성함') or record.get('이름') or record.get('수취인명') or '').strip()
             r_item = str(record.get('상품명') or record.get('상품') or record.get('제품명') or '').strip()
-            
-            # 이름이 일치하고 상품명이 포함되어 있다면 해당 행으로 간주
             if r_name == t_name and (t_item in r_item or r_item in t_item):
-                target_row_idx = idx + 2 # 헤더가 1행이므로 +2
+                target_row_idx = idx + 2
                 break
                 
-        # 4. 시트 업데이트 실행
         if target_row_idx != -1:
             sheet.update_cell(target_row_idx, col_idx, new_status)
             return True, f"✅ {target_row_idx}행 업데이트 성공"
         else:
             return False, f"❌ '{t_name}' 고객의 주문을 시트에서 매칭하지 못했습니다."
-
-    except Exception as e:
-        return False, f"❌ 시스템 오류: {str(e)}"
+    except Exception as e: return False, f"❌ 시스템 오류: {str(e)}"
 
 def get_drive_id(url):
     if not url or url == "-" or "이미지없음" in url: return None
-    # /d/ 뒤 또는 id= 뒤의 25~50자 ID를 추출 (usp= 등 불필요한 인자 무시)
     match = re.search(r"(?:id=|\/d\/)([\w-]{25,50})", str(url))
     return match.group(1) if match else None
 
-def get_best_model():
-    try:
-        available_models = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                available_models.append(m.name)
-        for m in available_models:
-            if 'flash' in m.lower(): return m
-        return available_models[0] if available_models else "models/gemini-pro"
-    except Exception:
-        return "gemini-pro"
-
 def ask_ai(prompt):
     if not GOOGLE_API_KEY: return "API Key Missing"
-    
-    # 💡 [핵심] 에러가 나더라도 튕기지 않도록 변수를 맨 처음에 미리 만들어둡니다.
     available_models = [] 
-    
     try:
-        # 1. 내 구글 API 키로 접속 가능한 모든 모델 리스트를 불러옵니다.
         for m in genai.list_models():
             if 'generateContent' in m.supported_generation_methods:
                 available_models.append(m.name)
-        
-        if not available_models:
-            return "🚨 권한 에러: 구글 API 키로 사용할 수 있는 모델이 하나도 없습니다."
+        if not available_models: return "🚨 권한 에러: 구글 API 키로 사용할 수 있는 모델이 하나도 없습니다."
             
-        # 2. 쓸 수 있는 모델 중 가장 똑똑하고 빠른(flash 또는 pro) 모델을 자동으로 골라냅니다.
-        target_model = available_models[-1] # 임시 기본값
+        target_model = available_models[-1]
         for m in available_models:
             if 'flash' in m.lower() or 'pro' in m.lower():
                 target_model = m
                 break
                 
-        # 3. 모델 이름 깔끔하게 정리 (models/ 글자 제거)
         clean_model_name = target_model.replace("models/", "")
-        
-        # 4. 검색된 진짜 모델로 기획안 작성을 지시합니다.
         model = genai.GenerativeModel(clean_model_name)
         response = model.generate_content(prompt)
         return response.text
-        
     except Exception as e: 
-        # 이제 2차 에러 없이 "진짜 에러 원인"을 화면에 띄워줍니다!
         return f"🚨 진짜 에러 원인: {str(e)}\n\n💡 [참고] 내 API로 사용 가능한 모델 목록: {available_models}"
 
 def add_log(action_type, details):
-    """실수를 추적하기 위한 블랙박스(작업로그) 기록 함수"""
     try:
         client = get_client()
         if client:
             log_sheet = client.open_by_key(SHEET_ID).worksheet("작업로그")
             now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             log_sheet.append_row([now_str, action_type, details])
-    except Exception as e:
-        pass # 로그 기록이 실패해도 본래 작업(주문/재고수정 등)은 멈추면 안 되므로 pass 처리
+    except Exception: pass
 
 def send_email_with_attach(to, subject, body, attachment_file=None, filename="attachment.xlsx", multiple_attachments=None):
-    """
-    단일 파일 또는 여러 개의 파일(multiple_attachments)을 이메일로 전송하는 함수
-    """
     try:
         msg = MIMEMultipart()
         msg['From'] = SENDER_EMAIL
@@ -394,14 +306,12 @@ def send_email_with_attach(to, subject, body, attachment_file=None, filename="at
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
         
-        # 1. 단일 첨부파일 처리 (기존 발주서 전송용)
         if attachment_file:
             attachment_file.seek(0)
             part = MIMEApplication(attachment_file.read(), Name=filename)
             part['Content-Disposition'] = f'attachment; filename="{filename}"'
             msg.attach(part)
             
-        # 2. 다중 첨부파일 처리 (작업지시서 & 원본 이미지용)
         if multiple_attachments:
             for att in multiple_attachments:
                 att['file'].seek(0)
@@ -413,70 +323,42 @@ def send_email_with_attach(to, subject, body, attachment_file=None, filename="at
             s.login(SENDER_EMAIL, SENDER_PASSWORD)
             s.send_message(msg)
         return True, "전송 성공"
-    except Exception as e:
-        return False, str(e)
+    except Exception as e: return False, str(e)
 
 def deduct_stock_smart(product_name, qty, df_opt, sheet_stock):
-    """
-    개선된 재고 차감 로직:
-    1. 매핑명 중 가장 긴 단어(정밀한 명칭)부터 매칭 시도
-    2. 데이터 타입 에러 방지 (숫자 변환 예외 처리)
-    """
     try:
-        if df_opt.empty or not sheet_stock:
-            return False, "⚠️ 옵션 설정 또는 재고 시트 로드 실패"
-
+        if df_opt.empty or not sheet_stock: return False, "⚠️ 옵션 설정 또는 재고 시트 로드 실패"
         product_name = str(product_name).strip()
         target_std_name = None
         
-        # [개선] 매칭 우선순위 로직
-        # 매핑명을 리스트로 만들고, 글자 수가 긴 순서대로 정렬하여 정밀 매칭 유도
         match_candidates = []
         for _, opt in df_opt.iterrows():
             std_name = str(opt.get('상품명', '')).strip()
             mapping_str = str(opt.get('매핑명', '')).strip()
             keywords = [k.strip() for k in mapping_str.split(',') if k.strip()]
-            
             for kw in keywords:
                 if kw in product_name:
-                    # (일치하는 키워드 길이, 실제 상품명) 저장
                     match_candidates.append((len(kw), std_name))
         
-        # 일치하는 키워드가 있다면 가장 긴 것(가장 구체적인 이름)을 선택
         if match_candidates:
             match_candidates.sort(key=lambda x: x[0], reverse=True)
             target_std_name = match_candidates[0][1]
-        else:
-            # 매핑에 없으면 원본 상품명으로 시도
-            target_std_name = product_name
+        else: target_std_name = product_name
 
-        # [재고 반영]
         stock_records = sheet_stock.get_all_records()
         for idx, s_item in enumerate(stock_records):
             if str(s_item.get('상품명')).strip() == target_std_name:
-                # 숫자 변환 안정성 확보
-                try:
-                    current_qty = int(pd.to_numeric(s_item.get('현재재고', 0), errors='coerce'))
-                except:
-                    current_qty = 0
-                
+                try: current_qty = int(pd.to_numeric(s_item.get('현재재고', 0), errors='coerce'))
+                except: current_qty = 0
                 new_qty = current_qty - int(qty)
-                
-                # 구글 시트 업데이트 (B열이 '현재재고'라고 가정: idx + 2행, 2열)
                 sheet_stock.update_cell(idx + 2, 2, new_qty)
                 return True, f"✅ '{target_std_name}' {qty}개 차감 완료 (잔여: {new_qty})"
-        
         return False, f"⚠️ '{target_std_name}' 상품을 재고 목록에서 찾을 수 없습니다."
-
-    except Exception as e:
-        return False, f"❌ 재고 차감 중 에러 발생: {str(e)}"
+    except Exception as e: return False, f"❌ 재고 차감 중 에러 발생: {str(e)}"
 
 def add_stock_smart(product_name, qty, df_opt, sheet_stock):
-    """취소/반품 시 빠졌던 재고를 다시 더해주는(+) 마법의 함수"""
     try:
-        if df_opt.empty or not sheet_stock:
-            return False, "⚠️ 옵션 설정 또는 재고 시트 로드 실패"
-
+        if df_opt.empty or not sheet_stock: return False, "⚠️ 옵션 설정 또는 재고 시트 로드 실패"
         product_name = str(product_name).strip()
         target_std_name = None
         
@@ -485,44 +367,29 @@ def add_stock_smart(product_name, qty, df_opt, sheet_stock):
             std_name = str(opt.get('상품명', '')).strip()
             mapping_str = str(opt.get('매핑명', '')).strip()
             keywords = [k.strip() for k in mapping_str.split(',') if k.strip()]
-            
             for kw in keywords:
-                if kw in product_name:
-                    match_candidates.append((len(kw), std_name))
+                if kw in product_name: match_candidates.append((len(kw), std_name))
         
         if match_candidates:
             match_candidates.sort(key=lambda x: x[0], reverse=True)
             target_std_name = match_candidates[0][1]
-        else:
-            target_std_name = product_name
+        else: target_std_name = product_name
 
         stock_records = sheet_stock.get_all_records()
         for idx, s_item in enumerate(stock_records):
             if str(s_item.get('상품명')).strip() == target_std_name:
-                try:
-                    current_qty = int(pd.to_numeric(s_item.get('현재재고', 0), errors='coerce'))
-                except:
-                    current_qty = 0
-                
-                # 🔥 여기서 재고를 다시 더해줍니다!
+                try: current_qty = int(pd.to_numeric(s_item.get('현재재고', 0), errors='coerce'))
+                except: current_qty = 0
                 new_qty = current_qty + int(qty)
-                
                 sheet_stock.update_cell(idx + 2, 2, new_qty)
                 return True, f"✅ '{target_std_name}' {qty}개 복구 완료 (잔여: {new_qty})"
-        
         return False, f"⚠️ '{target_std_name}' 상품을 재고 목록에서 찾을 수 없습니다."
-
-    except Exception as e:
-        return False, f"❌ 재고 복구 중 에러 발생: {str(e)}"
+    except Exception as e: return False, f"❌ 재고 복구 중 에러 발생: {str(e)}"
 
 def check_stock_and_alert(df_stock):
-    """자동 메일 기능을 제거하고 부족 품목 리스트만 반환하여 화면에 표시합니다."""
     df_stock['현재재고'] = pd.to_numeric(df_stock['현재재고'], errors='coerce').fillna(0)
     df_stock['안전재고'] = pd.to_numeric(df_stock['안전재고'], errors='coerce').fillna(0)
-    low_items = df_stock[df_stock['현재재고'] <= df_stock['안전재고']]
-    
-    # 기존에 있던 send_email_with_attach 호출 코드를 삭제했습니다.
-    return low_items
+    return df_stock[df_stock['현재재고'] <= df_stock['안전재고']]
 
 def process_audio(uploaded_file):
     try:
@@ -535,24 +402,18 @@ def process_audio(uploaded_file):
         return result.text
     except Exception as e: return f"오류: {str(e)}"
 
-    # --- 송장 번호 개별/일괄 업데이트 함수 ---
-
 def update_tracking_in_sheet(sheet, row_data, tracking_num, new_status="배송중"):
-    """수동으로 송장번호 입력 시 사용"""
     try:
         records = sheet.get_all_records()
         header = sheet.row_values(1)
         
-        # 필요한 컬럼 위치 찾기
         t_idx = -1
         s_idx = -1
         for i, h in enumerate(header):
             if '송장번호' in h.strip(): t_idx = i + 1
             if h.strip() in ['상태', '진행상태']: s_idx = i + 1
-            
         if t_idx == -1: return False, "❌ 시트에 '송장번호' 열이 없습니다."
 
-        # 대상 행 찾기 (구매자명 + 상품명 조합)
         target_row_idx = -1
         t_name = str(row_data.get('구매자명', '')).strip()
         t_item = str(row_data.get('상품명', '')).strip()
@@ -569,85 +430,53 @@ def update_tracking_in_sheet(sheet, row_data, tracking_num, new_status="배송�
             if s_idx != -1: sheet.update_cell(target_row_idx, s_idx, new_status)
             return True, "성공"
         return False, "미매칭"
-    except Exception as e:
-        return False, str(e)
+    except Exception as e: return False, str(e)
 
 def bulk_update_tracking_excel(sheet, df_up):
-    """공장 엑셀 업로드 시 일괄 사용 (안전장치 강화 버전)"""
     try:
         all_data = sheet.get_all_values()
-        if not all_data:
-            return False, "❌ 시트에 데이터가 없습니다."
-            
+        if not all_data: return False, "❌ 시트에 데이터가 없습니다."
         header = all_data[0]
         
-        # 시트 컬럼 인덱스 확보
         try:
             name_idx = header.index('구매자명')
             status_idx = next(i for i, h in enumerate(header) if h in ['상태', '진행상태'])
             track_idx = header.index('송장번호')
-        except ValueError:
-            return False, "❌ 시트 1행(헤더)에 '구매자명', '상태', '송장번호' 컬럼이 정확히 있는지 확인해주세요."
+        except ValueError: return False, "❌ 시트 1행(헤더)에 '구매자명', '상태', '송장번호' 컬럼 확인 필요."
 
-        # 엑셀의 필수 컬럼 존재 확인
         if '구매자명' not in df_up.columns or '송장번호' not in df_up.columns:
             return False, "❌ 업로드한 엑셀에 '구매자명'과 '송장번호' 열이 필수입니다."
 
-        # 🔥 [안전장치 1] 빈 칸(NaN)이 있는 쓸모없는 행 미리 제거
         df_up = df_up.dropna(subset=['구매자명', '송장번호'])
-
         success_count = 0
         fail_count = 0
 
         for _, row in df_up.iterrows():
             u_name = str(row['구매자명']).strip()
-            # 🔥 [안전장치 2] 송장번호가 숫자로 들어와도 안전하게 문자로 변환 (.0 붙는 현상 방지)
             u_track = str(row['송장번호']).replace('.0', '').strip()
-            
-            if not u_name or not u_track or u_track.lower() == 'nan': 
-                continue
+            if not u_name or not u_track or u_track.lower() == 'nan': continue
 
             matched = False
-            # 시트에서 매칭되는 행 찾기 (최신 데이터부터 찾기 위해 역순)
             for i in range(len(all_data)-1, 0, -1):
                 s_row = all_data[i]
-                # 빈 행일 경우 건너뛰기
                 if len(s_row) <= name_idx: continue 
-                
                 if str(s_row[name_idx]).strip() == u_name:
-                    # 매칭 성공 시 업데이트
-                    sheet.update_cell(i + 1, track_idx + 1, f"'{u_track}") # 엑셀 지수표현 방지용 ' 추가
+                    sheet.update_cell(i + 1, track_idx + 1, f"'{u_track}")
                     sheet.update_cell(i + 1, status_idx + 1, "배송중")
                     success_count += 1
                     matched = True
                     break
-            
-            if not matched:
-                fail_count += 1
+            if not matched: fail_count += 1
         
         result_msg = f"✅ 총 {success_count}건 배송 처리 완료!"
-        if fail_count > 0:
-            result_msg += f" (⚠️ {fail_count}건은 명단에 없어 실패했습니다. 이름을 확인해주세요.)"
-            
+        if fail_count > 0: result_msg += f" (⚠️ {fail_count}건은 명단에 없어 실패했습니다.)"
         return True, result_msg
-        
-    except Exception as e:
-        return False, f"❌ 시스템 오류 발생: {str(e)}"
+    except Exception as e: return False, f"❌ 시스템 오류 발생: {str(e)}"
 
 # --------------------------------------------------------------------------
-# 🏠 상단 홈페이지형 네비게이션 헤더
-# --------------------------------------------------------------------------
-
-
-
-# --------------------------------------------------------------------------
-# 3. 사이드바 메뉴 구성
-# --------------------------------------------------------------------------
-# --------------------------------------------------------------------------
-# 🏠 왼쪽 사이드바 네비게이션 (대메뉴 전용 - 새로고침 버튼 제거 버전)
+# 4. 사이드바 구성
 # --------------------------------------------------------------------------
 with st.sidebar:
-    # DUWELL 로고 디자인
     st.markdown("""
         <div style='text-align: center; padding: 20px 0;'>
             <h1 style='color: #2B3A55; margin: 0; font-weight: 900; font-size: 2rem;'>DUWELL</h1>
@@ -655,66 +484,20 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # 사이드바 내부 라디오 버튼 스타일링 (동그라미 제거 및 버튼화)
-    st.markdown("""
-        <style>
-            /* 사이드바 배경색 및 구분선 */
-            [data-testid="stSidebar"] { background-color: #FFFFFF !important; border-right: 1px solid #E9ECEF; }
-            [data-testid="stSidebarNav"] { display: none; } 
-
-            /* 라디오 버튼 동그라미 숨기기 */
-            [data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child { display: none !important; }
-            
-            /* 메뉴 버튼 기본 디자인 */
-            [data-testid="stSidebar"] div[role="radiogroup"] > label {
-                padding: 12px 20px !important;
-                margin-bottom: 8px !important;
-                border-radius: 10px !important;
-                border: 1px solid transparent !important;
-                transition: all 0.3s ease;
-                cursor: pointer !important;
-            }
-            
-            /* 호버 효과 */
-            [data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
-                background-color: #F8F9FA !important;
-                border-color: #E9ECEF !important;
-            }
-            
-            /* 선택된 메뉴 스타일 (네이비 배경) */
-            [data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"] {
-                background-color: #2B3A55 !important;
-                box-shadow: 0 4px 12px rgba(43,58,85,0.15) !important;
-            }
-            
-            /* 선택된 메뉴 글자색 (화이트) */
-            [data-testid="stSidebar"] div[role="radiogroup"] > label[data-checked="true"] p {
-                color: #FFFFFF !important;
-                font-weight: 700 !important;
-            }
-
-            /* 선택 시 발생하는 빨간색 테두리 완전 제거 */
-            [data-testid="stSidebar"] div[role="radiogroup"] > label:focus-within {
-                box-shadow: none !important;
-                outline: none !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # 메인 메뉴 리스트
     menu = st.radio(
         "Menu Selection",
         ["통합 모니터링", "주문/생산 관리", "신제품 개발실", "마케팅 & CRM", "재고 관리", "옵션 관리", "일정 관리", "마진/정산 분석", "AI 비즈니스 센터"],
         label_visibility="collapsed"
     )
 
-    # 하단 접속 정보 (구분선 위로 깔끔하게 배치)
     st.write("---")
     st.caption(f"👤 접속자: {st.session_state.get('current_user', '담당자')}")
 
-# 데이터 로딩 (기존 로직 유지)
+# --------------------------------------------------------------------------
+# 5. 데이터 불러오기 (메인)
+# --------------------------------------------------------------------------
 df_duwell, sheet_main = load_data("시트1") 
-df_all = df_duwell.copy() # 여기서 df_all을 생성하므로 NameError가 해결됩니다.
+df_all = df_duwell.copy()
 
 if not df_all.empty and '날짜' in df_all.columns:
     df_all['날짜'] = pd.to_datetime(df_all['날짜'], errors='coerce')
@@ -723,10 +506,13 @@ if not df_all.empty and '날짜' in df_all.columns:
 else:
     if not df_all.empty: df_all['날짜_str'] = ""
 
-# === 통합 모니터링 (기존 유지) ===
+# ==========================================================================
+# 🚀 6. 메뉴별 로직 시작 (완벽한 들여쓰기 정렬)
+# ==========================================================================
+
+# === 통합 모니터링 ===
 if menu == "통합 모니터링":
     render_page_header("사업 현황 대시보드", "실시간 매출, 재고, 일정 데이터를 한눈에 파악하세요.")
-    # ... 기존 코드 동일 ...
     
     today = datetime.now()
     today_str = today.strftime("%Y-%m-%d")
@@ -871,26 +657,6 @@ elif menu == "주문/생산 관리":
         "1. 주문 등록", "2. 시안 & 장부", "3. 발주 및 지시서 생성", "4. 송장 등록"
     ])
 
-# 🔴 컬러 헥사코드 자동 번역기 함수
-def get_color_name(raw_color):
-    raw_color = str(raw_color).strip()
-    color_lower = raw_color.lower()
-    
-    # 혹시 '#'이 빠져서 들어와도 알아서 붙여줌
-    if len(color_lower) == 6 and not color_lower.startswith('#'):
-        color_lower = '#' + color_lower
-        
-    color_map = {
-        "#ffffff": "화이트", "#fae7a3": "베이지", "#624138": "브라운",
-        "#d9d9d9": "라이트 그레이", "#838f95": "다크 그레이", "#333131": "딥 그레이",
-        "#9ed3ef": "라이트 블루", "#14529e": "로얄 블루", "#fce5cd": "라이트 핑크",
-        "#e6b8af": "핑크", "#f6a147": "라이트 오렌지", "#ed6d03": "오렌지",
-        "#660000": "와인", "#0c6b59": "그린", "#ffff00": "옐로우"
-    }
-    return color_map.get(color_lower, raw_color)
-    # ---------------------------------------------------------
-    # 1. 주문 등록 탭
-    # ---------------------------------------------------------
     with op_tab1:
         st.markdown("#### 신규 주문 등록 (재고 자동 차감)")
         sub1, sub2 = st.tabs(["엑셀 일괄 업로드", "건별 수동 등록"])
@@ -916,13 +682,12 @@ def get_color_name(raw_color):
 
                         final_color = get_color_name(str(row.get('컬러', row.get('옵션정보', ''))))
 
-                        # 16개 열(A~P) 엑셀 배열
                         rows_add.append([
                             str(row.get('주문일시','')), str(row.get('수취인명','')), str(row.get('수취인연락처1','')), str(row.get('배송지','')), 
                             p_name, final_color, 
-                            "일반(무지)", # 🔴 G열(작업유형): 엑셀은 일단 일반으로 기본값
+                            "일반(무지)", 
                             "", str(qty), str(price), 
-                            "기본(폴리백)", # 🔴 K열(케이스): 엑셀은 기본 폴리백으로 기본값
+                            "기본(폴리백)", 
                             "신규", "엑셀일괄", str(row.get('배송메세지','')), "", str(ship_fee)
                         ])
                         
@@ -941,7 +706,6 @@ def get_color_name(raw_color):
                     m_name = st.text_input("구매자명")
                     m_phone = st.text_input("연락처")
                     m_addr = st.text_input("주소")
-                    # 🔴 작업유형 선택 추가
                     m_work = st.selectbox("작업 유형", ["일반(무지)", "자수", "전사", "나염", "기타"]) 
                     
                 with col2:
@@ -950,7 +714,6 @@ def get_color_name(raw_color):
                     m_qty = st.number_input("수량", min_value=1, value=1)
                     m_price = st.number_input("결제금액 (제품가만)", value=0, step=1000)
                     m_shipping = st.number_input("택배비 (무배면 0, 유배면 3000 등)", value=0, step=500)
-                    # 🔴 케이스 선택 추가
                     m_case = st.selectbox("포장(케이스)", ["기본(폴리백)", "1매입 박스", "2매입 박스", "3매입 박스", "띠지 포장", "기타"])
                 
                 m_file = st.text_input("디자인링크 (자수/전사 도안이 있는 경우)")
@@ -959,12 +722,11 @@ def get_color_name(raw_color):
                 if st.form_submit_button("등록 및 재고차감", type="primary"):
                     if sheet_main:
                         final_m_color = get_color_name(m_color)
-                        # 16개 열(A~P) 수동 배열
                         new_row_data = [
                             str(m_date), m_name, m_phone, m_addr, m_prod, final_m_color, 
-                            m_work, # 🔴 G열: 작업유형
+                            m_work, 
                             m_file, str(m_qty), str(m_price), 
-                            m_case, # 🔴 K열: 케이스
+                            m_case, 
                             "신규", m_market, m_req, "", str(m_shipping)
                         ]
                         sheet_main.insert_row(new_row_data, index=2, value_input_option='USER_ENTERED')
@@ -973,9 +735,6 @@ def get_color_name(raw_color):
                         ok, msg = deduct_stock_smart(m_prod, m_qty, df_opt, sheet_stock)
                         st.success(msg); st.cache_data.clear(); time.sleep(1); st.rerun()
 
-    # ---------------------------------------------------------
-    # 2. 시안 및 장부 탭
-    # ---------------------------------------------------------
     with op_tab2:
         st.markdown("#### 디자인 시안 확인 및 전체 장부")
         c_tab1, c_tab2 = st.tabs([" 디자인 작업 대기중 (시안실)", "전체 주문 장부"])
@@ -1027,9 +786,6 @@ def get_color_name(raw_color):
                                 st.cache_data.clear(); time.sleep(2); st.rerun()
                             else: st.error(msg)
 
-    # ---------------------------------------------------------
-    # 3. 통합 발주 및 지시서 생성 탭
-    # ---------------------------------------------------------
     with op_tab3:
         st.markdown("#### 통합 발주 및 지시서 생성")
         if not df_all.empty:
@@ -1037,13 +793,10 @@ def get_color_name(raw_color):
             if pending_orders.empty: st.success("현재 새로 공장에 넘길 발주 대기 건이 없습니다.")
             else:
                 if "선택" not in pending_orders.columns: pending_orders.insert(0, "선택", False)
-                
-                # 데이터가 없을 때를 대비한 방어 코드
                 if '작업유형' not in pending_orders.columns: pending_orders['작업유형'] = '일반(무지)'
                 if '케이스' not in pending_orders.columns: pending_orders['케이스'] = '기본(폴리백)'
 
                 st.markdown("##### 1️⃣ 발주 대상 선택")
-                # 🔴 편집창에 작업유형, 케이스 노출!
                 edited_orders = st.data_editor(
                     pending_orders, column_config={"선택": st.column_config.CheckboxColumn(required=True)},
                     column_order=['선택', '날짜_str', '구매자명', '상품명', '컬러', '작업유형', '케이스', '수량', '요청사항'], hide_index=True, use_container_width=True
@@ -1055,12 +808,10 @@ def get_color_name(raw_color):
                     if st.button("발주 확정 및 파일 생성", type="primary", use_container_width=True):
                         for _, row in selected_data.iterrows(): update_status_in_sheet(sheet_main, row, "발주완료")
                         
-                        # 🔴 엑셀 다운로드에 작업유형, 케이스 추가
                         excel_out = io.BytesIO()
                         with pd.ExcelWriter(excel_out, engine='xlsxwriter') as writer:
                             selected_data[['구매자명', '연락처', '주소', '상품명', '컬러', '작업유형', '케이스', '수량', '요청사항']].to_excel(writer, index=False)
                         
-                        # 🔴 HTML 지시서에 작업유형, 케이스 표 추가!
                         all_html = "<html><body style='font-family:sans-serif;'>"
                         for _, row in selected_data.iterrows():
                             b_name = str(row['구매자명']).strip()
@@ -1084,9 +835,6 @@ def get_color_name(raw_color):
                         with c1: st.download_button("발주 리스트 다운로드 (Excel)", st.session_state['ready_excel'], f"발주리스트_{datetime.now().strftime('%m%d')}.xlsx")
                         with c2: st.download_button("상세 작업지시서 다운로드 (HTML)", st.session_state['ready_html'], f"작업지시서_{datetime.now().strftime('%m%d')}.html", "text/html")
 
-    # ---------------------------------------------------------
-    # 4. 송장 등록 탭
-    # ---------------------------------------------------------
     with op_tab4:
         st.markdown("#### 배송 정보(송장) 업데이트")
         if not df_all.empty:
@@ -1114,6 +862,325 @@ def get_color_name(raw_color):
                     ok, msg = bulk_update_tracking_excel(sheet_main, df_up)
                     if ok: st.success(msg); st.cache_data.clear(); time.sleep(1); st.rerun()
                     else: st.error(msg)
+
+# === 신제품 개발실 ===
+elif menu == "신제품 개발실":
+    render_page_header("신제품 샘플 개발실", "생산 지시서(Tech Pack) 작성부터 샘플 검수(Check-list)까지 원스톱 관리")
+    tab_techpack, tab_checklist = st.tabs(["1. 생산 지시서 (Tech Pack)", "2. 샘플 검수 (Check-list)"])
+
+    with tab_techpack:
+        with st.form("new_product_dev_form"):
+            st.markdown("#### 신제품 생산 스펙 작성")
+            c1, c2 = st.columns([1, 1])
+            with c1: 
+                dev_factory = st.text_input("공장명", placeholder="예: A방직")
+                dev_prod_name = st.text_input("상품명 (ITEM)", placeholder="예: 프리미엄 와플 타월")
+            with c2: 
+                dev_color_qty = st.text_area("초도 발주 수량 (컬러 / 수량)", placeholder="예시) 기호(/)로 구분하여 작성\n웜그레이 / 500장\n네이비 / 500장\n차콜 / 300장", height=110)
+
+            st.markdown("##### 세부 사양 (SPEC)")
+            s1, s2, s3, s4 = st.columns(4)
+            with s1: dev_size = st.text_input("사이즈", placeholder="예: 40 x 80 cm")
+            with s2: dev_weight = st.text_input("중량", placeholder="예: 200g")
+            with s3: dev_yarn = st.text_input("사종 (소재)", placeholder="예: 최고급 코마사 40수")
+            with s4: dev_dyeing = st.radio("염색 방식", ["선염", "후염", "해당없음"], horizontal=True)
+
+            p1, p2, p3 = st.columns(3)
+            with p1: dev_border = st.text_input("보더 디자인", placeholder="예: 양끝 3선 피카소 보더")
+            with p2: dev_pkg = st.text_input("포장 방법", placeholder="예: 개별 띠지 + OPP 폴리백")
+            with p3: dev_label_pos = st.text_input("라벨/택 위치", placeholder="예: 우측 하단 1cm 띄우고 봉제")
+
+            st.markdown("##### 디자인 상세 및 참고 이미지")
+            i1, i2 = st.columns(2)
+            with i1:
+                dev_design_detail = st.text_area("디자인 (선염 및 보더 등 특이사항)", placeholder="예: 선염 3컬러 교차 배열, 보더 부분 자가드 포인트", height=120)
+                dev_extra = st.text_area("작업 시 주의사항 (*중요*)", placeholder="- 봉사 간격 잘게 치기\n- 잔실 없도록 깔끔하게 처리\n- 세탁 라벨은 뒷면에 겹쳐서 봉제", height=120)
+            with i2:
+                dev_ref_img = st.file_uploader("참고 이미지 (디자인 시안/도식화)", type=['png', 'jpg', 'jpeg'])
+                dev_label_img = st.file_uploader("라벨/택 이미지", type=['png', 'jpg', 'jpeg'])
+
+            st.divider()
+            submit_dev = st.form_submit_button("작업지시서 문서 생성 및 구글 시트 저장", type="primary")
+
+        if submit_dev:
+            if not dev_prod_name or not dev_factory:
+                st.warning("공장명과 상품명은 필수 입력 항목입니다.")
+            else:
+                with st.spinner("지시서를 생성 중입니다... 잠시만 기다려주세요."):
+                    import base64
+                    import io
+                    today_str = datetime.now().strftime("%Y-%m-%d")
+                    color_qty_html = ""
+                    lines = [line.strip() for line in dev_color_qty.split('\n') if line.strip()]
+                    if not lines:
+                        color_qty_html = "<tr><td style='border-left:none; border-bottom:none; border-right:2px solid #222; padding:4px;'>-</td><td style='border-right:none; border-bottom:none; padding:4px;'>-</td></tr>"
+                    else:
+                        for i, line in enumerate(lines):
+                            if '/' in line: parts = line.split('/')
+                            elif '-' in line: parts = line.split('-')
+                            else: parts = [line, ""]
+                            color = parts[0].strip()
+                            qty = parts[1].strip() if len(parts) > 1 else ""
+                            b_bottom = "border-bottom:none;" if i == len(lines) - 1 else "border-bottom:2px solid #222;"
+                            color_qty_html += f"<tr><td style='border-left:none; {b_bottom} border-right:2px solid #222; font-weight:bold; padding:4px;'>{color}</td><td style='border-right:none; {b_bottom} padding:4px;'>{qty}</td></tr>"
+
+                    try:
+                        client = get_client()
+                        if client:
+                            sheet_dev = client.open_by_key(SHEET_ID).worksheet("신제품개발")
+                            flat_color_qty = dev_color_qty.replace('\n', ', ')
+                            row_data = [
+                                today_str, dev_factory, dev_prod_name, flat_color_qty,
+                                dev_size, dev_weight, dev_yarn, dev_dyeing, dev_border, 
+                                dev_design_detail, dev_extra, dev_pkg, dev_label_pos
+                            ]
+                            sheet_dev.append_row(row_data)
+                    except Exception as e:
+                        st.error(f"⚠️ 구글 시트 저장 실패: {e}")
+
+                    def get_image_base64(uploaded_file):
+                        if uploaded_file is not None:
+                            bytes_data = uploaded_file.getvalue()
+                            b64 = base64.b64encode(bytes_data).decode()
+                            return f"data:{uploaded_file.type};base64,{b64}"
+                        return ""
+                    
+                    b64_ref = get_image_base64(dev_ref_img)
+                    b64_label = get_image_base64(dev_label_img)
+                    ref_html = f"<img src='{b64_ref}' style='width:100%; max-height:420px; object-fit:contain;'>" if b64_ref else "<span style='color:#999;'>이미지 없음</span>"
+                    label_html = f"<img src='{b64_label}' style='width:100%; max-height:150px; object-fit:contain;'>" if b64_label else "<span style='color:#999;'>라벨 없음</span>"
+                    extra_html = dev_extra.replace('\n', '<br>')
+                    design_html = dev_design_detail.replace('\n', '<br>')
+
+                    html_content = f"""
+                    <html>
+                    <head>
+                        <meta charset="utf-8">
+                        <style>
+                            @page {{ margin: 5mm; }}
+                            * {{ box-sizing: border-box; }}
+                            body {{ font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #111; font-size: 18pt; }}
+                            table {{ width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }}
+                            th, td {{ border: 2px solid #222; padding: 6px 8px; text-align: center; vertical-align: middle; font-size: 18pt; line-height: 1.4; word-break: keep-all; }}
+                            th {{ background-color: #F1F5F9; font-weight: bold; color: #111; }}
+                            .left-align {{ text-align: left; vertical-align: top; padding: 10px; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div style="text-align: center; margin-bottom: 15px;">
+                            <div style="font-size: 45pt; font-weight: 900; letter-spacing: 25px; margin-bottom: 15px; padding-left: 25px;">작업지시서</div>
+                            <table style="width: 100%; border: none; margin: 0; border-top: 3px solid #111; border-bottom: 3px solid #111;">
+                                <tr>
+                                    <td style="border: none; padding: 10px 5px; text-align: center; font-size: 15pt;"><strong>작성일자 :</strong> {today_str}</td>
+                                    <td style="border: none; padding: 10px 5px; text-align: center; font-size: 15pt;"><strong>발주처 :</strong> <span style="font-weight:900; color:#2B3A55;">DUWELL</span></td>
+                                    <td style="border: none; padding: 10px 5px; text-align: center; font-size: 15pt;"><strong>업체(공장) :</strong> {dev_factory}</td>
+                                    <td style="border: none; padding: 10px 5px; text-align: center; font-size: 18pt; font-weight: 900;"><strong>ITEM :</strong> {dev_prod_name}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <table>
+                            <colgroup>
+                                <col style="width: 45%;"> <col style="width: 20%;"> <col style="width: 35%;"> </colgroup>
+                            <tr>
+                                <th style="font-size:20pt; letter-spacing:2px;">DESIGN & LABEL / 디자인 및 라벨</th>
+                                <th colspan="2" style="font-size:20pt; letter-spacing:2px;">PRODUCTION SPECS / 생산 사양</th>
+                            </tr>
+                            <tr>
+                                <td rowspan="7" style="text-align:center; vertical-align:middle; padding:5px;">
+                                    {ref_html}
+                                </td>
+                                <th>염색방식</th>
+                                <td style="font-weight:bold; color:#2B3A55;">{dev_dyeing}</td>
+                            </tr>
+                            <tr><th>사이즈</th><td>{dev_size}</td></tr>
+                            <tr><th>중량</th><td style="color:#D32F2F; font-weight:bold;">{dev_weight}</td></tr>
+                            <tr><th>소재(사종)</th><td>{dev_yarn}</td></tr>
+                            <tr><th>보더디자인</th><td>{dev_border}</td></tr>
+                            <tr><th>포장방법(PKG)</th><td>{dev_pkg}</td></tr>
+                            <tr>
+                                <th>초도발주수량</th>
+                                <td style="padding: 0; vertical-align: top;">
+                                    <table style="width:100%; height:100%; margin:0; border-collapse:collapse; border-style:hidden;">
+                                        <tr>
+                                            <th style="width:50%; border-top:none; border-left:none; border-bottom:2px solid #222; border-right:2px solid #222; background-color:#F8F9FA;">컬러</th>
+                                            <th style="width:50%; border-top:none; border-right:none; border-bottom:2px solid #222; background-color:#F8F9FA;">수량</th>
+                                        </tr>
+                                        {color_qty_html}
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td rowspan="4" style="text-align:center; vertical-align:middle; padding:10px;">
+                                    <div style="font-size:14pt; margin-bottom:8px;"><strong>[라벨 부착 위치]</strong><br>{dev_label_pos}</div>
+                                    {label_html}
+                                </td>
+                                <th colspan="2">* 디자인 상세 (선염/보더 등) *</th>
+                            </tr>
+                            <tr><td colspan="2" class="left-align" style="height: 100px;">{design_html}</td></tr>
+                            <tr><th colspan="2">* 작업 시 주의사항 *</th></tr>
+                            <tr><td colspan="2" class="left-align" style="height: 100px;">{extra_html}</td></tr>
+                        </table>
+                    </body>
+                    </html>
+                    """
+                    st.session_state['dev_html_content'] = html_content
+                    st.session_state['dev_html_name'] = f"작업지시서_{dev_prod_name}.html"
+                    st.success("✅ 지시서 생성이 완료되었습니다! 아래에서 다운로드 버튼을 눌러주세요.")
+                    time.sleep(1) 
+                    st.rerun()
+
+        if 'dev_html_content' in st.session_state:
+            st.divider()
+            st.markdown("##### 🖨️ 생성된 문서 다운로드")
+            st.info("💡 우측의 HTML 문서를 다운로드하여 브라우저에서 열고 'Ctrl+P(인쇄) -> PDF로 저장'을 이용해 주세요.")
+            st.download_button(
+                label="✅ 작업지시서 다운로드 (HTML)", 
+                data=st.session_state['dev_html_content'].encode('utf-8-sig'), 
+                file_name=st.session_state['dev_html_name'], 
+                mime="text/html", 
+                use_container_width=True
+            )
+
+    with tab_checklist:
+        st.markdown("#### 🔎 입고 샘플 품질 검수 리스트")
+        cc1, cc2, cc3 = st.columns(3)
+        with cc1:
+            chk_prod_name = st.text_input("제품명 (Product Name)", value="와플 타월")
+            chk_reviewer = st.text_input("검수자", value=st.session_state.get('current_user', '담당자'))
+        with cc2:
+            chk_color_size = st.text_input("컬러 및 옵션 (Color/Size)", value="진행전 / 40*90")
+            chk_round = st.selectbox("차수", ["1차", "2차", "3차", "최종(Pre-Pro)"])
+        with cc3:
+            chk_date = st.date_input("작성일", datetime.now())
+            chk_result = st.selectbox("최종 판정 (Result)", ["대기중", "합격 (PASS)", "수정 후 재샘플 (RE-WORK)", "드랍 (DROP)"])
+
+        st.divider()
+        st.markdown("##### 세부 검수 항목 (Check-list)")
+        
+        default_chk_data = [
+            {"항목": "사이즈", "세부 검수 기준": "작업 지시서 상의 규격과 일치하는가?", "판정": "대기", "비고": ""},
+            {"항목": "중량", "세부 검수 기준": "요구한 평량(g) 기준 오차 범위 내에 있는가?", "판정": "대기", "비고": ""},
+            {"항목": "제품디자인", "세부 검수 기준": "와플 조직감, 패턴, 직조 형태가 기획안과 동일한가?", "판정": "대기", "비고": ""},
+            {"항목": "색상", "세부 검수 기준": "지정된 컬러 발색이 정확하고 탕차이(이색)가 없는가?", "판정": "진행전", "비고": ""},
+            {"항목": "봉제", "세부 검수 기준": "테두리 마감(헤밍 등) 일정하고 바른가?", "판정": "대기", "비고": ""},
+            {"항목": "올풀림", "세부 검수 기준": "테두리 마감 부위 및 표면에 올이 나간 곳이 없는가?", "판정": "대기", "비고": ""},
+            {"항목": "보풀", "세부 검수 기준": "표면 잔털이 심하거나 마찰 시 보풀이 생기지 않는가?", "판정": "대기", "비고": ""},
+            {"항목": "라벨", "세부 검수 기준": "케어/브랜드 라벨의 부착 위치와 봉제가 반듯한가?", "판정": "진행전", "비고": ""},
+            {"항목": "기타", "세부 검수 기준": "오염, 잡사, 포장 상태 등에 문제가 없는가?", "판정": "진행전", "비고": ""}
+        ]
+        df_chk = pd.DataFrame(default_chk_data)
+        edited_chk = st.data_editor(
+            df_chk, 
+            column_config={
+                "판정": st.column_config.SelectboxColumn("판정 (O/X)", options=["O", "X", "진행전", "대기"], required=True),
+                "비고": st.column_config.TextColumn("비고 (불량 사유 등)")
+            },
+            hide_index=True, use_container_width=True
+        )
+
+        st.divider()
+        st.markdown("##### 공장 커뮤니케이션 요약")
+        com1, com2 = st.columns(2)
+        with com1: chk_inquiry = st.text_area("본사 문의 사항 및 개선 요청", placeholder="예: 1. 세탁 후 올나감 현상 원인 파악\n2. 테두리 단봉 -> 삼봉 변경 가능 여부", height=100)
+        with com2: chk_feedback = st.text_area("공장 피드백 (답변)", placeholder="예: 삼봉 변경 시 단가 건당 50원 인상됨.", height=100)
+
+        st.markdown("##### 📸 문제점 참고 이미지 (비교용)")
+        img1, img2 = st.columns(2)
+        with img1: chk_img1 = st.file_uploader("참고 이미지 1 (불량 부위 / 변경 전)", type=['png', 'jpg', 'jpeg'], key="chk1")
+        with img2: chk_img2 = st.file_uploader("참고 이미지 2 (정상 부위 / 변경 후)", type=['png', 'jpg', 'jpeg'], key="chk2")
+
+        submit_check = st.button("검수 리스트 문서 생성 및 구글 시트 저장", type="primary", use_container_width=True)
+
+        if submit_check:
+            with st.spinner("검수 리스트를 처리 중입니다..."):
+                import base64
+                import io
+                try:
+                    client = get_client()
+                    if client:
+                        sheet_chk = client.open_by_key(SHEET_ID).worksheet("샘플검수")
+                        row_data = [
+                            str(chk_date), chk_prod_name, chk_round, chk_color_size, 
+                            chk_reviewer, chk_result, chk_inquiry.replace('\n', ' / '), chk_feedback.replace('\n', ' / ')
+                        ]
+                        sheet_chk.append_row(row_data)
+                except Exception: pass
+
+                chk_tbody = ""
+                for idx, row in edited_chk.iterrows():
+                    res_color = "#D32F2F" if row['판정'] == 'X' else ("#1976D2" if row['판정'] == 'O' else "#555")
+                    chk_tbody += f"<tr><td style='text-align:center;'>{idx+1}</td><td style='text-align:center; font-weight:bold;'>{row['항목']}</td><td style='text-align:left;'>{row['세부 검수 기준']}</td><td style='text-align:center; color:{res_color}; font-weight:bold;'>{row['판정']}</td><td style='text-align:left;'>{row['비고']}</td></tr>"
+
+                def get_img_b64(f):
+                    if f: return f"data:{f.type};base64,{base64.b64encode(f.getvalue()).decode()}"
+                    return ""
+                
+                b64_img1 = get_img_b64(chk_img1)
+                b64_img2 = get_img_b64(chk_img2)
+
+                img1_html = f"<img src='{b64_img1}' style='width:100%; max-height:280px; object-fit:contain;'>" if b64_img1 else "이미지 없음"
+                img2_html = f"<img src='{b64_img2}' style='width:100%; max-height:280px; object-fit:contain;'>" if b64_img2 else "이미지 없음"
+
+                chk_html_content = f"""
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <style>
+                        @page {{ margin: 5mm; }}
+                        body {{ font-family: 'Malgun Gothic', sans-serif; padding: 0; margin: 0; color: #111; font-size: 18pt; }}
+                        .title {{ text-align: center; font-size: 38pt; font-weight: 900; letter-spacing: 5px; margin-bottom: 10px; }}
+                        table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; }}
+                        th, td {{ border: 2px solid #222; padding: 6px 8px; vertical-align: middle; font-size: 18pt; line-height: 1.4; word-break: keep-all; }}
+                        th {{ background-color: #F1F5F9; font-weight: bold; text-align: center; color: #111; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="title">샘플 체크 리스트 ({chk_round})</div>
+                    <table>
+                        <tr>
+                            <th style="width:15%;">제품명</th><td style="width:35%; font-weight:bold; font-size:20pt;">{chk_prod_name}</td>
+                            <th style="width:15%;">작성일자</th><td style="width:35%;">{str(chk_date)}</td>
+                        </tr>
+                        <tr>
+                            <th>컬러 및 옵션</th><td style="font-size:20pt;">{chk_color_size}</td>
+                            <th>검수자</th><td>{chk_reviewer}</td>
+                        </tr>
+                        <tr>
+                            <th>최종 판정</th><td colspan="3" style="font-weight:900; font-size:24pt; color:#EE0979; text-align:center;">{chk_result}</td>
+                        </tr>
+                    </table>
+                    <table>
+                        <tr><th style="width:5%;">No.</th><th style="width:15%;">검수 항목</th><th style="width:40%;">세부 검수 기준</th><th style="width:10%;">판정</th><th style="width:30%;">비고</th></tr>
+                        {chk_tbody}
+                    </table>
+                    <table>
+                        <tr><th style="width:50%;">본사 문의 및 개선 요청 사항</th><th style="width:50%;">공장 피드백</th></tr>
+                        <tr><td style="height:80px; vertical-align:top; padding:10px;">{chk_inquiry.replace(chr(10), '<br>')}</td><td style="height:80px; vertical-align:top; padding:10px;">{chk_feedback.replace(chr(10), '<br>')}</td></tr>
+                    </table>
+                    <table>
+                        <tr><th style="width:50%;">참고 이미지 1</th><th style="width:50%;">참고 이미지 2</th></tr>
+                        <tr><td style="height:300px; text-align:center; vertical-align:middle; padding:5px;">{img1_html}</td><td style="height:300px; text-align:center; vertical-align:middle; padding:5px;">{img2_html}</td></tr>
+                    </table>
+                </body>
+                </html>
+                """
+                st.session_state['chk_html_content'] = chk_html_content
+                st.session_state['chk_html_name'] = f"샘플검수서_{chk_prod_name}_{chk_round}.html"
+                st.success("✅ 검수 리스트 생성이 완료되었습니다! 아래에서 다운로드 버튼을 눌러주세요.")
+                time.sleep(1); st.rerun()
+
+        if 'chk_html_content' in st.session_state:
+            st.divider()
+            st.markdown("##### 🖨️ 생성된 문서 다운로드")
+            st.info("💡 우측의 HTML 문서를 다운로드하여 브라우저에서 열고 'Ctrl+P(인쇄) -> PDF로 저장'을 이용해 주세요.")
+            st.download_button(
+                label="✅ 검수 리스트 다운로드 (HTML)", 
+                data=st.session_state['chk_html_content'].encode('utf-8-sig'), 
+                file_name=st.session_state['chk_html_name'], 
+                mime="text/html", 
+                use_container_width=True
+            )
+
 # === 마케팅 & CRM ===
 elif menu == "마케팅 & CRM":
     render_page_header("마케팅 & CRM 통합 센터", "고객 관리부터 광고 성과 측정, AI 카피라이팅까지 한곳에서 관리하세요.")
@@ -1146,7 +1213,6 @@ elif menu == "마케팅 & CRM":
                 search_nm = st.selectbox("상세 조회할 고객 선택", cust_profile['고객명'].unique())
                 sel_data = cust_profile[cust_profile['고객명'] == search_nm].iloc[0]
                 st.write(f"**등급:** {sel_data['등급']} | **누적금액:** {sel_data['누적금액']:,.0f}원")
-                
                 try:
                     client = get_client(); target_sh = client.open("주문데이터").worksheet("시트1")
                     h = target_sh.row_values(1)
@@ -1176,7 +1242,6 @@ elif menu == "마케팅 & CRM":
             r_col1, r_col2 = st.columns(2)
             with r_col1: naver_spend = st.number_input("네이버 광고비 (원)", min_value=0, step=10000)
             with r_col2: meta_spend = st.number_input("인스타/페북 광고비 (원)", min_value=0, step=10000)
-                
             if st.form_submit_button("ROAS 계산하기", type="primary"):
                 total_spend = naver_spend + meta_spend
                 c_roas1, c_roas2, c_roas3 = st.columns(3)
@@ -1202,8 +1267,7 @@ elif menu == "마케팅 & CRM":
                 prompt = f"상품: {product_name}, 타겟: {target_audience}, 채널: {channel}, 톤: {tone}. 이 매체에 완벽하게 맞는 광고 카피 3가지와 매력적인 캠페인 네이밍 2가지를 제안해줘."
                 try:
                     st.markdown(f"<div style='background-color:#fff; padding:20px; border-radius:12px; border:1px solid #E9ECEF;'>{ask_ai(prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
-                except:
-                    st.error("AI 연결이 필요합니다.")
+                except: st.error("AI 연결이 필요합니다.")
 
     with m_tab4:
         st.markdown("#### 스마트 고객 응대 (리뷰 & CS)")
@@ -1221,16 +1285,13 @@ elif menu == "마케팅 & CRM":
                             output = io.BytesIO()
                             with pd.ExcelWriter(output, engine='xlsxwriter') as writer: df_rev.to_excel(writer, index=False)
                             st.download_button("결과 다운로드", output.getvalue(), "리뷰답글완료.xlsx")
-                        except:
-                            st.error("AI 연결이 필요합니다.")
+                        except: st.error("AI 연결이 필요합니다.")
         with sub_tab2:
             cs_type = st.radio("문의 유형", ["배송 지연", "제품 교환", "불만", "기타"], horizontal=True)
             cs_detail = st.text_area("고객 문의 내용")
             if st.button("방어 답변 생성") and cs_detail:
-                try:
-                    st.info(ask_ai(f"유형: {cs_type}, 내용: {cs_detail}\n프리미엄 브랜드에 맞는 정중한 사과와 해결책이 담긴 답변 작성."))
-                except:
-                    st.error("AI 연결이 필요합니다.")
+                try: st.info(ask_ai(f"유형: {cs_type}, 내용: {cs_detail}\n프리미엄 브랜드에 맞는 정중한 사과와 해결책이 담긴 답변 작성."))
+                except: st.error("AI 연결이 필요합니다.")
 
     with m_tab5:
         st.markdown("#### 📸 AI 블로그/인스타 콘텐츠 및 이미지 생성")
@@ -1248,23 +1309,19 @@ elif menu == "마케팅 & CRM":
             submit_btn = st.form_submit_button("✨ AI 콘텐츠 및 사진 생성하기", type="primary")
 
         if submit_btn:
-            if not mkt_topic and not mkt_detail:
-                st.warning("주제나 핵심 내용을 최소한 하나는 입력해 주세요!")
+            if not mkt_topic and not mkt_detail: st.warning("주제나 핵심 내용을 최소한 하나는 입력해 주세요!")
             else:
                 with st.spinner("AI가 열심히 글을 작성하고 사진을 기획하고 있습니다..."):
                     prompt = f"플랫폼: {sns_type}\n주제: {mkt_topic}\n참고URL: {mkt_url}\n톤앤매너: {mkt_tone}\n핵심내용: {mkt_detail}\n\n위 내용을 바탕으로 {sns_type}에 바로 올릴 수 있는 매력적인 홍보 글을 작성해줘. 해시태그도 5개 이상 넉넉히 포함해줘."
-                    try:
-                        generated_text = ask_ai(prompt)
-                    except:
-                        generated_text = "AI 서버와 연결할 수 없습니다. ask_ai 설정을 확인해주세요."
-                    
+                    try: generated_text = ask_ai(prompt)
+                    except: generated_text = "AI 서버와 연결할 수 없습니다. ask_ai 설정을 확인해주세요."
                     st.success("🎉 마케팅 콘텐츠가 성공적으로 생성되었습니다!")
                     tab_text, tab_img = st.tabs(["📝 생성된 텍스트", "🎨 생성된 이미지"])
                     with tab_text:
                         st.markdown(f"**[{sns_type} 맞춤형 텍스트]**")
                         st.text_area("복사해서 바로 SNS에 올려보세요!", generated_text.strip(), height=300)
                     with tab_img:
-                        st.markdown(f"**[요청하신 '{mkt_concept}' 컨셉의 추천 이미지]**")
+                        st.markdown(f"****")
                         st.image("https://images.unsplash.com/photo-1584947937402-28e4e9fbdba8?q=80&w=800&auto=format&fit=crop", caption="AI 생성 이미지 미리보기 (샘플)")
 
 # === 재고 관리 ===
@@ -1282,7 +1339,7 @@ elif menu == "재고 관리":
         st.markdown("### 엑셀로 재고 일괄 등록")
         uploaded_file = st.file_uploader("작성한 엑셀 파일 업로드", type=['xlsx', 'xls', 'csv'], key="stock_up")
         if uploaded_file and st.button("재고 일괄 반영하기", type="primary"):
-            st.info("재고 일괄 반영 로직 수행 (이전 코드 동일)")
+            st.info("재고 일괄 반영 로직 수행")
             
     with tab3:
         st.markdown("### 개별 상품 입/출고 (블랙박스 작동중)")
@@ -1297,7 +1354,6 @@ elif menu == "재고 관리":
                     client = get_client()
                     fresh_stock_sheet = client.open_by_key(SHEET_ID).worksheet("재고관리")
                     cell = fresh_stock_sheet.find(target_prod)
-                    
                     if cell:
                         headers = fresh_stock_sheet.row_values(1)
                         col_idx = next((i + 1 for i, h in enumerate(headers) if '재고' in h or '수량' in h), -1)
@@ -1420,14 +1476,11 @@ elif menu == "마진/정산 분석":
                         std_name = str(opt.get('상품명', '')).strip()
                         mapping_str = str(opt.get('매핑명', '')).strip()
                         keywords = [k.strip() for k in mapping_str.split(',') if k.strip()] + [std_name]
-                        
                         for kw in keywords:
                             if not kw: continue
-                            kw_clean = kw.replace(" ", "").lower()
-                            if kw_clean in item_clean:
+                            if kw.replace(" ", "").lower() in item_clean:
                                 raw_price = str(opt.get('가격', 0)).replace(',', '').replace('원', '').replace('₩', '').replace('\\', '').strip()
                                 raw_cost = str(opt.get('원가', 0)).replace(',', '').replace('원', '').replace('₩', '').replace('\\', '').strip()
-                                
                                 unit_price = pd.to_numeric(raw_price, errors='coerce')
                                 unit_cost = pd.to_numeric(raw_cost, errors='coerce')
                                 if pd.isna(unit_price): unit_price = 0
@@ -1437,10 +1490,8 @@ elif menu == "마진/정산 분석":
                 total_revenue = actual_paid if actual_paid > 0 else (unit_price * qty)
                 total_cost = unit_cost * qty
                 commission_fee = total_revenue * fee_rate
-                
                 net_profit = total_revenue - total_cost - commission_fee - actual_ship_cost
                 margin_rate = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
-                
                 return pd.Series([total_revenue, commission_fee, unit_cost, total_cost, actual_ship_cost, net_profit, margin_rate])
 
             df_calc[['예상결제금액', '마켓수수료', '매입단가(1개)', '총매입원가', '적용택배비', '예상순이익', '마진율(%)']] = df_calc.apply(calculate_profit, axis=1)
@@ -1496,16 +1547,14 @@ elif menu == "마진/정산 분석":
                 try: styled_df = styled_df.background_gradient(subset=['마진율(%)'], cmap='RdYlGn')
                 except: pass
                 st.dataframe(styled_df, use_container_width=True, hide_index=True)
-# ===AI 비즈니스 센터 ===
+
+# === AI 비즈니스 센터 ===
 elif menu == "AI 비즈니스 센터":
     render_page_header("DUWELL AI 비즈니스 센터", "10년 노하우를 학습한 AI 에이전트 팀이 대표님의 업무를 지원합니다.")
-
-    # 7개의 에이전트 탭 생성 (수정된 부분)
     ai_tab1, ai_tab2, ai_tab3, ai_tab4, ai_tab5, ai_tab6, ai_tab7 = st.tabs([
         "1. MD 신제품", "2. B2B 영업", "3. 리뷰 분석", "4. 경영 브리핑", "5. 마진 시뮬", "6. 이미지 프롬프트", "7. 마켓별 SEO 등록"
     ])
 
-    # --- [1] MD 신제품 기획 에이전트 ---
     with ai_tab1:
         st.markdown("#### 신제품 런칭 브리프 생성기")
         with st.form("md_agent_form"):
@@ -1513,39 +1562,28 @@ elif menu == "AI 비즈니스 센터":
             if st.form_submit_button("✨ 런칭 기획안 생성", type="primary"):
                 if new_product_desc:
                     with st.spinner("MD 에이전트가 기획안을 작성 중입니다..."):
-                        agent_prompt = f"""
-                        You are an elite Towel Merchandiser for 'DUWELL'. Backed by 10 years of towel industry know-how, write a product launch brief in Korean.
-                        [신제품 특징]: {new_product_desc}
-                        출력 형식: [상품명 아이디어 3개], [핵심 타겟 고객], [강력한 셀링 포인트 3개], [상세페이지 스토리라인]
-                        """
+                        agent_prompt = f"""You are an elite Towel Merchandiser for 'DUWELL'. Backed by 10 years of towel industry know-how, write a product launch brief in Korean.
+[신제품 특징]: {new_product_desc}
+출력 형식: [상품명 아이디어 3개], [핵심 타겟 고객], [강력한 셀링 포인트 3개], [상세페이지 스토리라인]"""
                         st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
 
-    # --- [2] B2B 영업 제안서 에이전트 ---
     with ai_tab2:
         st.markdown("#### B2B 맞춤형 영업 제안서 작성")
         with st.form("b2b_agent_form"):
             col1, col2 = st.columns(2)
-            with col1:
-                target_company = st.text_input("제안 대상 (예: A 고급 에스테틱, B 부티크 호텔)")
-            with col2:
-                target_product = st.text_input("제안 상품 (예: 프리미엄 와플 수건 세트)")
-            
+            with col1: target_company = st.text_input("제안 대상 (예: A 고급 에스테틱, B 부티크 호텔)")
+            with col2: target_product = st.text_input("제안 상품 (예: 프리미엄 와플 수건 세트)")
             sales_points = st.text_area("강조할 소구점 (예: 먼지 없음, 빠른 건조, 고급스러운 디자인)")
             
             if st.form_submit_button("B2B 영업 메일 초안 생성", type="primary"):
                 if target_company and target_product:
                     with st.spinner("B2B 영업 에이전트가 제안서를 작성 중입니다..."):
-                        agent_prompt = f"""
-                        You are an elite B2B Sales Representative for the premium towel brand 'DUWELL'. 
-                        Write a highly professional, polite, and persuasive B2B sales email in Korean.
-                        - 타겟 고객사: {target_company}
-                        - 제안 상품: {target_product}
-                        - 강조할 포인트: {sales_points}
-                        - 톤앤매너: 10년 경력의 신뢰감, 고급스러움, 상대방 비즈니스에 확실한 도움이 된다는 확신.
-                        """
+                        agent_prompt = f"""You are an elite B2B Sales Representative for the premium towel brand 'DUWELL'. 
+Write a highly professional, polite, and persuasive B2B sales email in Korean.
+- 타겟 고객사: {target_company} / 제안 상품: {target_product} / 강조할 포인트: {sales_points}
+- 톤앤매너: 10년 경력의 신뢰감, 고급스러움, 상대방 비즈니스에 확실한 도움이 된다는 확신."""
                         st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
 
-    # --- [3] 경쟁사 리뷰 분석 에이전트 ---
     with ai_tab3:
         st.markdown("#### 타사 리뷰 기반 마케팅 포인트 추출")
         with st.form("review_agent_form"):
@@ -1553,26 +1591,18 @@ elif menu == "AI 비즈니스 센터":
             if st.form_submit_button("공격적 마케팅 무기 생성", type="primary"):
                 if bad_reviews:
                     with st.spinner("리서치 에이전트가 페인포인트를 분석 중입니다..."):
-                        agent_prompt = f"""
-                        You are an expert Market Researcher and Copywriter for 'DUWELL'.
-                        Analyze the following negative reviews of competitor's normal towels: "{bad_reviews}"
-                        1. 고객의 핵심 Pain Point 요약
-                        2. 이를 완벽히 해결해주는 DUWELL '프리미엄 와플 수건'의 특장점 연결
-                        3. 당장 인스타그램 카드뉴스에 쓸 수 있는 후킹 카피 3가지 제안 (한국어)
-                        """
+                        agent_prompt = f"""You are an expert Market Researcher and Copywriter for 'DUWELL'.
+Analyze the following negative reviews of competitor's normal towels: "{bad_reviews}"
+1. 고객의 핵심 Pain Point 요약 / 2. 이를 완벽히 해결해주는 DUWELL '프리미엄 와플 수건'의 특장점 연결 / 3. 당장 인스타그램 카드뉴스에 쓸 수 있는 후킹 카피 3가지 제안 (한국어)"""
                         st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
 
-    # --- [4] 일일 경영 브리핑 에이전트 ---
     with ai_tab4:
-        st.markdown("#### 대표님 맞춤형 일일 브리핑 (데이터 연동)")
-        st.info("ERP에 쌓인 매출, 재고, 일정 데이터를 종합하여 아침 브리핑을 제공합니다.")
+        st.markdown("#### 대표님 맞춤형 일일 경영 브리핑 (데이터 연동)")
         if st.button("오늘의 경영 브리핑 생성", type="primary"):
             with st.spinner("비서 에이전트가 데이터를 취합하고 분석 중입니다..."):
-                # 현재 시스템 데이터 수집 (매출, 재고, 일정)
                 today_str = datetime.now().strftime("%Y-%m-%d")
                 today_sales = df_all[df_all['날짜_str'] == today_str]['결제금액'].sum() if not df_all.empty and '결제금액' in df_all.columns else 0
                 
-                # 재고 부족 상품 찾기
                 df_stock_temp, _ = load_data("재고관리")
                 low_stock_msg = "재고 부족 상품 없음"
                 if not df_stock_temp.empty:
@@ -1581,26 +1611,17 @@ elif menu == "AI 비즈니스 센터":
                     low_items = df_stock_temp[df_stock_temp['현재재고'] <= df_stock_temp['안전재고']]['상품명'].tolist()
                     if low_items: low_stock_msg = ", ".join(low_items) + " (발주 필요!)"
 
-                # 오늘 일정 찾기
                 df_sch_temp, _ = load_data("일정관리")
                 today_schedule = "일정 없음"
                 if not df_sch_temp.empty:
                     today_events = df_sch_temp[df_sch_temp['시작일'] == today_str]['일정명'].tolist()
                     if today_events: today_schedule = ", ".join(today_events)
 
-                agent_prompt = f"""
-                You are the Executive Assistant to the CEO of 'DUWELL'. Write a crisp, objective, and encouraging morning briefing in Korean.
-                [오늘의 데이터]
-                - 예상 매출: {today_sales:,.0f}원
-                - 재고 경고: {low_stock_msg}
-                - 주요 일정: {today_schedule}
-                위 데이터를 바탕으로:
-                1. 성과 요약 및 칭찬 한마디
-                2. 오늘 반드시 처리해야 할 액션 아이템(재고, 일정 관련) 2가지 제안
-                """
+                agent_prompt = f"""You are the Executive Assistant to the CEO of 'DUWELL'. Write a crisp, objective, and encouraging morning briefing in Korean.
+[오늘의 데이터] 예상 매출: {today_sales:,.0f}원 / 재고 경고: {low_stock_msg} / 주요 일정: {today_schedule}
+위 데이터를 바탕으로: 1. 성과 요약 및 칭찬 한마디 / 2. 오늘 반드시 처리해야 할 액션 아이템 2가지 제안"""
                 st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
 
-    # --- [5] 마진 시뮬레이터 에이전트 ---
     with ai_tab5:
         st.markdown("#### 기획 상품 마진 시뮬레이터")
         with st.form("margin_agent_form"):
@@ -1608,63 +1629,38 @@ elif menu == "AI 비즈니스 센터":
             with col1: base_price = st.number_input("기존 판매가 (원)", value=15000)
             with col2: discount_rate = st.number_input("할인율 (%)", value=15)
             with col3: product_cost = st.number_input("매입 원가 (원)", value=6000)
-            
             extra_costs = st.text_input("추가 비용 내역 (예: 포장비 1000원, 사은품 500원)")
             market_type = st.selectbox("판매 채널 (수수료율)", ["스마트스토어 (약 5.5%)", "쿠팡 (약 10.8%)", "자사몰 (약 3%)"])
 
             if st.form_submit_button("적정 판매가 및 마진 계산", type="primary"):
                 with st.spinner("재무 에이전트가 마진율을 계산 중입니다..."):
-                    agent_prompt = f"""
-                    You are a strict and smart Financial Advisor for 'DUWELL'. Calculate the profit margin based on the following data:
-                    - 기존 판매가: {base_price}원 / 기획 할인율: {discount_rate}%
-                    - 매입 원가: {product_cost}원 / 추가 비용: {extra_costs}
-                    - 판매 채널: {market_type}
-                    1. 최종 예상 판매가, 예상 수수료, 마진 금액, 최종 마진율(%)을 수식과 함께 직관적으로 보여주세요.
-                    2. 마진율이 30% 미만일 경우, 이익을 방어하기 위한 가격 정책이나 세트 구성 아이디어를 제안해주세요. (한국어)
-                    """
+                    agent_prompt = f"""You are a strict and smart Financial Advisor for 'DUWELL'. Calculate the profit margin based on the following data:
+- 기존 판매가: {base_price}원 / 기획 할인율: {discount_rate}% / 매입 원가: {product_cost}원 / 추가 비용: {extra_costs} / 판매 채널: {market_type}
+1. 최종 예상 판매가, 예상 수수료, 마진 금액, 최종 마진율(%)을 수식과 함께 직관적으로 보여주세요.
+2. 마진율이 30% 미만일 경우, 이익을 방어하기 위한 가격 정책이나 세트 구성 아이디어를 제안해주세요. (한국어)"""
                     st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
 
-    # --- [6] 상세페이지 이미지 프롬프트 제작 에이전트 ---
     with ai_tab6:
-        st.markdown("#### 📸 고품질 상세페이지 이미지 프롬프트 (미드저니/DALL-E 용)")
-        st.info("제품 특징과 원하는 분위기를 고르면, AI 이미지 생성기에 바로 복사해 넣을 수 있는 영문 프롬프트를 전문가 수준으로 뽑아줍니다.")
-        
+        st.markdown("#### 📸 고품질 상세페이지 이미지 프롬프트 생성기")
         with st.form("image_prompt_form"):
             col1, col2 = st.columns(2)
-            with col1:
-                prod_img_desc = st.text_input("제품의 핵심 특징", placeholder="예: 먼지 없는 프리미엄 와플 직조 타월")
-            with col2:
-                img_mood = st.selectbox("원하는 연출 분위기", [
-                    "햇살이 들어오는 따뜻하고 아늑한 욕실", 
-                    "5성급 호텔의 모던하고 어두운 고급 욕실", 
-                    "깨끗하고 위생적인 에스테틱 샵", 
-                    "제품의 질감을 극대화한 초근접 마크로 샷"
-                ])
-            
+            with col1: prod_img_desc = st.text_input("제품의 핵심 특징", placeholder="예: 먼지 없는 프리미엄 와플 직조 타월")
+            with col2: img_mood = st.selectbox("원하는 연출 분위기", ["햇살이 들어오는 따뜻하고 아늑한 욕실", "5성급 호텔의 모던하고 어두운 고급 욕실", "깨끗하고 위생적인 에스테틱 샵", "제품의 질감을 극대화한 초근접 마크로 샷"])
             if st.form_submit_button("영문 프롬프트 생성", type="primary"):
                 if prod_img_desc:
                     with st.spinner("전문 포토그래퍼 에이전트가 카메라 렌즈와 조명 세팅을 조율 중입니다..."):
-                        agent_prompt = f"""
-                        You are an elite Commercial Photographer and AI Prompt Engineer specializing in Home & Living products.
-                        I need highly detailed, professional image generation prompts (optimized for Midjourney v6 or DALL-E 3) based on:
-                        - Target Product: {prod_img_desc}
-                        - Mood & Background: {img_mood}
-                        
-                        Please create 3 different variations of the shot (e.g., Close-up texture, Lifestyle interior, Wide angle).
-                        For each variation, output MUST strictly follow this format:
-                        
-                        📌 [Shot Type in Korean (e.g., 초근접 질감 컷)]
-                        - 연출 의도: (Korean description of the scene)
-                        - 🇬🇧 Prompt: (English comma-separated prompt containing subject, background, lighting, camera lens like 85mm f/1.8, high-end commercial photography, 8k resolution, photorealistic)
-                        """
+                        agent_prompt = f"""You are an elite Commercial Photographer and AI Prompt Engineer specializing in Home & Living products.
+I need highly detailed, professional image generation prompts (optimized for Midjourney v6 or DALL-E 3) based on:
+- Target Product: {prod_img_desc} / - Mood & Background: {img_mood}
+Please create 3 different variations of the shot (e.g., Close-up texture, Lifestyle interior, Wide angle). For each variation, output MUST strictly follow this format:
+📌 [Shot Type in Korean]
+- 연출 의도: (Korean description of the scene)
+- 🇬🇧 Prompt: (English comma-separated prompt containing subject, background, lighting, camera lens like 85mm f/1.8, high-end commercial photography, 8k resolution, photorealistic)"""
                         st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{ask_ai(agent_prompt).replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
-                else:
-                    st.warning("제품 특징을 입력해주세요!")
-# --- [7] 다중 마켓 SEO 최적화 상품 등록 에이전트 (HTML 상세페이지 자동 생성 기능 추가) ---
+                else: st.warning("제품 특징을 입력해주세요!")
+
     with ai_tab7:
         st.markdown("#### 오픈마켓별 SEO 등록 & HTML 상세페이지 생성기")
-        st.info("SEO 최적화 데이터뿐만 아니라, 스마트스토어 에디터에 바로 붙여넣을 수 있는 '상세페이지 HTML 코드'까지 한 번에 생성합니다.")
-
         with st.form("seo_agent_form"):
             col1, col2 = st.columns(2)
             with col1:
@@ -1672,51 +1668,31 @@ elif menu == "AI 비즈니스 센터":
                 prod_name = st.text_input("기본 상품명", value="프리미엄 와플 수건")
             with col2:
                 target_customer = st.selectbox("메인 타겟", ["3040 리빙/인테리어", "2030 집들이/신혼부부", "답례품/대량구매", "전체 연령대"])
-                core_points = st.text_input("핵심 강조 포인트", placeholder="예: 먼지없는, 빠른건조, 호텔수건, 10년 노하우", value="먼지없는, 빠른건조, 고급스러운 질감")
-
+                core_points = st.text_input("핵심 강조 포인트", value="먼지없는, 빠른건조, 고급스러운 질감")
             submit_btn = st.form_submit_button("SEO 데이터 및 HTML 생성", type="primary")
 
         if submit_btn:
             if prod_name and core_points:
                 with st.spinner(f"{target_market} 로직에 맞춰 최적화 데이터와 HTML 코드를 작성 중입니다... (약 10~20초 소요)"):
-                    agent_prompt = f"""
-                    You are an elite E-commerce Merchandiser, SEO expert, and Web Designer in Korea, working for the premium towel brand 'DUWELL'.
-                    You have 10 years of deep towel industry experience.
-                    Your task is to generate highly optimized product registration data and a complete HTML detail page for {target_market}.
-
-                    - Product: {prod_name}
-                    - Target Customer: {target_customer}
-                    - Key Selling Points: {core_points}
-
-                    Please provide the output strictly in Korean, following this structure:
-
-                    1. 🏷️ [최적화 상품명 3가지]: Create 3 variations of the product title optimized for {target_market}'s search algorithm.
-                    2. 🔑 [검색 태그/키워드]: Provide exactly 10 highly searched, relevant tags/keywords separated by commas.
-                    3. 📝 [메타 디스크립션/PC·모바일 요약 설명]: A compelling 2-3 sentence description.
-                    4. 💻 [상세페이지 기획 뼈대]: 3-step storyline for the detail page (Hook -> USP explanation -> Closing/Trust with 10 years of experience).
-                    5. 🌐 [네이버 에디터 완벽 호환 HTML 상세페이지]:
-                       - Write clean, modern HTML code. MUST use inline CSS on EVERY SINGLE TAG.
-                       - [폰트 크기]: Use `em` or `px` (e.g., `font-size: 1.2em;` or `font-size: 18px;`). Do NOT use `vw` or `clamp()`.
-                       - [단어 찢어짐 100% 방지 규칙]: 
-                         1) Apply `word-break: keep-all;` to EVERY text tag (`<p>`, `<div>`, `<span>`, `<strong>`, etc.).
-                         2) For titles or long sentences, you MUST intentionally insert `<br>` tags at natural semantic pauses so the text breaks beautifully on mobile screens WITHOUT hitting the edge. 
-                            (Example BAD: 듀웰 프리미엄 와플 수건, 이런 분들께 추천합니다!)
-                            (Example GOOD: 듀웰 프리미엄 와플 수건,<br>이런 분들께 추천합니다!)
-                       - Style: #2B3A55 or #800020 for accent colors, centered text, `line-height: 1.6;`.
-                       - [인트로 고정]: `<div style='background:#E9ECEF; padding:40px 20px; margin-bottom:40px; text-align:center; border:2px dashed #ADB5BD; border-radius:12px; color:#495057; font-weight:900; font-size:1.2em; word-break:keep-all;'>📸 [메인 인트로 사진 삽입:<br>시선을 사로잡는 {prod_name} 연출 컷]</div>`
-                       - For other images: `<div style='background:#F4F6F9; padding:40px 20px; margin:20px 0; text-align:center; border:2px dashed #B0BEC5; border-radius:12px; color:#6C757D; font-weight:bold; word-break:keep-all;'>📸 [여기에 사진 삽입:<br>디테일 컷]</div>`
-                       - Ensure the HTML code is enclosed in a markdown code block (```html ... ```).
-                    """
+                    agent_prompt = f"""You are an elite E-commerce Merchandiser, SEO expert, and Web Designer in Korea, working for the premium towel brand 'DUWELL'.
+Your task is to generate highly optimized product registration data and a complete HTML detail page for {target_market}.
+- Product: {prod_name} / - Target Customer: {target_customer} / - Key Selling Points: {core_points}
+Please provide the output strictly in Korean, following this structure:
+1. 🏷️ [최적화 상품명 3가지]: Create 3 variations of the product title optimized for {target_market}'s search algorithm.
+2. 🔑 [검색 태그/키워드]: Provide exactly 10 highly searched, relevant tags/keywords separated by commas.
+3. 📝 [메타 디스크립션/PC·모바일 요약 설명]: A compelling 2-3 sentence description.
+4. 💻 [상세페이지 기획 뼈대]: 3-step storyline for the detail page (Hook -> USP explanation -> Closing/Trust).
+5. 🌐 [네이버 에디터 완벽 호환 HTML 상세페이지]: Write clean, modern HTML code. MUST use inline CSS on EVERY SINGLE TAG.
+- [폰트 크기]: Use `em` or `px`. Do NOT use `vw` or `clamp()`.
+- [단어 찢어짐 100% 방지 규칙]: Apply `word-break: keep-all;` to EVERY text tag. For titles or long sentences, insert `<br>` tags at natural semantic pauses.
+- Style: #2B3A55 or #800020 for accent colors, centered text, `line-height: 1.6;`.
+- Ensure the HTML code is enclosed in a markdown code block."""
                     st.session_state['seo_result_text'] = ask_ai(agent_prompt)
                     st.session_state['seo_prod_name'] = prod_name
-            else:
-                st.warning("상품명과 핵심 포인트를 입력해주세요!")
+            else: st.warning("상품명과 핵심 포인트를 입력해주세요!")
 
         if 'seo_result_text' in st.session_state:
             st.markdown(f"<div style='background-color:#F8F9FA; padding:20px; border-radius:12px;'>{st.session_state['seo_result_text'].replace(chr(10), '<br>')}</div>", unsafe_allow_html=True)
-            
-            st.write("") 
-            
             st.download_button(
                 label="기획안 및 HTML 코드 다운로드 (.txt)",
                 data=st.session_state['seo_result_text'],
@@ -1724,406 +1700,3 @@ elif menu == "AI 비즈니스 센터":
                 mime="text/plain",
                 use_container_width=True
             )
-
-# === 신제품 개발실 ===
-elif menu == "신제품 개발실":
-    render_page_header("신제품 샘플 개발실", "생산 지시서(Tech Pack) 작성부터 샘플 검수(Check-list)까지 원스톱 관리")
-
-    tab_techpack, tab_checklist = st.tabs(["1. 생산 지시서 (Tech Pack)", "2. 샘플 검수 (Check-list)"])
-
-    # ==========================================================
-    # 탭 1. 생산 지시서 (Tech Pack)
-    # ==========================================================
-    with tab_techpack:
-        with st.form("new_product_dev_form"):
-            st.markdown("#### 신제품 생산 스펙 작성")
-            
-            c1, c2 = st.columns([1, 1])
-            with c1: 
-                dev_factory = st.text_input("공장명", placeholder="예: A방직")
-                dev_prod_name = st.text_input("상품명 (ITEM)", placeholder="예: 프리미엄 와플 타월")
-            with c2: 
-                dev_color_qty = st.text_area("초도 발주 수량 (컬러 / 수량)", placeholder="예시) 기호(/)로 구분하여 작성\n웜그레이 / 500장\n네이비 / 500장\n차콜 / 300장", height=110)
-
-            st.markdown("##### 세부 사양 (SPEC)")
-            s1, s2, s3, s4 = st.columns(4)
-            with s1: dev_size = st.text_input("사이즈", placeholder="예: 40 x 80 cm")
-            with s2: dev_weight = st.text_input("중량", placeholder="예: 200g")
-            with s3: dev_yarn = st.text_input("사종 (소재)", placeholder="예: 최고급 코마사 40수")
-            with s4: dev_dyeing = st.radio("염색 방식", ["선염", "후염", "해당없음"], horizontal=True)
-
-            p1, p2, p3 = st.columns(3)
-            with p1: dev_border = st.text_input("보더 디자인", placeholder="예: 양끝 3선 피카소 보더")
-            with p2: dev_pkg = st.text_input("포장 방법", placeholder="예: 개별 띠지 + OPP 폴리백")
-            with p3: dev_label_pos = st.text_input("라벨/택 위치", placeholder="예: 우측 하단 1cm 띄우고 봉제")
-
-            st.markdown("##### 디자인 상세 및 참고 이미지")
-            i1, i2 = st.columns(2)
-            with i1:
-                dev_design_detail = st.text_area("디자인 (선염 및 보더 등 특이사항)", placeholder="예: 선염 3컬러 교차 배열, 보더 부분 자가드 포인트", height=120)
-                dev_extra = st.text_area("작업 시 주의사항 (*중요*)", placeholder="- 봉사 간격 잘게 치기\n- 잔실 없도록 깔끔하게 처리\n- 세탁 라벨은 뒷면에 겹쳐서 봉제", height=120)
-            with i2:
-                dev_ref_img = st.file_uploader("참고 이미지 (디자인 시안/도식화)", type=['png', 'jpg', 'jpeg'])
-                dev_label_img = st.file_uploader("라벨/택 이미지", type=['png', 'jpg', 'jpeg'])
-
-            st.divider()
-            submit_dev = st.form_submit_button("작업지시서 문서 생성 및 구글 시트 저장", type="primary")
-
-        if submit_dev:
-            if not dev_prod_name or not dev_factory:
-                st.warning("공장명과 상품명은 필수 입력 항목입니다.")
-            else:
-                with st.spinner("지시서를 생성 중입니다... 잠시만 기다려주세요."):
-                    import base64
-                    import io
-                    from datetime import datetime
-                    
-                    today_str = datetime.now().strftime("%Y-%m-%d")
-
-                    color_qty_html = ""
-                    lines = [line.strip() for line in dev_color_qty.split('\n') if line.strip()]
-                    if not lines:
-                        color_qty_html = "<tr><td style='border-left:none; border-bottom:none; border-right:2px solid #222; padding:4px;'>-</td><td style='border-right:none; border-bottom:none; padding:4px;'>-</td></tr>"
-                    else:
-                        for i, line in enumerate(lines):
-                            if '/' in line: parts = line.split('/')
-                            elif '-' in line: parts = line.split('-')
-                            else: parts = [line, ""]
-                            
-                            color = parts[0].strip()
-                            qty = parts[1].strip() if len(parts) > 1 else ""
-                            
-                            b_bottom = "border-bottom:none;" if i == len(lines) - 1 else "border-bottom:2px solid #222;"
-                            color_qty_html += f"<tr><td style='border-left:none; {b_bottom} border-right:2px solid #222; font-weight:bold; padding:4px;'>{color}</td><td style='border-right:none; {b_bottom} padding:4px;'>{qty}</td></tr>"
-
-                    sheet_saved = False
-                    try:
-                        client = get_client()
-                        if client:
-                            sheet_dev = client.open_by_key(SHEET_ID).worksheet("신제품개발")
-                            flat_color_qty = dev_color_qty.replace('\n', ', ')
-                            row_data = [
-                                today_str, dev_factory, dev_prod_name, flat_color_qty,
-                                dev_size, dev_weight, dev_yarn, dev_dyeing, dev_border, 
-                                dev_design_detail, dev_extra, dev_pkg, dev_label_pos
-                            ]
-                            sheet_dev.append_row(row_data)
-                            sheet_saved = True
-                    except Exception as e:
-                        st.error(f"⚠️ 구글 시트 저장 실패: {e}")
-
-                    def get_image_base64(uploaded_file):
-                        if uploaded_file is not None:
-                            bytes_data = uploaded_file.getvalue()
-                            b64 = base64.b64encode(bytes_data).decode()
-                            return f"data:{uploaded_file.type};base64,{b64}"
-                        return ""
-                    
-                    b64_ref = get_image_base64(dev_ref_img)
-                    b64_label = get_image_base64(dev_label_img)
-                    
-                    # 🚀 [수정됨] 이미지 좌측 / 텍스트 우측 완벽 분할 레이아웃
-                    ref_html = f"<img src='{b64_ref}' style='width:100%; max-height:420px; object-fit:contain;'>" if b64_ref else "<span style='color:#999;'>이미지 없음</span>"
-                    label_html = f"<img src='{b64_label}' style='width:100%; max-height:150px; object-fit:contain;'>" if b64_label else "<span style='color:#999;'>라벨 없음</span>"
-                    
-                    extra_html = dev_extra.replace('\n', '<br>')
-                    design_html = dev_design_detail.replace('\n', '<br>')
-
-                  # 🚀 [수정됨] 대제목 상단 중앙 배치 + 하단 텍스트 정보 가로 정렬
-                    html_content = f"""
-                    <html>
-                    <head>
-                        <meta charset="utf-8">
-                        <style>
-                            @page {{ margin: 5mm; }}
-                            * {{ box-sizing: border-box; }}
-                            body {{ font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 0; margin: 0; color: #111; font-size: 18pt; }}
-                            table {{ width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }}
-                            th, td {{ border: 2px solid #222; padding: 6px 8px; text-align: center; vertical-align: middle; font-size: 18pt; line-height: 1.4; word-break: keep-all; }}
-                            th {{ background-color: #F1F5F9; font-weight: bold; color: #111; }}
-                            .left-align {{ text-align: left; vertical-align: top; padding: 10px; }}
-                        </style>
-                    </head>
-                    <body>
-                        
-                        <div style="text-align: center; margin-bottom: 15px;">
-                            <div style="font-size: 45pt; font-weight: 900; letter-spacing: 25px; margin-bottom: 15px; padding-left: 25px;">작업지시서</div>
-                            
-                            <table style="width: 100%; border: none; margin: 0; border-top: 3px solid #111; border-bottom: 3px solid #111;">
-                                <tr>
-                                    <td style="border: none; padding: 10px 5px; text-align: center; font-size: 15pt;"><strong>작성일자 :</strong> {today_str}</td>
-                                    <td style="border: none; padding: 10px 5px; text-align: center; font-size: 15pt;"><strong>발주처 :</strong> <span style="font-weight:900; color:#2B3A55;">DUWELL</span></td>
-                                    <td style="border: none; padding: 10px 5px; text-align: center; font-size: 15pt;"><strong>업체(공장) :</strong> {dev_factory}</td>
-                                    <td style="border: none; padding: 10px 5px; text-align: center; font-size: 18pt; font-weight: 900;"><strong>ITEM :</strong> {dev_prod_name}</td>
-                                </tr>
-                            </table>
-                        </div>
-
-                        <table>
-                            <colgroup>
-                                <col style="width: 45%;"> <col style="width: 20%;"> <col style="width: 35%;"> </colgroup>
-                            <tr>
-                                <th style="font-size:20pt; letter-spacing:2px;">DESIGN & LABEL / 디자인 및 라벨</th>
-                                <th colspan="2" style="font-size:20pt; letter-spacing:2px;">PRODUCTION SPECS / 생산 사양</th>
-                            </tr>
-                            
-                            <tr>
-                                <td rowspan="7" style="text-align:center; vertical-align:middle; padding:5px;">
-                                    {ref_html}
-                                </td>
-                                <th>염색방식</th>
-                                <td style="font-weight:bold; color:#2B3A55;">{dev_dyeing}</td>
-                            </tr>
-                            <tr><th>사이즈</th><td>{dev_size}</td></tr>
-                            <tr><th>중량</th><td style="color:#D32F2F; font-weight:bold;">{dev_weight}</td></tr>
-                            <tr><th>소재(사종)</th><td>{dev_yarn}</td></tr>
-                            <tr><th>보더디자인</th><td>{dev_border}</td></tr>
-                            <tr><th>포장방법(PKG)</th><td>{dev_pkg}</td></tr>
-                            <tr>
-                                <th>초도발주수량</th>
-                                <td style="padding: 0; vertical-align: top;">
-                                    <table style="width:100%; height:100%; margin:0; border-collapse:collapse; border-style:hidden;">
-                                        <tr>
-                                            <th style="width:50%; border-top:none; border-left:none; border-bottom:2px solid #222; border-right:2px solid #222; background-color:#F8F9FA;">컬러</th>
-                                            <th style="width:50%; border-top:none; border-right:none; border-bottom:2px solid #222; background-color:#F8F9FA;">수량</th>
-                                        </tr>
-                                        {color_qty_html}
-                                    </table>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td rowspan="4" style="text-align:center; vertical-align:middle; padding:10px;">
-                                    <div style="font-size:14pt; margin-bottom:8px;"><strong>[라벨 부착 위치]</strong><br>{dev_label_pos}</div>
-                                    {label_html}
-                                </td>
-                                <th colspan="2">* 디자인 상세 (선염/보더 등) *</th>
-                            </tr>
-                            <tr>
-                                <td colspan="2" class="left-align" style="height: 100px;">{design_html}</td>
-                            </tr>
-                            <tr>
-                                <th colspan="2">* 작업 시 주의사항 *</th>
-                            </tr>
-                            <tr>
-                                <td colspan="2" class="left-align" style="height: 100px;">{extra_html}</td>
-                            </tr>
-                        </table>
-                    </body>
-                    </html>
-                    """
-                                
-                    st.session_state['dev_html_content'] = html_content
-                    st.session_state['dev_html_name'] = f"작업지시서_{dev_prod_name}.html"
-                    
-                    st.success("✅ 지시서 생성이 완료되었습니다! 아래에서 다운로드 버튼을 눌러주세요.")
-                    time.sleep(1) 
-                    st.rerun()
-
-        if 'dev_html_content' in st.session_state:
-            st.divider()
-            st.markdown("##### 🖨️ 생성된 문서 다운로드")
-            st.info("💡 우측의 HTML 문서를 다운로드하여 브라우저에서 열고 'Ctrl+P(인쇄) -> PDF로 저장'을 이용해 주세요.")
-            st.download_button(
-                label="✅ 작업지시서 다운로드 (HTML)", 
-                data=st.session_state['dev_html_content'].encode('utf-8-sig'), 
-                file_name=st.session_state['dev_html_name'], 
-                mime="text/html", 
-                use_container_width=True
-            )
-
-
-    # ==========================================================
-    # 탭 2. 샘플 검수 (Check-list)
-    # ==========================================================
-    with tab_checklist:
-        st.markdown("#### 🔎 입고 샘플 품질 검수 리스트")
-        
-        cc1, cc2, cc3 = st.columns(3)
-        with cc1:
-            chk_prod_name = st.text_input("제품명 (Product Name)", value="와플 타월")
-            chk_reviewer = st.text_input("검수자", value=st.session_state.get('current_user', '담당자'))
-        with cc2:
-            chk_color_size = st.text_input("컬러 및 옵션 (Color/Size)", value="진행전 / 40*90")
-            chk_round = st.selectbox("차수", ["1차", "2차", "3차", "최종(Pre-Pro)"])
-        with cc3:
-            from datetime import datetime
-            chk_date = st.date_input("작성일", datetime.now())
-            chk_result = st.selectbox("최종 판정 (Result)", ["대기중", "합격 (PASS)", "수정 후 재샘플 (RE-WORK)", "드랍 (DROP)"])
-
-        st.divider()
-        st.markdown("##### 세부 검수 항목 (Check-list)")
-        
-        default_chk_data = [
-            {"항목": "사이즈", "세부 검수 기준": "작업 지시서 상의 규격과 일치하는가?", "판정": "대기", "비고": ""},
-            {"항목": "중량", "세부 검수 기준": "요구한 평량(g) 기준 오차 범위 내에 있는가?", "판정": "대기", "비고": ""},
-            {"항목": "제품디자인", "세부 검수 기준": "와플 조직감, 패턴, 직조 형태가 기획안과 동일한가?", "판정": "대기", "비고": ""},
-            {"항목": "색상", "세부 검수 기준": "지정된 컬러 발색이 정확하고 탕차이(이색)가 없는가?", "판정": "진행전", "비고": ""},
-            {"항목": "봉제", "세부 검수 기준": "테두리 마감(헤밍 등) 일정하고 바른가?", "판정": "대기", "비고": ""},
-            {"항목": "올풀림", "세부 검수 기준": "테두리 마감 부위 및 표면에 올이 나간 곳이 없는가?", "판정": "대기", "비고": ""},
-            {"항목": "보풀", "세부 검수 기준": "표면 잔털이 심하거나 마찰 시 보풀이 생기지 않는가?", "판정": "대기", "비고": ""},
-            {"항목": "라벨", "세부 검수 기준": "케어/브랜드 라벨의 부착 위치와 봉제가 반듯한가?", "판정": "진행전", "비고": ""},
-            {"항목": "기타", "세부 검수 기준": "오염, 잡사, 포장 상태 등에 문제가 없는가?", "판정": "진행전", "비고": ""}
-        ]
-        
-        df_chk = pd.DataFrame(default_chk_data)
-        
-        edited_chk = st.data_editor(
-            df_chk, 
-            column_config={
-                "판정": st.column_config.SelectboxColumn("판정 (O/X)", options=["O", "X", "진행전", "대기"], required=True),
-                "비고": st.column_config.TextColumn("비고 (불량 사유 등)")
-            },
-            hide_index=True, use_container_width=True
-        )
-
-        st.divider()
-        st.markdown("##### 공장 커뮤니케이션 요약")
-        com1, com2 = st.columns(2)
-        with com1:
-            chk_inquiry = st.text_area("본사 문의 사항 및 개선 요청", placeholder="예: 1. 세탁 후 올나감 현상 원인 파악\n2. 테두리 단봉 -> 삼봉 변경 가능 여부", height=100)
-        with com2:
-            chk_feedback = st.text_area("공장 피드백 (답변)", placeholder="예: 삼봉 변경 시 단가 건당 50원 인상됨.", height=100)
-
-        st.markdown("##### 📸 문제점 참고 이미지 (비교용)")
-        img1, img2 = st.columns(2)
-        with img1: chk_img1 = st.file_uploader("참고 이미지 1 (불량 부위 / 변경 전)", type=['png', 'jpg', 'jpeg'], key="chk1")
-        with img2: chk_img2 = st.file_uploader("참고 이미지 2 (정상 부위 / 변경 후)", type=['png', 'jpg', 'jpeg'], key="chk2")
-
-        submit_check = st.button("검수 리스트 문서 생성 및 구글 시트 저장", type="primary", use_container_width=True)
-
-        if submit_check:
-            with st.spinner("검수 리스트를 처리 중입니다..."):
-                import base64
-                import io
-
-                try:
-                    client = get_client()
-                    if client:
-                        sheet_chk = client.open_by_key(SHEET_ID).worksheet("샘플검수")
-                        row_data = [
-                            str(chk_date), chk_prod_name, chk_round, chk_color_size, 
-                            chk_reviewer, chk_result, chk_inquiry.replace('\n', ' / '), chk_feedback.replace('\n', ' / ')
-                        ]
-                        sheet_chk.append_row(row_data)
-                except Exception as e:
-                    pass
-
-                chk_tbody = ""
-                for idx, row in edited_chk.iterrows():
-                    res_color = "#D32F2F" if row['판정'] == 'X' else ("#1976D2" if row['판정'] == 'O' else "#555")
-                    chk_tbody += f"""
-                    <tr>
-                        <td style='text-align:center;'>{idx+1}</td>
-                        <td style='text-align:center; font-weight:bold;'>{row['항목']}</td>
-                        <td style='text-align:left;'>{row['세부 검수 기준']}</td>
-                        <td style='text-align:center; color:{res_color}; font-weight:bold;'>{row['판정']}</td>
-                        <td style='text-align:left;'>{row['비고']}</td>
-                    </tr>
-                    """
-
-                def get_img_b64(f):
-                    if f: return f"data:{f.type};base64,{base64.b64encode(f.getvalue()).decode()}"
-                    return ""
-                b64_img1 = get_img_b64(chk_img1)
-                b64_img2 = get_img_b64(chk_img2)
-
-                # 🚀 이미지 높이 군살 빼기
-                img1_html = f"<img src='{b64_img1}' style='width:100%; max-height:280px; object-fit:contain;'>" if b64_img1 else "이미지 없음"
-                img2_html = f"<img src='{b64_img2}' style='width:100%; max-height:280px; object-fit:contain;'>" if b64_img2 else "이미지 없음"
-
-                # 🚀 여백(padding/margin) 축소 & 폰트 크기 유지
-                chk_html_content = f"""
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <style>
-                        @page {{ margin: 5mm; }}
-                        body {{ font-family: 'Malgun Gothic', sans-serif; padding: 0; margin: 0; color: #111; font-size: 18pt; }}
-                        .title {{ text-align: center; font-size: 38pt; font-weight: 900; letter-spacing: 5px; margin-bottom: 10px; }}
-                        table {{ width: 100%; border-collapse: collapse; margin-bottom: 10px; table-layout: fixed; }}
-                        th, td {{ border: 2px solid #222; padding: 6px 8px; vertical-align: middle; font-size: 18pt; line-height: 1.4; word-break: keep-all; }}
-                        th {{ background-color: #F1F5F9; font-weight: bold; text-align: center; color: #111; }}
-                    </style>
-                </head>
-                <body>
-                    <div class="title">샘플 체크 리스트 ({chk_round})</div>
-                    
-                    <table>
-                        <tr>
-                            <th style="width:15%;">제품명</th>
-                            <td style="width:35%; font-weight:bold; font-size:20pt;">{chk_prod_name}</td>
-                            <th style="width:15%;">작성일자</th>
-                            <td style="width:35%;">{str(chk_date)}</td>
-                        </tr>
-                        <tr>
-                            <th>컬러 및 옵션</th>
-                            <td style="font-size:20pt;">{chk_color_size}</td>
-                            <th>검수자</th>
-                            <td>{chk_reviewer}</td>
-                        </tr>
-                        <tr>
-                            <th>최종 판정</th>
-                            <td colspan="3" style="font-weight:900; font-size:24pt; color:#EE0979; text-align:center;">{chk_result}</td>
-                        </tr>
-                    </table>
-
-                    <table>
-                        <tr>
-                            <th style="width:5%;">No.</th>
-                            <th style="width:15%;">검수 항목</th>
-                            <th style="width:40%;">세부 검수 기준</th>
-                            <th style="width:10%;">판정</th>
-                            <th style="width:30%;">비고</th>
-                        </tr>
-                        {chk_tbody}
-                    </table>
-
-                    <table>
-                        <tr>
-                            <th style="width:50%;">본사 문의 및 개선 요청 사항</th>
-                            <th style="width:50%;">공장 피드백</th>
-                        </tr>
-                        <tr>
-                            <td style="height:80px; vertical-align:top; padding:10px;">{chk_inquiry.replace(chr(10), '<br>')}</td>
-                            <td style="height:80px; vertical-align:top; padding:10px;">{chk_feedback.replace(chr(10), '<br>')}</td>
-                        </tr>
-                    </table>
-
-                    <table>
-                        <tr>
-                            <th style="width:50%;">참고 이미지 1</th>
-                            <th style="width:50%;">참고 이미지 2</th>
-                        </tr>
-                        <tr>
-                            <td style="height:300px; text-align:center; vertical-align:middle; padding:5px;">{img1_html}</td>
-                            <td style="height:300px; text-align:center; vertical-align:middle; padding:5px;">{img2_html}</td>
-                        </tr>
-                    </table>
-                </body>
-                </html>
-                """
-
-                st.session_state['chk_html_content'] = chk_html_content
-                st.session_state['chk_html_name'] = f"샘플검수서_{chk_prod_name}_{chk_round}.html"
-                
-                st.success("✅ 검수 리스트 생성이 완료되었습니다! 아래에서 다운로드 버튼을 눌러주세요.")
-                time.sleep(1)
-                st.rerun()
-
-        if 'chk_html_content' in st.session_state:
-            st.divider()
-            st.markdown("##### 🖨️ 생성된 문서 다운로드")
-            st.info("💡 우측의 HTML 문서를 다운로드하여 브라우저에서 열고 'Ctrl+P(인쇄) -> PDF로 저장'을 이용해 주세요.")
-            st.download_button(
-                label="✅ 검수 리스트 다운로드 (HTML)", 
-                data=st.session_state['chk_html_content'].encode('utf-8-sig'), 
-                file_name=st.session_state['chk_html_name'], 
-                mime="text/html", 
-                use_container_width=True
-            )
-
-
-
-
-
