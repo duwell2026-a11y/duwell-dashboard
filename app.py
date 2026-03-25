@@ -1549,8 +1549,20 @@ elif menu == "마진/정산 분석":
                 except: pass
                 st.dataframe(styled_monthly, use_container_width=True, hide_index=True)
 
-            with tab_cal:
+with tab_cal:
                 st.markdown("### 캘린더 뷰 (일별 매출 & 순이익)")
+                
+                # 🔴 달력이 정상적으로 뜨도록 상단 네비게이션 옵션(headerToolbar)을 다시 살렸습니다!
+                cal_options = {
+                    "headerToolbar": {
+                        "left": "prev,next today",
+                        "center": "title",
+                        "right": "dayGridMonth"
+                    },
+                    "initialView": "dayGridMonth", 
+                    "height": 650, 
+                }
+                
                 valid_dates = df_calc[df_calc['날짜_str'].astype(bool) & (df_calc['날짜_str'] != 'nan') & (df_calc['날짜_str'] != '')]
                 events = []
                 if not valid_dates.empty:
@@ -1559,18 +1571,12 @@ elif menu == "마진/정산 분석":
                         d_str = str(row['날짜_str']).strip()
                         events.append({"title": f"매출: {row['매출액']:,.0f}", "start": d_str, "color": "#555555"})
                         events.append({"title": f"이익: {row['순이익']:,.0f}", "start": d_str, "color": "#800020"})
-                calendar(events=events, options={"initialView": "dayGridMonth", "height": 650}, key="sales_cal")
-
-            with tab_detail:
-                st.markdown("### 주문건별 상세 내역")
-                display_cols = ['날짜_str', '구매자명', '상품명', '수량', '예상결제금액', '마켓수수료', '매입단가(1개)', '총매입원가', '적용택배비', '예상순이익', '마진율(%)']
-                styled_df = df_calc[display_cols].style.format({
-                    '예상결제금액': '{:,.0f}', '마켓수수료': '{:,.0f}', '매입단가(1개)': '{:,.0f}', '총매입원가': '{:,.0f}', '적용택배비': '{:,.0f}',
-                    '예상순이익': '{:,.0f}', '마진율(%)': '{:.1f}%'
-                })
-                try: styled_df = styled_df.background_gradient(subset=['마진율(%)'], cmap='RdYlGn')
-                except: pass
-                st.dataframe(styled_df, use_container_width=True, hide_index=True)
+                
+                if not events:
+                    st.info("💡 캘린더에 표시할 유효한 판매 데이터가 없습니다.")
+                
+                # 🔴 키(key) 값을 살짝 변경하여 달력을 새로고침 하도록 강제합니다.
+                calendar(events=events, options=cal_options, key="sales_cal_fixed_v2")
 
 # === AI 비즈니스 센터 ===
 elif menu == "AI 비즈니스 센터":
