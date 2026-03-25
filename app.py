@@ -786,20 +786,44 @@ elif menu == "주문/생산 관리":
                                 st.cache_data.clear(); time.sleep(2); st.rerun()
                             else: st.error(msg)
 
+# ---------------------------------------------------------
+    # 3. 통합 발주 및 지시서 생성 탭
+    # ---------------------------------------------------------
     with op_tab3:
         st.markdown("#### 통합 발주 및 지시서 생성")
         if not df_all.empty:
             pending_orders = df_all[~df_all['상태'].isin(['발주완료', '배송중', '배송완료', '취소', '반품'])].copy()
-            if pending_orders.empty: st.success("현재 새로 공장에 넘길 발주 대기 건이 없습니다.")
+            if pending_orders.empty: 
+                st.success("현재 새로 공장에 넘길 발주 대기 건이 없습니다.")
             else:
                 if "선택" not in pending_orders.columns: pending_orders.insert(0, "선택", False)
                 if '작업유형' not in pending_orders.columns: pending_orders['작업유형'] = '일반(무지)'
                 if '케이스' not in pending_orders.columns: pending_orders['케이스'] = '기본(폴리백)'
 
                 st.markdown("##### 1️⃣ 발주 대상 선택")
+                
+                # 🔴 전체 선택 / 전체 해제 버튼 
+                btn_col1, btn_col2, btn_col3 = st.columns([1.5, 1.5, 7])
+                with btn_col1:
+                    if st.button("✅ 전체 선택", use_container_width=True):
+                        st.session_state['select_all_toggle'] = True
+                        if 'order_editor' in st.session_state: del st.session_state['order_editor']
+                        st.rerun()
+                with btn_col2:
+                    if st.button("🔲 전체 해제", use_container_width=True):
+                        st.session_state['select_all_toggle'] = False
+                        if 'order_editor' in st.session_state: del st.session_state['order_editor']
+                        st.rerun()
+
+                # 버튼을 눌렀을 때만 일괄 적용되도록 처리 (사용자가 개별 클릭도 할 수 있게 유지)
+                if 'select_all_toggle' in st.session_state:
+                    pending_orders['선택'] = st.session_state['select_all_toggle']
+                    del st.session_state['select_all_toggle']
+
                 edited_orders = st.data_editor(
                     pending_orders, column_config={"선택": st.column_config.CheckboxColumn(required=True)},
-                    column_order=['선택', '날짜_str', '구매자명', '상품명', '컬러', '작업유형', '케이스', '수량', '요청사항'], hide_index=True, use_container_width=True
+                    column_order=['선택', '날짜_str', '구매자명', '상품명', '컬러', '작업유형', '케이스', '수량', '요청사항'], 
+                    hide_index=True, use_container_width=True, key='order_editor'
                 )
                 selected_data = edited_orders[edited_orders['선택'] == True]
                 
