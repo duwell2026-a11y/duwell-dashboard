@@ -1274,7 +1274,7 @@ elif menu == "마진/정산 분석":
 
             tab_sum, tab_month, tab_cal, tab_detail = st.tabs(["전체 요약", "월별 정산 내역", "일별 매출 캘린더", "주문별 상세 내역"])
 
-with tab_sum:
+            with tab_sum:
                 st.markdown("### 누적 정산 리포트")
                 total_sales = df_calc['예상결제금액'].sum()
                 total_profit = df_calc['예상순이익'].sum()
@@ -1284,7 +1284,6 @@ with tab_sum:
                 c1.metric("누적 총 매출액", f"{total_sales:,.0f} 원")
                 c2.metric("누적 총 순이익", f"{total_profit:,.0f} 원")
                 c3.metric("평균 마진율", f"{avg_margin:.1f} %")
-
             with tab_month:
                 df_calc['월'] = df_calc['날짜'].dt.strftime('%Y-%m')
                 monthly_profit = df_calc.groupby('월').agg(
