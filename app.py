@@ -1274,7 +1274,7 @@ elif menu == "마진/정산 분석":
 
             tab_sum, tab_month, tab_cal, tab_detail = st.tabs(["전체 요약", "월별 정산 내역", "일별 매출 캘린더", "주문별 상세 내역"])
 
-            with tab_sum:
+with tab_sum:
                 st.markdown("### 누적 정산 리포트")
                 total_sales = df_calc['예상결제금액'].sum()
                 total_profit = df_calc['예상순이익'].sum()
@@ -1335,6 +1335,7 @@ elif menu == "마진/정산 분석":
                 else:
                     dynamic_key = f"sales_cal_{len(events)}_{daily_sales['매출액'].sum()}"
                     calendar(events=events, options=cal_options, key=dynamic_key)
+
             with tab_detail:
                 st.markdown("### 주문건별 상세 내역")
                 display_cols = ['날짜_str', '구매자명', '상품명', '수량', '예상결제금액', '마켓수수료', '매입단가(1개)', '총매입원가', '적용택배비', '예상순이익', '마진율(%)']
