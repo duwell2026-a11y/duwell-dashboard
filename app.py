@@ -132,7 +132,7 @@ except Exception as e:
     st.stop()
 
 # --------------------------------------------------------------------------
-# 3. 핵심 함수 모음 (중복 제거 및 완벽 정리)
+# 3. 핵심 함수 모음 
 # --------------------------------------------------------------------------
 def render_page_header(title, subtitle):
     st.markdown(f"""
@@ -173,7 +173,6 @@ def clean_date_str(date_val):
         return f"{y}-{int(m):02d}-{int(d):02d}"
     return s
 
-# 🔴 컬러 헥사코드 자동 번역기 (이 위치에 있어야 전체 시스템이 안전합니다!)
 def get_color_name(raw_color):
     raw_color = str(raw_color).strip()
     color_lower = raw_color.lower()
@@ -786,9 +785,6 @@ elif menu == "주문/생산 관리":
                                 st.cache_data.clear(); time.sleep(2); st.rerun()
                             else: st.error(msg)
 
-# ---------------------------------------------------------
-    # 3. 통합 발주 및 지시서 생성 탭
-    # ---------------------------------------------------------
     with op_tab3:
         st.markdown("#### 통합 발주 및 지시서 생성")
         if not df_all.empty:
@@ -802,7 +798,6 @@ elif menu == "주문/생산 관리":
 
                 st.markdown("##### 1️⃣ 발주 대상 선택")
                 
-                # 🔴 전체 선택 / 전체 해제 버튼 
                 btn_col1, btn_col2, btn_col3 = st.columns([1.5, 1.5, 7])
                 with btn_col1:
                     if st.button("✅ 전체 선택", use_container_width=True):
@@ -815,7 +810,6 @@ elif menu == "주문/생산 관리":
                         if 'order_editor' in st.session_state: del st.session_state['order_editor']
                         st.rerun()
 
-                # 버튼을 눌렀을 때만 일괄 적용되도록 처리 (사용자가 개별 클릭도 할 수 있게 유지)
                 if 'select_all_toggle' in st.session_state:
                     pending_orders['선택'] = st.session_state['select_all_toggle']
                     del st.session_state['select_all_toggle']
@@ -1205,6 +1199,244 @@ elif menu == "신제품 개발실":
                 use_container_width=True
             )
 
+# === 마진/정산 분석 ===
+elif menu == "마진/정산 분석":
+    render_page_header("마진/정산 분석", "실시간 마진 및 정산 분석기")
+    with st.expander("정산 기준 설정 (수수료율 입력)", expanded=True):
+        col_f1, col_f2, col_f3 = st.columns(3)
+        with col_f1:
+            fee_smart = st.number_input("스마트스토어 수수료 (%)", value=5.5)
+            fee_own = st.number_input("자사몰(PG) 수수료 (%)", value=3.0)
+        with col_f2:
+            fee_coupang = st.number_input("쿠팡 수수료 (%)", value=10.8)
+            fee_personal = st.number_input("개인판매/B2B 수수료 (%)", value=0.0) 
+        with col_f3:
+            fee_etc = st.number_input("기타 마켓 수수료 (%)", value=5.0)
+
+    if not df_all.empty:
+        df_cost, _ = load_data("옵션관리") 
+        df_calc = df_all[~df_all['상태'].isin(['취소', '반품', '교환'])].copy()
+
+        if df_calc.empty:
+            st.warning("현재 정산 가능한 유효 판매 데이터가 없습니다.")
+        else:
+            df_calc['수량'] = pd.to_numeric(df_calc['수량'], errors='coerce').fillna(1)
+            if '주문처' not in df_calc.columns: df_calc['주문처'] = ''
+
+            def calculate_profit(row):
+                market = str(row.get('주문처', '')).strip()
+                qty = row['수량']
+                item_name = str(row['상품명']).strip()
+                item_clean = item_name.replace(" ", "").lower()
+                
+                raw_paid = str(row.get('결제금액', '0')).replace(',', '').replace('원', '').strip()
+                actual_paid = pd.to_numeric(raw_paid, errors='coerce')
+                if pd.isna(actual_paid): actual_paid = 0
+                
+                raw_ship = str(row.get('택배비', '0')).replace(',', '').replace('원', '').strip()
+                actual_ship_cost = pd.to_numeric(raw_ship, errors='coerce')
+                if pd.isna(actual_ship_cost): actual_ship_cost = 0
+                
+                if market == "" or market == "nan": fee_rate = 0.0
+                elif '스마트스토어' in market: fee_rate = fee_smart / 100
+                elif '쿠팡' in market: fee_rate = fee_coupang / 100
+                elif '자사몰' in market: fee_rate = fee_own / 100
+                elif '개인' in market or 'B2B' in market: fee_rate = fee_personal / 100
+                else: fee_rate = fee_etc / 100
+                
+                unit_cost = 0
+                unit_price = 0
+                
+                if not df_cost.empty:
+                    for _, opt in df_cost.iterrows():
+                        std_name = str(opt.get('상품명', '')).strip()
+                        mapping_str = str(opt.get('매핑명', '')).strip()
+                        keywords = [k.strip() for k in mapping_str.split(',') if k.strip()] + [std_name]
+                        for kw in keywords:
+                            if not kw: continue
+                            if kw.replace(" ", "").lower() in item_clean:
+                                raw_price = str(opt.get('가격', 0)).replace(',', '').replace('원', '').replace('₩', '').replace('\\', '').strip()
+                                raw_cost = str(opt.get('원가', 0)).replace(',', '').replace('원', '').replace('₩', '').replace('\\', '').strip()
+                                unit_price = pd.to_numeric(raw_price, errors='coerce')
+                                unit_cost = pd.to_numeric(raw_cost, errors='coerce')
+                                if pd.isna(unit_price): unit_price = 0
+                                if pd.isna(unit_cost): unit_cost = 0
+                                break 
+                
+                total_revenue = actual_paid if actual_paid > 0 else (unit_price * qty)
+                total_cost = unit_cost * qty
+                commission_fee = total_revenue * fee_rate
+                net_profit = total_revenue - total_cost - commission_fee - actual_ship_cost
+                margin_rate = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
+                return pd.Series([total_revenue, commission_fee, unit_cost, total_cost, actual_ship_cost, net_profit, margin_rate])
+
+            df_calc[['예상결제금액', '마켓수수료', '매입단가(1개)', '총매입원가', '적용택배비', '예상순이익', '마진율(%)']] = df_calc.apply(calculate_profit, axis=1)
+
+            tab_sum, tab_month, tab_cal, tab_detail = st.tabs(["전체 요약", "월별 정산 내역", "일별 매출 캘린더", "주문별 상세 내역"])
+
+            with tab_sum:
+                st.markdown("### 누적 정산 리포트")
+                total_sales = df_calc['예상결제금액'].sum()
+                total_profit = df_calc['예상순이익'].sum()
+                avg_margin = (total_profit / total_sales * 100) if total_sales > 0 else 0
+                
+                c1, c2, c3 = st.columns(3)
+                c1.metric("누적 총 매출액", f"{total_sales:,.0f} 원")
+                c2.metric("누적 총 순이익", f"{total_profit:,.0f} 원")
+                c3.metric("평균 마진율", f"{avg_margin:.1f} %")
+
+            with tab_month:
+                df_calc['월'] = df_calc['날짜'].dt.strftime('%Y-%m')
+                monthly_profit = df_calc.groupby('월').agg(
+                    주문건수=('구매자명', 'count'), 매출액=('예상결제금액', 'sum'), 마켓수수료=('마켓수수료', 'sum'),
+                    총매입원가=('총매입원가', 'sum'), 택배비총합=('적용택배비', 'sum'), 순이익=('예상순이익', 'sum')
+                ).reset_index().sort_values('월', ascending=False)
+                monthly_profit['평균마진율(%)'] = (monthly_profit['순이익'] / monthly_profit['매출액'] * 100).fillna(0)
+                
+                styled_monthly = monthly_profit.style.format({
+                    '매출액': '{:,.0f}', '마켓수수료': '{:,.0f}', '총매입원가': '{:,.0f}', '택배비총합': '{:,.0f}',
+                    '순이익': '{:,.0f}', '평균마진율(%)': '{:.1f}%'
+                })
+                try: styled_monthly = styled_monthly.background_gradient(subset=['평균마진율(%)'], cmap='RdYlGn')
+                except: pass
+                st.dataframe(styled_monthly, use_container_width=True, hide_index=True)
+
+            with tab_cal:
+                st.markdown("### 캘린더 뷰 (일별 매출 & 순이익)")
+                cal_options = {
+                    "headerToolbar": {
+                        "left": "prev,next today",
+                        "center": "title",
+                        "right": "dayGridMonth"
+                    },
+                    "initialView": "dayGridMonth", 
+                    "height": 650, 
+                }
+                
+                valid_dates = df_calc[df_calc['날짜_str'].astype(bool) & (df_calc['날짜_str'] != 'nan') & (df_calc['날짜_str'] != '')]
+                events = []
+                if not valid_dates.empty:
+                    daily_sales = valid_dates.groupby('날짜_str').agg(매출액=('예상결제금액', 'sum'), 순이익=('예상순이익', 'sum')).reset_index()
+                    for _, row in daily_sales.iterrows():
+                        d_str = str(row['날짜_str']).strip()
+                        events.append({"title": f"매출: {row['매출액']:,.0f}", "start": d_str, "color": "#555555"})
+                        events.append({"title": f"이익: {row['순이익']:,.0f}", "start": d_str, "color": "#800020"})
+                
+                if not events:
+                    st.info("💡 캘린더에 표시할 유효한 판매 데이터가 없습니다.")
+                
+                calendar(events=events, options=cal_options, key="sales_cal_fixed_v2")
+
+            with tab_detail:
+                st.markdown("### 주문건별 상세 내역")
+                display_cols = ['날짜_str', '구매자명', '상품명', '수량', '예상결제금액', '마켓수수료', '매입단가(1개)', '총매입원가', '적용택배비', '예상순이익', '마진율(%)']
+                styled_df = df_calc[display_cols].style.format({
+                    '예상결제금액': '{:,.0f}', '마켓수수료': '{:,.0f}', '매입단가(1개)': '{:,.0f}', '총매입원가': '{:,.0f}', '적용택배비': '{:,.0f}',
+                    '예상순이익': '{:,.0f}', '마진율(%)': '{:.1f}%'
+                })
+                try: styled_df = styled_df.background_gradient(subset=['마진율(%)'], cmap='RdYlGn')
+                except: pass
+                st.dataframe(styled_df, use_container_width=True, hide_index=True)
+
+# === 옵션 관리 ===
+elif menu == "옵션 관리":
+    render_page_header("옵션 관리", "제품 등록/수정")
+    df_opt, sheet_opt = load_data("옵션관리")
+    if not df_opt.empty:
+        edited_df = st.data_editor(df_opt, num_rows="dynamic", use_container_width=True)
+        if st.button("저장"):
+            sheet_opt.clear()
+            new_data = [edited_df.columns.values.tolist()] + edited_df.values.tolist()
+            sheet_opt.update(values=new_data, range_name="A1")
+            st.success("저장됨"); st.rerun()
+
+# === 재고 관리 ===
+elif menu == "재고 관리":
+    render_page_header("재고 관리", "통합 재고 관리 시스템")
+    df_stock, sheet_stock = load_data("재고관리")
+    df_opt, _ = load_data("옵션관리")
+    tab1, tab2, tab3 = st.tabs(["재고 현황 (자동집계)", "대량 입출고 등록 (엑셀)", "개별 조정 (수동)"])
+    
+    with tab1:
+        if not df_stock.empty and not df_all.empty:
+            st.dataframe(df_stock, use_container_width=True)
+            
+    with tab2:
+        st.markdown("### 엑셀로 재고 일괄 등록")
+        uploaded_file = st.file_uploader("작성한 엑셀 파일 업로드", type=['xlsx', 'xls', 'csv'], key="stock_up")
+        if uploaded_file and st.button("재고 일괄 반영하기", type="primary"):
+            st.info("재고 일괄 반영 로직 수행")
+            
+    with tab3:
+        st.markdown("### 개별 상품 입/출고 (블랙박스 작동중)")
+        if not df_stock.empty:
+            with st.form("manual_stock"):
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1: target_prod = st.selectbox("상품 선택", df_stock['상품명'].unique())
+                with col2: action = st.radio("구분", ["입고 (+)", "출고/손실 (-)"], horizontal=True)
+                with col3: qty = st.number_input("수량", min_value=1, value=1)
+                
+                if st.form_submit_button("반영"):
+                    client = get_client()
+                    fresh_stock_sheet = client.open_by_key(SHEET_ID).worksheet("재고관리")
+                    cell = fresh_stock_sheet.find(target_prod)
+                    if cell:
+                        headers = fresh_stock_sheet.row_values(1)
+                        col_idx = next((i + 1 for i, h in enumerate(headers) if '재고' in h or '수량' in h), -1)
+                        if col_idx != -1:
+                            curr_val = int(pd.to_numeric(fresh_stock_sheet.cell(cell.row, col_idx).value, errors='coerce') or 0)
+                            final_qty = curr_val + qty if "입고" in action else curr_val - qty
+                            fresh_stock_sheet.update_cell(cell.row, col_idx, final_qty)
+                            log_msg = f"{target_prod} {qty}개 {action.split()[0]} 처리 (변경 전: {curr_val} -> 변경 후: {final_qty})"
+                            add_log("재고수동조정", log_msg)
+                            st.success(f"✅ {target_prod}: {final_qty}개로 변경 및 로그 기록 완료!"); time.sleep(1); st.rerun()
+
+# === 일정 관리 ===
+elif menu == "일정 관리":
+    render_page_header("일정 관리", "사내 스케줄 및 주요 일정을 등록하고 관리하세요.")
+    df_sch, sheet_sch = load_data("일정관리")
+    tab_cal, tab_edit = st.tabs(["캘린더 뷰", "일정 등록 및 수정 (수동 편집)"])
+    
+    with tab_cal:
+        if not df_sch.empty:
+            events = []
+            for _, r in df_sch.iterrows():
+                title = str(r.get('일정명', ''))
+                time_str = str(r.get('시간', ''))
+                if time_str and time_str != 'nan':
+                    title = f"[{time_str}] {title}"
+                events.append({"title": title, "start": str(r.get('시작일', '')), "color": "#2B3A55"})
+            calendar(events=events, options={"height": 650})
+        else:
+            st.info("💡 아직 등록된 일정이 없습니다.")
+
+    with tab_edit:
+        col1, col2 = st.columns([1, 2.5])
+        with col1:
+            st.markdown("##### ➕ 새 일정 추가")
+            with st.form("add_schedule"):
+                d_date = st.date_input("날짜", datetime.now())
+                d_time = st.time_input("시간")
+                d_title = st.text_input("일정명")
+                d_desc = st.text_area("상세내용")
+                if st.form_submit_button("일정 저장", type="primary"):
+                    if sheet_sch: 
+                        sheet_sch.append_row([str(d_date), str(d_date), str(d_time), d_title, d_desc])
+                        st.success("✅ 새 일정이 저장되었습니다!"); time.sleep(1); st.rerun()
+        with col2:
+            st.markdown("##### 기존 일정 수정 및 삭제")
+            if not df_sch.empty:
+                edited_df = st.data_editor(df_sch, num_rows="dynamic", use_container_width=True, key="schedule_editor")
+                if st.button("변경된 일정 내용 시트에 반영하기", type="secondary"):
+                    with st.spinner("구글 시트에 업데이트 중입니다..."):
+                        if sheet_sch:
+                            sheet_sch.clear()
+                            new_data = [edited_df.columns.values.tolist()] + edited_df.values.tolist()
+                            sheet_sch.update(values=new_data, range_name="A1")
+                            st.success(" 일정이 성공적으로 수정/삭제되었습니다!"); time.sleep(1); st.rerun()
+            else:
+                st.write("등록된 일정이 없습니다.")
+
 # === 마케팅 & CRM ===
 elif menu == "마케팅 & CRM":
     render_page_header("마케팅 & CRM 통합 센터", "고객 관리부터 광고 성과 측정, AI 카피라이팅까지 한곳에서 관리하세요.")
@@ -1345,238 +1577,8 @@ elif menu == "마케팅 & CRM":
                         st.markdown(f"**[{sns_type} 맞춤형 텍스트]**")
                         st.text_area("복사해서 바로 SNS에 올려보세요!", generated_text.strip(), height=300)
                     with tab_img:
-                        st.markdown(f"****")
+                        st.markdown(f"**[요청하신 '{mkt_concept}' 컨셉의 추천 이미지]**")
                         st.image("https://images.unsplash.com/photo-1584947937402-28e4e9fbdba8?q=80&w=800&auto=format&fit=crop", caption="AI 생성 이미지 미리보기 (샘플)")
-
-# === 재고 관리 ===
-elif menu == "재고 관리":
-    render_page_header("재고 관리", "통합 재고 관리 시스템")
-    df_stock, sheet_stock = load_data("재고관리")
-    df_opt, _ = load_data("옵션관리")
-    tab1, tab2, tab3 = st.tabs(["재고 현황 (자동집계)", "대량 입출고 등록 (엑셀)", "개별 조정 (수동)"])
-    
-    with tab1:
-        if not df_stock.empty and not df_all.empty:
-            st.dataframe(df_stock, use_container_width=True)
-            
-    with tab2:
-        st.markdown("### 엑셀로 재고 일괄 등록")
-        uploaded_file = st.file_uploader("작성한 엑셀 파일 업로드", type=['xlsx', 'xls', 'csv'], key="stock_up")
-        if uploaded_file and st.button("재고 일괄 반영하기", type="primary"):
-            st.info("재고 일괄 반영 로직 수행")
-            
-    with tab3:
-        st.markdown("### 개별 상품 입/출고 (블랙박스 작동중)")
-        if not df_stock.empty:
-            with st.form("manual_stock"):
-                col1, col2, col3 = st.columns([2, 1, 1])
-                with col1: target_prod = st.selectbox("상품 선택", df_stock['상품명'].unique())
-                with col2: action = st.radio("구분", ["입고 (+)", "출고/손실 (-)"], horizontal=True)
-                with col3: qty = st.number_input("수량", min_value=1, value=1)
-                
-                if st.form_submit_button("반영"):
-                    client = get_client()
-                    fresh_stock_sheet = client.open_by_key(SHEET_ID).worksheet("재고관리")
-                    cell = fresh_stock_sheet.find(target_prod)
-                    if cell:
-                        headers = fresh_stock_sheet.row_values(1)
-                        col_idx = next((i + 1 for i, h in enumerate(headers) if '재고' in h or '수량' in h), -1)
-                        if col_idx != -1:
-                            curr_val = int(pd.to_numeric(fresh_stock_sheet.cell(cell.row, col_idx).value, errors='coerce') or 0)
-                            final_qty = curr_val + qty if "입고" in action else curr_val - qty
-                            fresh_stock_sheet.update_cell(cell.row, col_idx, final_qty)
-                            log_msg = f"{target_prod} {qty}개 {action.split()[0]} 처리 (변경 전: {curr_val} -> 변경 후: {final_qty})"
-                            add_log("재고수동조정", log_msg)
-                            st.success(f"✅ {target_prod}: {final_qty}개로 변경 및 로그 기록 완료!"); time.sleep(1); st.rerun()
-
-# === 옵션 관리 ===
-elif menu == "옵션 관리":
-    render_page_header("옵션 관리", "제품 등록/수정")
-    df_opt, sheet_opt = load_data("옵션관리")
-    if not df_opt.empty:
-        edited_df = st.data_editor(df_opt, num_rows="dynamic", use_container_width=True)
-        if st.button("저장"):
-            sheet_opt.clear()
-            new_data = [edited_df.columns.values.tolist()] + edited_df.values.tolist()
-            sheet_opt.update(values=new_data, range_name="A1")
-            st.success("저장됨"); st.rerun()
-
-# === 일정 관리 ===
-elif menu == "일정 관리":
-    render_page_header("일정 관리", "사내 스케줄 및 주요 일정을 등록하고 관리하세요.")
-    df_sch, sheet_sch = load_data("일정관리")
-    tab_cal, tab_edit = st.tabs(["캘린더 뷰", "일정 등록 및 수정 (수동 편집)"])
-    
-    with tab_cal:
-        if not df_sch.empty:
-            events = []
-            for _, r in df_sch.iterrows():
-                title = str(r.get('일정명', ''))
-                time_str = str(r.get('시간', ''))
-                if time_str and time_str != 'nan':
-                    title = f"[{time_str}] {title}"
-                events.append({"title": title, "start": str(r.get('시작일', '')), "color": "#2B3A55"})
-            calendar(events=events, options={"height": 650})
-        else:
-            st.info("💡 아직 등록된 일정이 없습니다.")
-
-    with tab_edit:
-        col1, col2 = st.columns([1, 2.5])
-        with col1:
-            st.markdown("##### ➕ 새 일정 추가")
-            with st.form("add_schedule"):
-                d_date = st.date_input("날짜", datetime.now())
-                d_time = st.time_input("시간")
-                d_title = st.text_input("일정명")
-                d_desc = st.text_area("상세내용")
-                if st.form_submit_button("일정 저장", type="primary"):
-                    if sheet_sch: 
-                        sheet_sch.append_row([str(d_date), str(d_date), str(d_time), d_title, d_desc])
-                        st.success("✅ 새 일정이 저장되었습니다!"); time.sleep(1); st.rerun()
-        with col2:
-            st.markdown("##### 기존 일정 수정 및 삭제")
-            if not df_sch.empty:
-                edited_df = st.data_editor(df_sch, num_rows="dynamic", use_container_width=True, key="schedule_editor")
-                if st.button("변경된 일정 내용 시트에 반영하기", type="secondary"):
-                    with st.spinner("구글 시트에 업데이트 중입니다..."):
-                        if sheet_sch:
-                            sheet_sch.clear()
-                            new_data = [edited_df.columns.values.tolist()] + edited_df.values.tolist()
-                            sheet_sch.update(values=new_data, range_name="A1")
-                            st.success(" 일정이 성공적으로 수정/삭제되었습니다!"); time.sleep(1); st.rerun()
-            else:
-                st.write("등록된 일정이 없습니다.")
-
-# === 마진/정산 분석 ===
-elif menu == "마진/정산 분석":
-    render_page_header("마진/정산 분석", "실시간 마진 및 정산 분석기")
-    with st.expander("정산 기준 설정 (수수료율 입력)", expanded=True):
-        col_f1, col_f2, col_f3 = st.columns(3)
-        with col_f1:
-            fee_smart = st.number_input("스마트스토어 수수료 (%)", value=5.5)
-            fee_own = st.number_input("자사몰(PG) 수수료 (%)", value=3.0)
-        with col_f2:
-            fee_coupang = st.number_input("쿠팡 수수료 (%)", value=10.8)
-            fee_personal = st.number_input("개인판매/B2B 수수료 (%)", value=0.0) 
-        with col_f3:
-            fee_etc = st.number_input("기타 마켓 수수료 (%)", value=5.0)
-
-    if not df_all.empty:
-        df_cost, _ = load_data("옵션관리") 
-        df_calc = df_all[~df_all['상태'].isin(['취소', '반품', '교환'])].copy()
-
-        if df_calc.empty:
-            st.warning("현재 정산 가능한 유효 판매 데이터가 없습니다.")
-        else:
-            df_calc['수량'] = pd.to_numeric(df_calc['수량'], errors='coerce').fillna(1)
-            if '주문처' not in df_calc.columns: df_calc['주문처'] = ''
-
-            def calculate_profit(row):
-                market = str(row.get('주문처', '')).strip()
-                qty = row['수량']
-                item_name = str(row['상품명']).strip()
-                item_clean = item_name.replace(" ", "").lower()
-                
-                raw_paid = str(row.get('결제금액', '0')).replace(',', '').replace('원', '').strip()
-                actual_paid = pd.to_numeric(raw_paid, errors='coerce')
-                if pd.isna(actual_paid): actual_paid = 0
-                
-                raw_ship = str(row.get('택배비', '0')).replace(',', '').replace('원', '').strip()
-                actual_ship_cost = pd.to_numeric(raw_ship, errors='coerce')
-                if pd.isna(actual_ship_cost): actual_ship_cost = 0
-                
-                if market == "" or market == "nan": fee_rate = 0.0
-                elif '스마트스토어' in market: fee_rate = fee_smart / 100
-                elif '쿠팡' in market: fee_rate = fee_coupang / 100
-                elif '자사몰' in market: fee_rate = fee_own / 100
-                elif '개인' in market or 'B2B' in market: fee_rate = fee_personal / 100
-                else: fee_rate = fee_etc / 100
-                
-                unit_cost = 0
-                unit_price = 0
-                
-                if not df_cost.empty:
-                    for _, opt in df_cost.iterrows():
-                        std_name = str(opt.get('상품명', '')).strip()
-                        mapping_str = str(opt.get('매핑명', '')).strip()
-                        keywords = [k.strip() for k in mapping_str.split(',') if k.strip()] + [std_name]
-                        for kw in keywords:
-                            if not kw: continue
-                            if kw.replace(" ", "").lower() in item_clean:
-                                raw_price = str(opt.get('가격', 0)).replace(',', '').replace('원', '').replace('₩', '').replace('\\', '').strip()
-                                raw_cost = str(opt.get('원가', 0)).replace(',', '').replace('원', '').replace('₩', '').replace('\\', '').strip()
-                                unit_price = pd.to_numeric(raw_price, errors='coerce')
-                                unit_cost = pd.to_numeric(raw_cost, errors='coerce')
-                                if pd.isna(unit_price): unit_price = 0
-                                if pd.isna(unit_cost): unit_cost = 0
-                                break 
-                
-                total_revenue = actual_paid if actual_paid > 0 else (unit_price * qty)
-                total_cost = unit_cost * qty
-                commission_fee = total_revenue * fee_rate
-                net_profit = total_revenue - total_cost - commission_fee - actual_ship_cost
-                margin_rate = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
-                return pd.Series([total_revenue, commission_fee, unit_cost, total_cost, actual_ship_cost, net_profit, margin_rate])
-
-            df_calc[['예상결제금액', '마켓수수료', '매입단가(1개)', '총매입원가', '적용택배비', '예상순이익', '마진율(%)']] = df_calc.apply(calculate_profit, axis=1)
-
-            tab_sum, tab_month, tab_cal, tab_detail = st.tabs(["전체 요약", "월별 정산 내역", "일별 매출 캘린더", "주문별 상세 내역"])
-
-            with tab_sum:
-                st.markdown("### 누적 정산 리포트")
-                total_sales = df_calc['예상결제금액'].sum()
-                total_profit = df_calc['예상순이익'].sum()
-                avg_margin = (total_profit / total_sales * 100) if total_sales > 0 else 0
-                
-                c1, c2, c3 = st.columns(3)
-                c1.metric("누적 총 매출액", f"{total_sales:,.0f} 원")
-                c2.metric("누적 총 순이익", f"{total_profit:,.0f} 원")
-                c3.metric("평균 마진율", f"{avg_margin:.1f} %")
-
-            with tab_month:
-                df_calc['월'] = df_calc['날짜'].dt.strftime('%Y-%m')
-                monthly_profit = df_calc.groupby('월').agg(
-                    주문건수=('구매자명', 'count'), 매출액=('예상결제금액', 'sum'), 마켓수수료=('마켓수수료', 'sum'),
-                    총매입원가=('총매입원가', 'sum'), 택배비총합=('적용택배비', 'sum'), 순이익=('예상순이익', 'sum')
-                ).reset_index().sort_values('월', ascending=False)
-                monthly_profit['평균마진율(%)'] = (monthly_profit['순이익'] / monthly_profit['매출액'] * 100).fillna(0)
-                
-                styled_monthly = monthly_profit.style.format({
-                    '매출액': '{:,.0f}', '마켓수수료': '{:,.0f}', '총매입원가': '{:,.0f}', '택배비총합': '{:,.0f}',
-                    '순이익': '{:,.0f}', '평균마진율(%)': '{:.1f}%'
-                })
-                try: styled_monthly = styled_monthly.background_gradient(subset=['평균마진율(%)'], cmap='RdYlGn')
-                except: pass
-                st.dataframe(styled_monthly, use_container_width=True, hide_index=True)
-
-with tab_cal:
-                st.markdown("### 캘린더 뷰 (일별 매출 & 순이익)")
-                
-                # 🔴 달력이 정상적으로 뜨도록 상단 네비게이션 옵션(headerToolbar)을 다시 살렸습니다!
-                cal_options = {
-                    "headerToolbar": {
-                        "left": "prev,next today",
-                        "center": "title",
-                        "right": "dayGridMonth"
-                    },
-                    "initialView": "dayGridMonth", 
-                    "height": 650, 
-                }
-                
-                valid_dates = df_calc[df_calc['날짜_str'].astype(bool) & (df_calc['날짜_str'] != 'nan') & (df_calc['날짜_str'] != '')]
-                events = []
-                if not valid_dates.empty:
-                    daily_sales = valid_dates.groupby('날짜_str').agg(매출액=('예상결제금액', 'sum'), 순이익=('예상순이익', 'sum')).reset_index()
-                    for _, row in daily_sales.iterrows():
-                        d_str = str(row['날짜_str']).strip()
-                        events.append({"title": f"매출: {row['매출액']:,.0f}", "start": d_str, "color": "#555555"})
-                        events.append({"title": f"이익: {row['순이익']:,.0f}", "start": d_str, "color": "#800020"})
-                
-                if not events:
-                    st.info("💡 캘린더에 표시할 유효한 판매 데이터가 없습니다.")
-                
-                # 🔴 키(key) 값을 살짝 변경하여 달력을 새로고침 하도록 강제합니다.
-                calendar(events=events, options=cal_options, key="sales_cal_fixed_v2")
 
 # === AI 비즈니스 센터 ===
 elif menu == "AI 비즈니스 센터":
