@@ -1335,7 +1335,7 @@ elif menu == "마진/정산 분석":
                 else:
                     dynamic_key = f"sales_cal_{len(events)}_{daily_sales['매출액'].sum()}"
                     calendar(events=events, options=cal_options, key=dynamic_key)
-        with tab_detail:
+       with tab_detail:
                 st.markdown("### 주문건별 상세 내역")
                 display_cols = ['날짜_str', '구매자명', '상품명', '수량', '예상결제금액', '마켓수수료', '매입단가(1개)', '총매입원가', '적용택배비', '예상순이익', '마진율(%)']
                 styled_df = df_calc[display_cols].style.format({
