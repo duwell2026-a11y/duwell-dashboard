@@ -1347,7 +1347,7 @@ with tab_sum:
                 except: pass
                 st.dataframe(styled_df, use_container_width=True, hide_index=True)
 
-with tab_cal:
+            with tab_cal:
                 st.markdown("### 캘린더 뷰 (일별 매출 & 순이익)")
                 cal_options = {
                     "headerToolbar": {
